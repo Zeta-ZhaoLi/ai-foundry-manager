@@ -1,29 +1,21 @@
-import React, { useMemo, useState } from 'react';
-import { NewApiClient } from '../api/newApiClient';
-import { defaultConfig, NewApiConfig } from '../config';
-import { useAzureChannels } from '../hooks/useAzureChannels';
+import React, { useState } from 'react';
+import { useLocalAzureAccounts } from '../hooks/useLocalAzureAccounts';
 import { buildCopyString } from '../utils/modelSeries';
 
-function createClient(config: NewApiConfig) {
-  return new NewApiClient(config);
-}
-
 export const AzureModelsDashboard: React.FC = () => {
-  const [config, setConfig] = useState<NewApiConfig>(defaultConfig);
-  const client = useMemo(
-    () => createClient(config),
-    [config.baseUrl, config.adminToken],
-  );
-
   const {
-    channels,
+    accounts,
     accountSummaries,
     globalSeriesSummary,
-    loadingChannels,
-    loadingModels,
-    error,
-    loadAllModels,
-  } = useAzureChannels(client);
+    addAccount,
+    updateAccountName,
+    updateAccountNote,
+    deleteAccount,
+    addRegion,
+    updateRegionName,
+    updateRegionModelsText,
+    deleteRegion,
+  } = useLocalAzureAccounts();
 
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
@@ -58,45 +50,6 @@ export const AzureModelsDashboard: React.FC = () => {
           borderRadius: 8,
           border: '1px solid #e5e7eb',
           background: '#fafafa',
-          maxWidth: 640,
-        }}
-      >
-        <h2 style={{ fontSize: 18, marginBottom: 8 }}>连接配置</h2>
-        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
-          指向你的 new-api 管理面板地址，并提供管理员 Token
-          （如果开启了 Token 鉴权）。也可以只用 Cookie 登录状态，留空 Token。
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: 13 }}>
-            new-api 地址：
-            <input
-              style={{ width: '100%', padding: 6, marginTop: 4 }}
-              value={config.baseUrl}
-              onChange={(e) =>
-                setConfig((c) => ({ ...c, baseUrl: e.target.value }))
-              }
-              placeholder='http://localhost:3000'
-            />
-          </label>
-          <label style={{ fontSize: 13 }}>
-            管理员 Token（可选）：
-            <input
-              style={{ width: '100%', padding: 6, marginTop: 4 }}
-              value={config.adminToken}
-              onChange={(e) =>
-                setConfig((c) => ({ ...c, adminToken: e.target.value }))
-              }
-              placeholder='从 new-api 后台生成的 Bearer Token'
-            />
-          </label>
-        </div>
-      </section>
-
-      <section
-        style={{
-          padding: 12,
-          borderRadius: 8,
-          border: '1px solid #e5e7eb',
         }}
       >
         <div
@@ -108,36 +61,206 @@ export const AzureModelsDashboard: React.FC = () => {
           }}
         >
           <div>
-            <h2 style={{ fontSize: 18, marginBottom: 4 }}>Azure 渠道概览</h2>
+            <h2 style={{ fontSize: 18, marginBottom: 4 }}>
+              本地 Azure 账号配置
+            </h2>
             <div style={{ fontSize: 13, color: '#6b7280' }}>
-              当前从 new-api 加载的 Azure 渠道数量：{channels.length}（type = 3）
+              在这里手动维护 Azure 账号、区域和模型列表，数据保存在浏览器
+              localStorage 中。
             </div>
           </div>
           <button
-            disabled={loadingChannels || loadingModels || channels.length === 0}
-            onClick={() => loadAllModels()}
+            onClick={addAccount}
             style={{
               padding: '6px 12px',
               borderRadius: 4,
-              border: '1px solid #2563eb',
-              background: '#2563eb',
+              border: '1px solid #16a34a',
+              background: '#16a34a',
               color: '#fff',
-              cursor:
-                loadingChannels || loadingModels || channels.length === 0
-                  ? 'not-allowed'
-                  : 'pointer',
+              cursor: 'pointer',
+              fontSize: 13,
             }}
           >
-            {loadingModels ? '正在获取模型列表…' : '获取所有渠道模型列表'}
+            新增账号
           </button>
         </div>
-        {error && (
-          <div style={{ color: '#b91c1c', fontSize: 13, marginBottom: 8 }}>
-            错误：{error}
-          </div>
-        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {accounts.map((acct) => (
+            <div
+              key={acct.id}
+              style={{
+                borderRadius: 6,
+                border: '1px solid #e5e7eb',
+                padding: 10,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}
+              >
+                <div style={{ flex: 1, marginRight: 8 }}>
+                  <label style={{ fontSize: 13 }}>
+                    账号名称：
+                    <input
+                      style={{ width: '100%', padding: 4, marginTop: 4 }}
+                      value={acct.name}
+                      onChange={(e) =>
+                        updateAccountName(acct.id, e.target.value)
+                      }
+                      placeholder='例如：生产订阅-AzureOpenAI'
+                    />
+                  </label>
+                  <label style={{ fontSize: 13, display: 'block', marginTop: 6 }}>
+                    备注（可选）：
+                    <input
+                      style={{ width: '100%', padding: 4, marginTop: 4 }}
+                      value={acct.note || ''}
+                      onChange={(e) =>
+                        updateAccountNote(acct.id, e.target.value)
+                      }
+                      placeholder='例如：租户 ID、订阅 ID 等'
+                    />
+                  </label>
+                </div>
+                <button
+                  onClick={() => deleteAccount(acct.id)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 4,
+                    border: '1px solid #b91c1c',
+                    background: '#fee2e2',
+                    color: '#b91c1c',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    height: 32,
+                  }}
+                >
+                  删除账号
+                </button>
+              </div>
+
+              <div style={{ marginBottom: 6 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 4,
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>区域列表</div>
+                  <button
+                    onClick={() => addRegion(acct.id)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      border: '1px solid #2563eb',
+                      background: '#2563eb',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
+                  >
+                    新增区域
+                  </button>
+                </div>
+                {acct.regions.length === 0 && (
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    暂无区域，请点击“新增区域”开始配置。
+                  </div>
+                )}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    marginTop: 4,
+                  }}
+                >
+                  {acct.regions.map((reg) => (
+                    <div
+                      key={reg.id}
+                      style={{
+                        borderRadius: 4,
+                        border: '1px solid #e5e7eb',
+                        padding: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <label style={{ fontSize: 13, flex: 1, marginRight: 8 }}>
+                          区域名称：
+                          <input
+                            style={{
+                              width: '100%',
+                              padding: 4,
+                              marginTop: 4,
+                            }}
+                            value={reg.name}
+                            onChange={(e) =>
+                              updateRegionName(acct.id, reg.id, e.target.value)
+                            }
+                            placeholder='例如：eastus、swedencentral'
+                          />
+                        </label>
+                        <button
+                          onClick={() => deleteRegion(acct.id, reg.id)}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: 4,
+                            border: '1px solid #b91c1c',
+                            background: '#fee2e2',
+                            color: '#b91c1c',
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            height: 30,
+                          }}
+                        >
+                          删除区域
+                        </button>
+                      </div>
+                      <label style={{ fontSize: 13 }}>
+                        模型列表（可用逗号、换行或空格分隔）：
+                        <textarea
+                          style={{
+                            width: '100%',
+                            padding: 4,
+                            marginTop: 4,
+                            minHeight: 60,
+                            resize: 'vertical',
+                          }}
+                          value={reg.modelsText}
+                          onChange={(e) =>
+                            updateRegionModelsText(
+                              acct.id,
+                              reg.id,
+                              e.target.value,
+                            )
+                          }
+                          placeholder='例如：gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo'
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {copyMessage && (
-          <div style={{ color: '#16a34a', fontSize: 13, marginBottom: 8 }}>
+          <div style={{ color: '#16a34a', fontSize: 13, marginTop: 8 }}>
             {copyMessage}
           </div>
         )}
@@ -254,8 +377,7 @@ export const AzureModelsDashboard: React.FC = () => {
             }}
           >
             <div style={{ fontSize: 13, color: '#6b7280' }}>
-              全部 Azure 渠道总模型数：
-              {globalSeriesSummary.allModels.length}
+              全部账号总模型数：{globalSeriesSummary.allModels.length}
             </div>
             <button
               onClick={() =>
