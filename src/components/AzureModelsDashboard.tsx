@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocalAzureAccounts } from '../hooks/useLocalAzureAccounts';
 import { buildCopyString } from '../utils/modelSeries';
+
+const MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
+
+// 解析模型字符串，支持逗号 / 空格 / 换行分隔，并去重
+const parseModels = (text: string): string[] => {
+  if (!text) return [];
+  const parts = text
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return Array.from(new Set(parts));
+};
 
 export const AzureModelsDashboard: React.FC = () => {
   const {
@@ -19,7 +31,29 @@ export const AzureModelsDashboard: React.FC = () => {
 
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
+  // 全局模型目录（手动输入一次，逗号分隔）
+  const [masterText, setMasterText] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const saved = window.localStorage.getItem(MASTER_STORAGE_KEY);
+      return saved || '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MASTER_STORAGE_KEY, masterText);
+    } catch {
+      // ignore
+    }
+  }, [masterText]);
+
+  const masterModels = useMemo(() => parseModels(masterText).sort(), [masterText]);
+
   const handleCopy = (text: string) => {
+    if (!text) return;
     if (!navigator.clipboard) {
       try {
         const textarea = document.createElement('textarea');
@@ -42,14 +76,114 @@ export const AzureModelsDashboard: React.FC = () => {
       .catch(() => setCopyMessage('复制失败，请手动选择文本'));
   };
 
+  const toggleRegionModel = (
+    accountId: string,
+    regionId: string,
+    currentModelsText: string,
+    modelId: string,
+  ) => {
+    const current = parseModels(currentModelsText);
+    const set = new Set(current);
+    if (set.has(modelId)) {
+      set.delete(modelId);
+    } else {
+      set.add(modelId);
+    }
+    const next = Array.from(set).sort().join(',');
+    updateRegionModelsText(accountId, regionId, next);
+  };
+
+  const selectAllForRegion = (
+    accountId: string,
+    regionId: string,
+  ) => {
+    if (masterModels.length === 0) return;
+    const text = masterModels.join(',');
+    updateRegionModelsText(accountId, regionId, text);
+  };
+
+  const clearRegionModels = (accountId: string, regionId: string) => {
+    updateRegionModelsText(accountId, regionId, '');
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}
+    >
+      {/* 全局模型目录 */}
       <section
         style={{
-          padding: 12,
-          borderRadius: 8,
+          padding: 16,
+          borderRadius: 12,
+          border: '1px solid #1f2937',
+          background:
+            'radial-gradient(circle at top left, #0f172a, #020617 55%, #000 100%)',
+          color: '#e5e7eb',
+        }}
+      >
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>全局模型目录</h2>
+        <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 8 }}>
+          在这里一次性输入你所有可能用到的模型，使用 <code>,</code>、空格或换行分隔。
+          下面所有账号/区域都会从这份目录中点选模型，无需重复输入。
+        </p>
+        <textarea
+          style={{
+            width: '100%',
+            minHeight: 80,
+            padding: 8,
+            borderRadius: 8,
+            border: '1px solid #4b5563',
+            backgroundColor: '#020617',
+            color: '#e5e7eb',
+            fontSize: 13,
+            resize: 'vertical',
+          }}
+          value={masterText}
+          onChange={(e) => setMasterText(e.target.value)}
+          placeholder="例如：gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ..."
+        />
+        <div style={{ marginTop: 8, fontSize: 13, color: '#9ca3af' }}>
+          已解析模型数：{masterModels.length}
+        </div>
+        {masterModels.length > 0 && (
+          <div
+            style={{
+              marginTop: 8,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+            }}
+          >
+            {masterModels.map((m) => (
+              <span
+                key={m}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  border: '1px solid #4b5563',
+                  fontSize: 12,
+                  background:
+                    'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.12))',
+                }}
+              >
+                {m}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 本地账号 & 区域配置 */}
+      <section
+        style={{
+          padding: 16,
+          borderRadius: 12,
           border: '1px solid #e5e7eb',
-          background: '#fafafa',
+          backgroundColor: '#f9fafb',
         }}
       >
         <div
@@ -61,11 +195,9 @@ export const AzureModelsDashboard: React.FC = () => {
           }}
         >
           <div>
-            <h2 style={{ fontSize: 18, marginBottom: 4 }}>
-              本地 Azure 账号配置
-            </h2>
+            <h2 style={{ fontSize: 18, marginBottom: 4 }}>本地 Azure 账号配置</h2>
             <div style={{ fontSize: 13, color: '#6b7280' }}>
-              在这里手动维护 Azure 账号、区域和模型列表，数据保存在浏览器
+              为每个账号添加区域，然后在区域下点击选择可用模型。所有数据会保存在浏览器
               localStorage 中。
             </div>
           </div>
@@ -73,15 +205,17 @@ export const AzureModelsDashboard: React.FC = () => {
             onClick={addAccount}
             style={{
               padding: '6px 12px',
-              borderRadius: 4,
-              border: '1px solid #16a34a',
-              background: '#16a34a',
-              color: '#fff',
+              borderRadius: 999,
+              border: '1px solid #0ea5e9',
+              background:
+                'linear-gradient(135deg, #0ea5e9, #22c55e)',
+              color: '#ffffff',
               cursor: 'pointer',
               fontSize: 13,
+              fontWeight: 500,
             }}
           >
-            新增账号
+            + 新增账号
           </button>
         </div>
 
@@ -90,9 +224,12 @@ export const AzureModelsDashboard: React.FC = () => {
             <div
               key={acct.id}
               style={{
-                borderRadius: 6,
+                borderRadius: 10,
                 border: '1px solid #e5e7eb',
-                padding: 10,
+                padding: 12,
+                backgroundColor: '#ffffff',
+                boxShadow:
+                  '0 10px 25px -15px rgba(15,23,42,0.4)',
               }}
             >
               <div
@@ -107,23 +244,43 @@ export const AzureModelsDashboard: React.FC = () => {
                   <label style={{ fontSize: 13 }}>
                     账号名称：
                     <input
-                      style={{ width: '100%', padding: 4, marginTop: 4 }}
+                      style={{
+                        width: '100%',
+                        padding: 6,
+                        marginTop: 4,
+                        borderRadius: 8,
+                        border: '1px solid #d1d5db',
+                        fontSize: 13,
+                      }}
                       value={acct.name}
                       onChange={(e) =>
                         updateAccountName(acct.id, e.target.value)
                       }
-                      placeholder='例如：生产订阅-AzureOpenAI'
+                      placeholder="例如：Prod-Subscription-AzureOpenAI"
                     />
                   </label>
-                  <label style={{ fontSize: 13, display: 'block', marginTop: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      display: 'block',
+                      marginTop: 6,
+                    }}
+                  >
                     备注（可选）：
                     <input
-                      style={{ width: '100%', padding: 4, marginTop: 4 }}
+                      style={{
+                        width: '100%',
+                        padding: 6,
+                        marginTop: 4,
+                        borderRadius: 8,
+                        border: '1px solid #e5e7eb',
+                        fontSize: 13,
+                      }}
                       value={acct.note || ''}
                       onChange={(e) =>
                         updateAccountNote(acct.id, e.target.value)
                       }
-                      placeholder='例如：租户 ID、订阅 ID 等'
+                      placeholder="例如：租户 ID、订阅 ID、联系人等"
                     />
                   </label>
                 </div>
@@ -131,9 +288,9 @@ export const AzureModelsDashboard: React.FC = () => {
                   onClick={() => deleteAccount(acct.id)}
                   style={{
                     padding: '4px 10px',
-                    borderRadius: 4,
-                    border: '1px solid #b91c1c',
-                    background: '#fee2e2',
+                    borderRadius: 999,
+                    border: '1px solid #fecaca',
+                    backgroundColor: '#fef2f2',
                     color: '#b91c1c',
                     cursor: 'pointer',
                     fontSize: 12,
@@ -157,20 +314,20 @@ export const AzureModelsDashboard: React.FC = () => {
                   <button
                     onClick={() => addRegion(acct.id)}
                     style={{
-                      padding: '3px 8px',
-                      borderRadius: 4,
-                      border: '1px solid #2563eb',
-                      background: '#2563eb',
-                      color: '#fff',
+                      padding: '3px 10px',
+                      borderRadius: 999,
+                      border: '1px solid #0ea5e9',
+                      backgroundColor: '#e0f2fe',
+                      color: '#0369a1',
                       cursor: 'pointer',
                       fontSize: 12,
                     }}
                   >
-                    新增区域
+                    + 新增区域
                   </button>
                 </div>
                 {acct.regions.length === 0 && (
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  <div style={{ fontSize: 12, color: '#9ca3af' }}>
                     暂无区域，请点击“新增区域”开始配置。
                   </div>
                 )}
@@ -182,77 +339,170 @@ export const AzureModelsDashboard: React.FC = () => {
                     marginTop: 4,
                   }}
                 >
-                  {acct.regions.map((reg) => (
-                    <div
-                      key={reg.id}
-                      style={{
-                        borderRadius: 4,
-                        border: '1px solid #e5e7eb',
-                        padding: 8,
-                      }}
-                    >
+                  {acct.regions.map((reg) => {
+                    const selectedSet = new Set(parseModels(reg.modelsText));
+                    return (
                       <div
+                        key={reg.id}
                         style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: 4,
+                          borderRadius: 8,
+                          border: '1px solid #e5e7eb',
+                          padding: 8,
+                          backgroundColor: '#f9fafb',
                         }}
                       >
-                        <label style={{ fontSize: 13, flex: 1, marginRight: 8 }}>
-                          区域名称：
-                          <input
-                            style={{
-                              width: '100%',
-                              padding: 4,
-                              marginTop: 4,
-                            }}
-                            value={reg.name}
-                            onChange={(e) =>
-                              updateRegionName(acct.id, reg.id, e.target.value)
-                            }
-                            placeholder='例如：eastus、swedencentral'
-                          />
-                        </label>
-                        <button
-                          onClick={() => deleteRegion(acct.id, reg.id)}
+                        <div
                           style={{
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            border: '1px solid #b91c1c',
-                            background: '#fee2e2',
-                            color: '#b91c1c',
-                            cursor: 'pointer',
-                            fontSize: 12,
-                            height: 30,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 6,
                           }}
                         >
-                          删除区域
-                        </button>
+                          <label
+                            style={{
+                              fontSize: 13,
+                              flex: 1,
+                              marginRight: 8,
+                            }}
+                          >
+                            区域名称：
+                            <input
+                              style={{
+                                width: '100%',
+                                padding: 5,
+                                marginTop: 4,
+                                borderRadius: 8,
+                                border: '1px solid #d1d5db',
+                                fontSize: 13,
+                              }}
+                              value={reg.name}
+                              onChange={(e) =>
+                                updateRegionName(
+                                  acct.id,
+                                  reg.id,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="例如：eastus、swedencentral"
+                            />
+                          </label>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <button
+                              onClick={() =>
+                                selectAllForRegion(acct.id, reg.id)
+                              }
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #bbf7d0',
+                                backgroundColor: '#ecfdf5',
+                                color: '#166534',
+                                cursor: 'pointer',
+                                fontSize: 11,
+                              }}
+                            >
+                              全选
+                            </button>
+                            <button
+                              onClick={() =>
+                                clearRegionModels(acct.id, reg.id)
+                              }
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #fee2e2',
+                                backgroundColor: '#fef2f2',
+                                color: '#b91c1c',
+                                cursor: 'pointer',
+                                fontSize: 11,
+                              }}
+                            >
+                              清空
+                            </button>
+                            <button
+                              onClick={() =>
+                                deleteRegion(acct.id, reg.id)
+                              }
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #fecaca',
+                                backgroundColor: '#fef2f2',
+                                color: '#b91c1c',
+                                cursor: 'pointer',
+                                fontSize: 11,
+                              }}
+                            >
+                              删除区域
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6b7280' }}>
+                          模型选择（点击切换选中状态）：
+                        </div>
+                        {masterModels.length === 0 ? (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: '#9ca3af',
+                              marginTop: 4,
+                            }}
+                          >
+                            请先在页面顶部配置“全局模型目录”，然后再为区域点选模型。
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              marginTop: 6,
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: 6,
+                            }}
+                          >
+                            {masterModels.map((model) => {
+                              const selected = selectedSet.has(model);
+                              return (
+                                <button
+                                  key={model}
+                                  type="button"
+                                  onClick={() =>
+                                    toggleRegionModel(
+                                      acct.id,
+                                      reg.id,
+                                      reg.modelsText,
+                                      model,
+                                    )
+                                  }
+                                  style={{
+                                    padding: '4px 8px',
+                                    borderRadius: 999,
+                                    border: selected
+                                      ? '1px solid #0ea5e9'
+                                      : '1px solid #d1d5db',
+                                    background: selected
+                                      ? 'linear-gradient(135deg, #0ea5e9, #22c55e)'
+                                      : '#ffffff',
+                                    color: selected ? '#ffffff' : '#111827',
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {model}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <label style={{ fontSize: 13 }}>
-                        模型列表（可用逗号、换行或空格分隔）：
-                        <textarea
-                          style={{
-                            width: '100%',
-                            padding: 4,
-                            marginTop: 4,
-                            minHeight: 60,
-                            resize: 'vertical',
-                          }}
-                          value={reg.modelsText}
-                          onChange={(e) =>
-                            updateRegionModelsText(
-                              acct.id,
-                              reg.id,
-                              e.target.value,
-                            )
-                          }
-                          placeholder='例如：gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo'
-                        />
-                      </label>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -266,12 +516,14 @@ export const AzureModelsDashboard: React.FC = () => {
         )}
       </section>
 
+      {/* 按账号聚合 */}
       {accountSummaries.length > 0 && (
         <section
           style={{
-            padding: 12,
-            borderRadius: 8,
+            padding: 16,
+            borderRadius: 12,
             border: '1px solid #e5e7eb',
+            backgroundColor: '#ffffff',
           }}
         >
           <h2 style={{ fontSize: 18, marginBottom: 8 }}>按账号聚合</h2>
@@ -282,9 +534,10 @@ export const AzureModelsDashboard: React.FC = () => {
                 <div
                   key={acc.accountKey}
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 8,
                     border: '1px solid #e5e7eb',
                     padding: 10,
+                    backgroundColor: '#f9fafb',
                   }}
                 >
                   <div
@@ -309,11 +562,13 @@ export const AzureModelsDashboard: React.FC = () => {
                       disabled={acc.allModels.length === 0}
                       style={{
                         padding: '4px 10px',
-                        borderRadius: 4,
+                        borderRadius: 999,
                         border: '1px solid #4b5563',
-                        background: '#fff',
+                        backgroundColor: '#ffffff',
                         cursor:
-                          acc.allModels.length === 0 ? 'not-allowed' : 'pointer',
+                          acc.allModels.length === 0
+                            ? 'not-allowed'
+                            : 'pointer',
                         fontSize: 13,
                       }}
                     >
@@ -359,12 +614,14 @@ export const AzureModelsDashboard: React.FC = () => {
         </section>
       )}
 
+      {/* 全局汇总 */}
       {globalSeriesSummary.allModels.length > 0 && (
         <section
           style={{
-            padding: 12,
-            borderRadius: 8,
+            padding: 16,
+            borderRadius: 12,
             border: '1px solid #e5e7eb',
+            backgroundColor: '#f9fafb',
           }}
         >
           <h2 style={{ fontSize: 18, marginBottom: 8 }}>全局模型汇总</h2>
@@ -386,9 +643,9 @@ export const AzureModelsDashboard: React.FC = () => {
               disabled={globalSeriesSummary.allModels.length === 0}
               style={{
                 padding: '4px 10px',
-                borderRadius: 4,
+                borderRadius: 999,
                 border: '1px solid #4b5563',
-                background: '#fff',
+                backgroundColor: '#ffffff',
                 cursor:
                   globalSeriesSummary.allModels.length === 0
                     ? 'not-allowed'
