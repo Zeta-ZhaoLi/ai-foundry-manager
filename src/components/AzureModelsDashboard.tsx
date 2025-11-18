@@ -21,6 +21,7 @@ export const AzureModelsDashboard: React.FC = () => {
     addAccount,
     updateAccountName,
     updateAccountNote,
+    updateAccountEnabled,
     deleteAccount,
     addRegion,
     updateRegionName,
@@ -53,11 +54,17 @@ export const AzureModelsDashboard: React.FC = () => {
     [masterText],
   );
 
-  // 概览统计与覆盖度数据
-  const totalAccounts = accounts.length;
+  // 仅对启用账号进行统计
+  const activeAccounts = useMemo(
+    () => accounts.filter((a) => a.enabled !== false),
+    [accounts],
+  );
+
+  // 概览统计与覆盖度数据（只统计启用账号）
+  const totalAccounts = activeAccounts.length;
   const allRegions = useMemo(
     () =>
-      accounts.flatMap((acct) =>
+      activeAccounts.flatMap((acct) =>
         acct.regions.map((reg) => ({
           accountId: acct.id,
           accountName: acct.name,

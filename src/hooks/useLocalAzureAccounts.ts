@@ -1,27 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSeries } from '../utils/modelSeries';
 
-export type AccountGroup = 'prod' | 'staging' | 'dev' | 'other';
-export type RegionStatus = 'unknown' | 'testing' | 'verified' | 'deprecated';
-
 export interface LocalRegion {
   id: string;
   name: string;
   modelsText: string;
-  status?: RegionStatus;
 }
 
 export interface LocalAccount {
   id: string;
   name: string;
   note?: string;
-  group?: AccountGroup;
+  enabled: boolean;
   regions: LocalRegion[];
 }
 
 export interface AccountSummary {
   accountKey: string;
-  group?: AccountGroup;
   regions: {
     [regionLabel: string]: {
       models: string[];
@@ -53,8 +48,13 @@ export function useLocalAzureAccounts() {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as LocalAccount[];
-        if (Array.isArray(parsed)) {
-          setAccounts(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // 兼容历史数据：如果没有 enabled 字段，默认视为启用
+          const normalized = parsed.map((acct) => ({
+            enabled: acct.enabled !== false,
+            ...acct,
+          }));
+          setAccounts(normalized);
           return;
         }
       }
@@ -66,18 +66,22 @@ export function useLocalAzureAccounts() {
         id: 'sample-account',
         name: '示例账号',
         note: '你可以删除这个示例并添加自己的账号',
-        group: 'dev',
+        enabled: true,
         regions: [
           {
             id: 'sample-region',
             name: 'eastus',
             modelsText: 'gpt-4o,gpt-4o-mini',
-            status: 'testing',
           },
         ],
       },
     ];
     setAccounts(initial);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+    } catch {
+      // ignore
+    }
   }, []);
 
   const saveAccounts = useCallback(
@@ -95,22 +99,13 @@ export function useLocalAzureAccounts() {
     [],
   );
 
-  const replaceAllAccounts = useCallback((next: LocalAccount[]) => {
-    setAccounts(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const addAccount = useCallback(() => {
     const id = `acct_${Date.now().toString(36)}`;
     const newAccount: LocalAccount = {
       id,
       name: '新账号',
       note: '',
-      group: 'prod',
+      enabled: true,
       regions: [],
     };
     saveAccounts((prev) => [...prev, newAccount]);
@@ -134,10 +129,10 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
-  const updateAccountGroup = useCallback(
-    (id: string, group: AccountGroup) => {
+  const updateAccountEnabled = useCallback(
+    (id: string, enabled: boolean) => {
       saveAccounts((prev) =>
-        prev.map((acct) => (acct.id === id ? { ...acct, group } : acct)),
+        prev.map((acct) => (acct.id === id ? { ...acct, enabled } : acct)),
       );
     },
     [saveAccounts],
@@ -159,7 +154,6 @@ export function useLocalAzureAccounts() {
         id: regionId,
         name: 'new-region',
         modelsText: '',
-        status: 'unknown',
       };
       saveAccounts((prev) =>
         prev.map((acct) =>
@@ -208,24 +202,6 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
-  const updateRegionStatus = useCallback(
-    (accountId: string, regionId: string, status: RegionStatus) => {
-      saveAccounts((prev) =>
-        prev.map((acct) =>
-          acct.id === accountId
-            ? {
-                ...acct,
-                regions: acct.regions.map((reg) =>
-                  reg.id === regionId ? { ...reg, status } : reg,
-                ),
-              }
-            : acct,
-        ),
-      );
-    },
-    [saveAccounts],
-  );
-
   const deleteRegion = useCallback(
     (accountId: string, regionId: string) => {
       saveAccounts((prev) =>
@@ -242,8 +218,14 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
+  // 仅统计 enabled 的账号
+  const enabledAccounts = useMemo(
+    () => accounts.filter((a) => a.enabled !== false),
+    [accounts],
+  );
+
   const accountSummaries: AccountSummary[] = useMemo(() => {
-    return accounts.map((acct) => {
+    return enabledAccounts.map((acct) => {
       const regions: AccountSummary['regions'] = {};
       const allModelsSet = new Set<string>();
 
@@ -267,12 +249,11 @@ export function useLocalAzureAccounts() {
 
       return {
         accountKey: acct.name || acct.id,
-        group: acct.group,
         regions: normalizedRegions,
         allModels: Array.from(allModelsSet).sort(),
       };
     });
-  }, [accounts]);
+  }, [enabledAccounts]);
 
   const globalSeriesSummary: { allModels: string[]; bySeries: SeriesSummary } =
     useMemo(() => {
@@ -299,14 +280,12 @@ export function useLocalAzureAccounts() {
     addAccount,
     updateAccountName,
     updateAccountNote,
-    updateAccountGroup,
+    updateAccountEnabled,
     deleteAccount,
     addRegion,
     updateRegionName,
     updateRegionModelsText,
-    updateRegionStatus,
     deleteRegion,
-    replaceAllAccounts,
   };
 }
 
