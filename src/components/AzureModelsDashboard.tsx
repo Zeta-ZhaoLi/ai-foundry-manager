@@ -48,7 +48,78 @@ export const AzureModelsDashboard: React.FC = () => {
     }
   }, [masterText]);
 
-  const masterModels = useMemo(() => parseModels(masterText).sort(), [masterText]);
+  const masterModels = useMemo(
+    () => parseModels(masterText).sort(),
+    [masterText],
+  );
+
+  // 概览统计与覆盖度数据
+  const totalAccounts = accounts.length;
+  const allRegions = useMemo(
+    () =>
+      accounts.flatMap((acct) =>
+        acct.regions.map((reg) => ({
+          accountId: acct.id,
+          accountName: acct.name,
+          regionId: reg.id,
+          regionName: reg.name,
+          models: parseModels(reg.modelsText),
+        })),
+      ),
+    [accounts],
+  );
+  const totalRegions = allRegions.length;
+  const regionsWithModels = allRegions.filter((r) => r.models.length > 0).length;
+  const totalMasterModels = masterModels.length;
+  const totalUsedModels = globalSeriesSummary.allModels.length;
+  const avgModelsPerRegion =
+    totalRegions === 0
+      ? 0
+      : Math.round(
+          (allRegions.reduce((sum, r) => sum + r.models.length, 0) /
+            totalRegions) *
+            10,
+        ) / 10;
+
+  const regionCoverage = useMemo(() => {
+    if (totalMasterModels === 0) return [];
+    const masterSet = new Set(masterModels);
+    return allRegions
+      .map((r) => {
+        const used = r.models.filter((m) => masterSet.has(m));
+        const pct =
+          totalMasterModels === 0
+            ? 0
+            : Math.round((used.length / totalMasterModels) * 100);
+        return {
+          key: `${r.accountId}-${r.regionId}`,
+          label: `${r.accountName || r.accountId} / ${r.regionName || '未命名'}`,
+          usedCount: used.length,
+          pct,
+        };
+      })
+      .sort((a, b) => b.pct - a.pct);
+  }, [allRegions, masterModels, totalMasterModels]);
+
+  const modelCoverage = useMemo(() => {
+    if (masterModels.length === 0 || totalRegions === 0) return [];
+    const counts: Record<string, number> = {};
+    for (const r of allRegions) {
+      const set = new Set(r.models);
+      for (const m of masterModels) {
+        if (set.has(m)) {
+          counts[m] = (counts[m] || 0) + 1;
+        }
+      }
+    }
+    return masterModels
+      .map((m) => {
+        const c = counts[m] || 0;
+        const pct = Math.round((c / totalRegions) * 100);
+        return { model: m, count: c, pct };
+      })
+      .sort((a, b) => b.pct - a.pct);
+  }, [allRegions, masterModels, totalRegions]);
 
   const handleCopy = (text: string, label: string) => {
     if (!text) return;
@@ -201,6 +272,273 @@ export const AzureModelsDashboard: React.FC = () => {
             ))}
           </div>
         )}
+      </section>
+
+      {/* 概览仪表盘 + 覆盖度图 */}
+      <section
+        style={{
+          padding: 16,
+          borderRadius: 12,
+          border: '1px solid #1f2937',
+          backgroundColor: '#020617',
+        }}
+      >
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>可视化概览</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          {/* 概要统计 */}
+          <div
+            style={{
+              flex: '1 1 260px',
+              borderRadius: 10,
+              border: '1px solid #1f2937',
+              padding: 12,
+              backgroundColor: '#020617',
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 10,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>账号数</div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {totalAccounts}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>区域数</div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {totalRegions}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  有配置模型的区域
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {regionsWithModels}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  每区域平均模型数
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {avgModelsPerRegion}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  全局目录模型数
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {totalMasterModels}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  实际使用模型数
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {totalUsedModels}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 区域覆盖度 */}
+          <div
+            style={{
+              flex: '1 1 320px',
+              borderRadius: 10,
+              border: '1px solid #1f2937',
+              padding: 12,
+              backgroundColor: '#020617',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <div style={{ fontSize: 13, color: '#e5e7eb' }}>
+                区域覆盖度（模型占比）
+              </div>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                各区域覆盖全局目录的比例
+              </div>
+            </div>
+            {regionCoverage.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#6b7280' }}>
+                暂无区域或全局目录为空，无法计算覆盖度。
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                }}
+              >
+                {regionCoverage.slice(0, 10).map((r) => (
+                  <div
+                    key={r.key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 180,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        color: '#e5e7eb',
+                      }}
+                      title={r.label}
+                    >
+                      {r.label}
+                    </span>
+                    <div
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#020617',
+                        borderRadius: 999,
+                        border: '1px solid #1f2937',
+                        overflow: 'hidden',
+                        height: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${r.pct}%`,
+                          height: '100%',
+                          background:
+                            'linear-gradient(90deg, #0ea5e9, #22c55e)',
+                        }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        width: 72,
+                        textAlign: 'right',
+                        color: '#9ca3af',
+                      }}
+                    >
+                      {r.usedCount}/{totalMasterModels} · {r.pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 模型覆盖度 */}
+          <div
+            style={{
+              flex: '1 1 320px',
+              borderRadius: 10,
+              border: '1px solid #1f2937',
+              padding: 12,
+              backgroundColor: '#020617',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <div style={{ fontSize: 13, color: '#e5e7eb' }}>
+                模型覆盖度（区域占比）
+              </div>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                每个模型在多少个区域启用
+              </div>
+            </div>
+            {modelCoverage.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#6b7280' }}>
+                暂无区域或全局目录为空，无法计算覆盖度。
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                }}
+              >
+                {modelCoverage.slice(0, 10).map((m) => (
+                  <div
+                    key={m.model}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 140,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        color: '#e5e7eb',
+                      }}
+                      title={m.model}
+                    >
+                      {m.model}
+                    </span>
+                    <div
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#020617',
+                        borderRadius: 999,
+                        border: '1px solid #1f2937',
+                        overflow: 'hidden',
+                        height: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${m.pct}%`,
+                          height: '100%',
+                          background:
+                            'linear-gradient(90deg, #a855f7, #22c55e)',
+                        }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        width: 76,
+                        textAlign: 'right',
+                        color: '#9ca3af',
+                      }}
+                    >
+                      {m.count}/{totalRegions} · {m.pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* 本地账号 & 区域配置 */}
@@ -776,4 +1114,3 @@ export const AzureModelsDashboard: React.FC = () => {
     </div>
   );
 };
-
