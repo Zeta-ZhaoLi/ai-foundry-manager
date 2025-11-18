@@ -61,6 +61,7 @@ export function useLocalAzureAccounts() {
     } catch {
       // ignore parse errors
     }
+
     const initial: LocalAccount[] = [
       {
         id: 'sample-account',
