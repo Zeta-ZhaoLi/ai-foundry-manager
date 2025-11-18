@@ -27,6 +27,8 @@ export const AzureModelsDashboard: React.FC = () => {
     updateRegionName,
     updateRegionModelsText,
     deleteRegion,
+    updateRegionEndpoint,
+    updateRegionApiKey,
   } = useLocalAzureAccounts();
 
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
@@ -891,22 +893,64 @@ export const AzureModelsDashboard: React.FC = () => {
               为每个账号添加区域，并通过点击选择可用模型。所有配置存储在浏览器 localStorage 中。
             </div>
           </div>
-          <button
-            onClick={addAccount}
+          <div
             style={{
-              padding: '6px 12px',
-              borderRadius: 999,
-              border: '1px solid #0ea5e9',
-              background:
-                'linear-gradient(135deg, rgba(14,165,233,0.9), rgba(52,211,153,0.9))',
-              color: '#f9fafb',
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            + 新增账号
-          </button>
+            <button
+              onClick={addAccount}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 999,
+                border: '1px solid #0ea5e9',
+                background:
+                  'linear-gradient(135deg, rgba(14,165,233,0.9), rgba(52,211,153,0.9))',
+                color: '#f9fafb',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              + 新增账号
+            </button>
+            <button
+              onClick={() => {
+                try {
+                  const payload = JSON.stringify({ accounts, masterText }, null, 2);
+                  const blob = new Blob([payload], {
+                    type: 'application/json;charset=utf-8',
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = 'azure-openai-manager-config.json';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                  setCopyMessage('配置已导出为 JSON 文件');
+                  setLastCopiedLabel('配置导出');
+                } catch {
+                  setCopyMessage('导出失败，请重试');
+                  setLastCopiedLabel(null);
+                }
+              }}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 999,
+                border: '1px solid #4b5563',
+                backgroundColor: '#020617',
+                color: '#e5e7eb',
+                cursor: 'pointer',
+                fontSize: 12,
+              }}
+            >
+              导出配置（JSON）
+            </button>
+          </div>
         </div>
 
         <div
@@ -964,6 +1008,7 @@ export const AzureModelsDashboard: React.FC = () => {
                 background:
                   'linear-gradient(145deg, rgba(15,23,42,0.9), rgba(15,23,42,0.7))',
                 boxShadow: '0 18px 40px -30px rgba(15,23,42,0.8)',
+                opacity: acct.enabled !== false ? 1 : 0.6,
               }}
             >
               <div
@@ -1023,22 +1068,49 @@ export const AzureModelsDashboard: React.FC = () => {
                     />
                   </label>
                 </div>
-                <button
-                  onClick={() => deleteAccount(acct.id)}
+                <div
                   style={{
-                    padding: '4px 10px',
-                    borderRadius: 999,
-                    border: '1px solid #7f1d1d',
-                    backgroundColor: '#451a1a',
-                    color: '#fecaca',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    height: 32,
-                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 6,
                   }}
                 >
-                  删除账号
-                </button>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: '#9ca3af',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={acct.enabled !== false}
+                      onChange={(e) =>
+                        updateAccountEnabled(acct.id, e.target.checked)
+                      }
+                    />
+                    <span>参与统计 / 启用账号</span>
+                  </label>
+                  <button
+                    onClick={() => deleteAccount(acct.id)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      border: '1px solid #7f1d1d',
+                      backgroundColor: '#451a1a',
+                      color: '#fecaca',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      height: 32,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    删除账号
+                  </button>
+                </div>
               </div>
 
               <div style={{ marginBottom: 6 }}>
@@ -1109,10 +1181,10 @@ export const AzureModelsDashboard: React.FC = () => {
                             style={{
                               fontSize: 13,
                               flex: 1,
-                            }}
-                          >
-                            区域名称：
-                            <input
+                                }}
+                              >
+                                区域名称：
+                                <input
                               style={{
                                 width: '100%',
                                 padding: 5,
@@ -1127,9 +1199,139 @@ export const AzureModelsDashboard: React.FC = () => {
                               onChange={(e) =>
                                 updateRegionName(acct.id, reg.id, e.target.value)
                               }
-                              placeholder="例如：eastus、swedencentral"
-                            />
-                          </label>
+                                  placeholder="例如：eastus、swedencentral"
+                                />
+                              </label>
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
+                              minWidth: 240,
+                            }}
+                          >
+                            <label
+                              style={{
+                                fontSize: 12,
+                                color: '#9ca3af',
+                              }}
+                            >
+                              Azure OpenAI Endpoint：
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  marginTop: 2,
+                                }}
+                              >
+                                <input
+                                  style={{
+                                    flex: 1,
+                                    padding: 4,
+                                    borderRadius: 6,
+                                    border: '1px solid #374151',
+                                    backgroundColor: '#020617',
+                                    color: '#e5e7eb',
+                                    fontSize: 12,
+                                  }}
+                                  value={reg.endpoint || ''}
+                                  onChange={(e) =>
+                                    updateRegionEndpoint(
+                                      acct.id,
+                                      reg.id,
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="https://xxx.openai.azure.com"
+                                />
+                                {reg.endpoint && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleCopy(
+                                        reg.endpoint || '',
+                                        `区域 ${reg.name || reg.id} 的 Endpoint`,
+                                      )
+                                    }
+                                    style={{
+                                      padding: '2px 8px',
+                                      borderRadius: 999,
+                                      border: '1px solid #4b5563',
+                                      backgroundColor: '#020617',
+                                      color: '#e5e7eb',
+                                      cursor: 'pointer',
+                                      fontSize: 11,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    复制
+                                  </button>
+                                )}
+                              </div>
+                            </label>
+                            <label
+                              style={{
+                                fontSize: 12,
+                                color: '#9ca3af',
+                              }}
+                            >
+                              Azure OpenAI API Key：
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  marginTop: 2,
+                                }}
+                              >
+                                <input
+                                  type="password"
+                                  style={{
+                                    flex: 1,
+                                    padding: 4,
+                                    borderRadius: 6,
+                                    border: '1px solid #374151',
+                                    backgroundColor: '#020617',
+                                    color: '#e5e7eb',
+                                    fontSize: 12,
+                                  }}
+                                  value={reg.apiKey || ''}
+                                  onChange={(e) =>
+                                    updateRegionApiKey(
+                                      acct.id,
+                                      reg.id,
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="sk- 开头的密钥"
+                                />
+                                {reg.apiKey && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleCopy(
+                                        reg.apiKey || '',
+                                        `区域 ${reg.name || reg.id} 的 API Key`,
+                                      )
+                                    }
+                                    style={{
+                                      padding: '2px 8px',
+                                      borderRadius: 999,
+                                      border: '1px solid #4b5563',
+                                      backgroundColor: '#020617',
+                                      color: '#e5e7eb',
+                                      cursor: 'pointer',
+                                      fontSize: 11,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    复制
+                                  </button>
+                                )}
+                              </div>
+                            </label>
+                          </div>
                           <div
                             style={{
                               display: 'flex',

@@ -5,6 +5,8 @@ export interface LocalRegion {
   id: string;
   name: string;
   modelsText: string;
+  endpoint?: string;
+  apiKey?: string;
 }
 
 export interface LocalAccount {
@@ -219,6 +221,42 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
+  const updateRegionEndpoint = useCallback(
+    (accountId: string, regionId: string, endpoint: string) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId ? { ...reg, endpoint } : reg,
+                ),
+              }
+            : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateRegionApiKey = useCallback(
+    (accountId: string, regionId: string, apiKey: string) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId ? { ...reg, apiKey } : reg,
+                ),
+              }
+            : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
   // 仅统计 enabled 的账号
   const enabledAccounts = useMemo(
     () => accounts.filter((a) => a.enabled !== false),
@@ -287,6 +325,7 @@ export function useLocalAzureAccounts() {
     updateRegionName,
     updateRegionModelsText,
     deleteRegion,
+    updateRegionEndpoint,
+    updateRegionApiKey,
   };
 }
-
