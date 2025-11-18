@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalAzureAccounts } from '../hooks/useLocalAzureAccounts';
 import { buildCopyString } from '../utils/modelSeries';
 
@@ -29,6 +29,7 @@ export const AzureModelsDashboard: React.FC = () => {
     deleteRegion,
     updateRegionEndpoint,
     updateRegionApiKey,
+    importAccounts,
   } = useLocalAzureAccounts();
 
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export const AzureModelsDashboard: React.FC = () => {
   const [coverageViewMode, setCoverageViewMode] = useState<'top10' | 'all'>(
     'top10',
   );
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const [masterText, setMasterText] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
@@ -64,6 +66,39 @@ export const AzureModelsDashboard: React.FC = () => {
       // ignore
     }
   }, [masterText]);
+
+  const handleImportConfig = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result;
+        if (typeof text !== 'string') {
+          throw new Error('invalid file content');
+        }
+        const parsed = JSON.parse(text) as
+          | { accounts?: any; masterText?: string }
+          | any[];
+        if (Array.isArray((parsed as any).accounts)) {
+          importAccounts((parsed as any).accounts);
+          if (typeof (parsed as any).masterText === 'string') {
+            setMasterText((parsed as any).masterText);
+          }
+        } else if (Array.isArray(parsed)) {
+          importAccounts(parsed as any);
+        }
+        setCopyMessage('配置已导入，请检查账号与区域信息');
+        setLastCopiedLabel('配置导入');
+      } catch {
+        setCopyMessage('导入失败，JSON 格式不正确');
+        setLastCopiedLabel(null);
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const masterModels = useMemo(
     () => parseModels(masterText).sort(),
@@ -919,7 +954,11 @@ export const AzureModelsDashboard: React.FC = () => {
             <button
               onClick={() => {
                 try {
-                  const payload = JSON.stringify({ accounts, masterText }, null, 2);
+                  const payload = JSON.stringify(
+                    { accounts, masterText },
+                    null,
+                    2,
+                  );
                   const blob = new Blob([payload], {
                     type: 'application/json;charset=utf-8',
                   });
@@ -950,6 +989,27 @@ export const AzureModelsDashboard: React.FC = () => {
             >
               导出配置（JSON）
             </button>
+            <button
+              onClick={() => importInputRef.current?.click()}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 999,
+                border: '1px solid #4b5563',
+                backgroundColor: '#020617',
+                color: '#e5e7eb',
+                cursor: 'pointer',
+                fontSize: 12,
+              }}
+            >
+              导入配置（JSON）
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json"
+              style={{ display: 'none' }}
+              onChange={handleImportConfig}
+            />
           </div>
         </div>
 
@@ -1177,31 +1237,78 @@ export const AzureModelsDashboard: React.FC = () => {
                             gap: 8,
                           }}
                         >
-                          <label
+                          <div
                             style={{
-                              fontSize: 13,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
                               flex: 1,
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <label
+                              style={{
+                                fontSize: 13,
+                                minWidth: 140,
+                                maxWidth: 180,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 2,
+                              }}
+                            >
+                              区域名称：
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
                                 }}
                               >
-                                区域名称：
                                 <input
-                              style={{
-                                width: '100%',
-                                padding: 5,
-                                marginTop: 4,
-                                borderRadius: 8,
-                                border: '1px solid #374151',
-                                backgroundColor: '#020617',
-                                color: '#e5e7eb',
-                                fontSize: 13,
-                              }}
-                              value={reg.name}
-                              onChange={(e) =>
-                                updateRegionName(acct.id, reg.id, e.target.value)
-                              }
-                                  placeholder="例如：eastus、swedencentral"
+                                  style={{
+                                    flex: 1,
+                                    padding: 4,
+                                    borderRadius: 6,
+                                    border: '1px solid #374151',
+                                    backgroundColor: '#020617',
+                                    color: '#e5e7eb',
+                                    fontSize: 12,
+                                  }}
+                                  value={reg.name}
+                                  onChange={(e) =>
+                                    updateRegionName(
+                                      acct.id,
+                                      reg.id,
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="eastus"
                                 />
-                              </label>
+                                {reg.name && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleCopy(
+                                        reg.name,
+                                        `区域 ${reg.name} 的名称`,
+                                      )
+                                    }
+                                    style={{
+                                      padding: '2px 6px',
+                                      borderRadius: 999,
+                                      border: '1px solid #4b5563',
+                                      backgroundColor: '#020617',
+                                      color: '#e5e7eb',
+                                      cursor: 'pointer',
+                                      fontSize: 11,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    复制
+                                  </button>
+                                )}
+                              </div>
+                            </label>
                           <div
                             style={{
                               display: 'flex',
