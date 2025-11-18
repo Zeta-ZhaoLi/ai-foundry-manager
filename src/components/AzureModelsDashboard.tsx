@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocalAzureAccounts } from '../hooks/useLocalAzureAccounts';
-import { buildCopyString, getSeries } from '../utils/modelSeries';
+import { buildCopyString } from '../utils/modelSeries';
 
 const MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
 
@@ -57,36 +57,13 @@ export const AzureModelsDashboard: React.FC = () => {
     () => parseModels(masterText).sort(),
     [masterText],
   );
-
-  const seriesGroups = useMemo(() => {
-    if (masterModels.length === 0) {
-      return [] as Array<[string, string[]]>;
-    }
-    const groups: Record<string, string[]> = {};
-    for (const model of masterModels) {
-      const series = getSeries(model);
-      if (!groups[series]) {
-        groups[series] = [];
-      }
-      groups[series].push(model);
-    }
-    return Object.entries(groups).sort(([a], [b]) =>
-      a.localeCompare(b, 'en'),
-    );
-  }, [masterModels]);
-
-  const filteredSeriesGroups = useMemo(() => {
+  const filteredModels = useMemo(() => {
     const keyword = modelFilter.trim().toLowerCase();
     if (!keyword) {
-      return seriesGroups;
+      return masterModels;
     }
-    return seriesGroups
-      .map<[string, string[]]>(([series, models]) => [
-        series,
-        models.filter((m) => m.toLowerCase().includes(keyword)),
-      ])
-      .filter(([, models]) => models.length > 0);
-  }, [modelFilter, seriesGroups]);
+    return masterModels.filter((m) => m.toLowerCase().includes(keyword));
+  }, [masterModels, modelFilter]);
 
   // 仅对启用账号进行统计
   const activeAccounts = useMemo(
@@ -215,39 +192,10 @@ export const AzureModelsDashboard: React.FC = () => {
     updateRegionModelsText(accountId, regionId, next);
   };
 
-  const selectSeriesForRegion = (
-    accountId: string,
-    regionId: string,
-    currentModelsText: string,
-    modelsToSelect: string[],
-  ) => {
-    if (modelsToSelect.length === 0) return;
-    const current = parseModels(currentModelsText);
-    const set = new Set(current);
-    for (const m of modelsToSelect) {
-      set.add(m);
-    }
-    const next = Array.from(set).sort().join(',');
-    updateRegionModelsText(accountId, regionId, next);
-  };
-
   const selectAllForRegion = (accountId: string, regionId: string) => {
     if (masterModels.length === 0) return;
     const text = masterModels.join(',');
     updateRegionModelsText(accountId, regionId, text);
-  };
-
-  const clearSeriesForRegion = (
-    accountId: string,
-    regionId: string,
-    currentModelsText: string,
-    modelsToClear: string[],
-  ) => {
-    if (modelsToClear.length === 0) return;
-    const current = parseModels(currentModelsText);
-    const clearSet = new Set(modelsToClear);
-    const next = current.filter((m) => !clearSet.has(m)).sort().join(',');
-    updateRegionModelsText(accountId, regionId, next);
   };
 
   const clearRegionModels = (accountId: string, regionId: string) => {
@@ -945,7 +893,7 @@ export const AzureModelsDashboard: React.FC = () => {
                             marginBottom: 4,
                           }}
                         >
-                          模型（按系列分组，点击切换选中）：
+                          模型（点击切换选中状态）：
                         </div>
                         {masterModels.length === 0 ? (
                           <div
@@ -957,7 +905,7 @@ export const AzureModelsDashboard: React.FC = () => {
                           >
                             请先在顶部配置“全局模型目录”，然后再为区域点选模型。
                           </div>
-                        ) : filteredSeriesGroups.length === 0 ? (
+                        ) : filteredModels.length === 0 ? (
                           <div
                             style={{
                               fontSize: 12,
@@ -972,177 +920,40 @@ export const AzureModelsDashboard: React.FC = () => {
                             style={{
                               marginTop: 6,
                               display: 'flex',
-                              flexDirection: 'column',
-                              gap: 8,
+                              flexWrap: 'wrap',
+                              gap: 6,
                             }}
                           >
-                            {filteredSeriesGroups.map(([series, models]) => {
-                              const selectedCount = models.filter((model) =>
-                                selectedSet.has(model),
-                              ).length;
-                              const allSelected =
-                                models.length > 0 &&
-                                selectedCount === models.length;
-                              const collapsed =
-                                collapsedSeries[series] ?? false;
+                            {filteredModels.map((model) => {
+                              const selected = selectedSet.has(model);
                               return (
-                                <div
-                                  key={series}
+                                <button
+                                  key={model}
+                                  type="button"
+                                  onClick={() =>
+                                    toggleRegionModel(
+                                      acct.id,
+                                      reg.id,
+                                      reg.modelsText,
+                                      model,
+                                    )
+                                  }
                                   style={{
-                                    borderRadius: 8,
-                                    border: '1px solid #1f2937',
-                                    padding: 8,
-                                    backgroundColor: '#020617',
+                                    padding: '4px 8px',
+                                    borderRadius: 999,
+                                    border: selected
+                                      ? '1px solid #0ea5e9'
+                                      : '1px solid #4b5563',
+                                    background: selected
+                                      ? 'linear-gradient(135deg, #0ea5e9, #22c55e)'
+                                      : '#020617',
+                                    color: selected ? '#f9fafb' : '#e5e7eb',
+                                    fontSize: 12,
+                                    cursor: 'pointer',
                                   }}
                                 >
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center',
-                                      gap: 8,
-                                      marginBottom: collapsed ? 0 : 6,
-                                    }}
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        toggleSeriesCollapse(series)
-                                      }
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        padding: 0,
-                                        border: 'none',
-                                        background: 'transparent',
-                                        color: '#e5e7eb',
-                                        fontSize: 12,
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          display: 'inline-block',
-                                          width: 14,
-                                          textAlign: 'center',
-                                          color: '#9ca3af',
-                                        }}
-                                      >
-                                        {collapsed ? '▶' : '▼'}
-                                      </span>
-                                      <span>
-                                        系列：{series}
-                                        <span
-                                          style={{
-                                            color: '#9ca3af',
-                                            marginLeft: 4,
-                                          }}
-                                        >
-                                          （{selectedCount}/{models.length}）
-                                        </span>
-                                      </span>
-                                    </button>
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                      }}
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          selectSeriesForRegion(
-                                            acct.id,
-                                            reg.id,
-                                            reg.modelsText,
-                                            models,
-                                          )
-                                        }
-                                        style={{
-                                          padding: '2px 8px',
-                                          borderRadius: 999,
-                                          border: '1px solid #14532d',
-                                          backgroundColor: '#022c22',
-                                          color: '#bbf7d0',
-                                          cursor: 'pointer',
-                                          fontSize: 11,
-                                        }}
-                                      >
-                                        {allSelected ? '补全缺失' : '全选系列'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          clearSeriesForRegion(
-                                            acct.id,
-                                            reg.id,
-                                            reg.modelsText,
-                                            models,
-                                          )
-                                        }
-                                        style={{
-                                          padding: '2px 8px',
-                                          borderRadius: 999,
-                                          border: '1px solid #7f1d1d',
-                                          backgroundColor: '#451a1a',
-                                          color: '#fecaca',
-                                          cursor: 'pointer',
-                                          fontSize: 11,
-                                        }}
-                                      >
-                                        清空系列
-                                      </button>
-                                    </div>
-                                  </div>
-                                  {!collapsed && (
-                                    <div
-                                      style={{
-                                        marginTop: 4,
-                                        display: 'flex',
-                                        flexWrap: 'wrap',
-                                        gap: 6,
-                                      }}
-                                    >
-                                      {models.map((model) => {
-                                        const selected =
-                                          selectedSet.has(model);
-                                        return (
-                                          <button
-                                            key={model}
-                                            type="button"
-                                            onClick={() =>
-                                              toggleRegionModel(
-                                                acct.id,
-                                                reg.id,
-                                                reg.modelsText,
-                                                model,
-                                              )
-                                            }
-                                            style={{
-                                              padding: '4px 8px',
-                                              borderRadius: 999,
-                                              border: selected
-                                                ? '1px solid #0ea5e9'
-                                                : '1px solid #4b5563',
-                                              background: selected
-                                                ? 'linear-gradient(135deg, #0ea5e9, #22c55e)'
-                                                : '#020617',
-                                              color: selected
-                                                ? '#f9fafb'
-                                                : '#e5e7eb',
-                                              fontSize: 12,
-                                              cursor: 'pointer',
-                                            }}
-                                          >
-                                            {model}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
+                                  {model}
+                                </button>
                               );
                             })}
                           </div>
@@ -1350,32 +1161,72 @@ export const AzureModelsDashboard: React.FC = () => {
             {buildCopyString(globalSeriesSummary.allModels)}
           </div>
           <div style={{ fontSize: 13 }}>
-            {Object.entries(globalSeriesSummary.bySeries).map(
-              ([series, models]) => (
-                <div
-                  key={series}
-                  style={{
-                    marginBottom: 6,
-                    borderTop: '1px solid #1f2937',
-                    paddingTop: 4,
-                  }}
-                >
-                  <div style={{ fontWeight: 500 }}>
-                    系列：{series}（{models.length}）
-                  </div>
+            {Object.entries(globalSeriesSummary.bySeries)
+              .sort(([a], [b]) => a.localeCompare(b, 'en'))
+              .map(([series, models]) => {
+                const collapsed = collapsedSeries[series] ?? true;
+                return (
                   <div
+                    key={series}
                     style={{
-                      fontSize: 12,
-                      color: '#e5e7eb',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-all',
+                      marginBottom: 6,
+                      borderTop: '1px solid #1f2937',
+                      paddingTop: 4,
                     }}
                   >
-                    {buildCopyString(models)}
+                    <button
+                      type="button"
+                      onClick={() => toggleSeriesCollapse(series)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: 0,
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#e5e7eb',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: 14,
+                          textAlign: 'center',
+                          color: '#9ca3af',
+                        }}
+                      >
+                        {collapsed ? '▶' : '▼'}
+                      </span>
+                      <span>
+                        系列：{series}
+                        <span
+                          style={{
+                            color: '#9ca3af',
+                            marginLeft: 4,
+                          }}
+                        >
+                          （{models.length}）
+                        </span>
+                      </span>
+                    </button>
+                    {!collapsed && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: '#e5e7eb',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-all',
+                          marginTop: 4,
+                        }}
+                      >
+                        {buildCopyString(models)}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ),
-            )}
+                );
+              })}
           </div>
         </section>
       )}
