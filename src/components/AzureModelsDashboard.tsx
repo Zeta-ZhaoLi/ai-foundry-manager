@@ -33,11 +33,17 @@ export const AzureModelsDashboard: React.FC = () => {
   const [lastCopiedLabel, setLastCopiedLabel] = useState<string | null>(null);
   const [modelFilter, setModelFilter] = useState<string>('');
   const [collapsedMaster, setCollapsedMaster] = useState<boolean>(true);
-  const [collapsedAccountRegions, setCollapsedAccountRegions] = useState<
+  const [collapsedRegionModels, setCollapsedRegionModels] = useState<
     Record<string, boolean>
   >({});
   const [collapsedSeries, setCollapsedSeries] = useState<Record<string, boolean>>(
     {},
+  );
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'unused' | 'single' | 'multi'
+  >('all');
+  const [coverageViewMode, setCoverageViewMode] = useState<'top10' | 'all'>(
+    'top10',
   );
 
   const [masterText, setMasterText] = useState<string>(() => {
@@ -152,6 +158,45 @@ export const AzureModelsDashboard: React.FC = () => {
     if (modelCoverage.length === 0) return 0;
     return modelCoverage.filter((m) => m.count === 1).length;
   }, [modelCoverage]);
+
+  const modelStates = useMemo(
+    () =>
+      modelCoverage.map((item) => ({
+        ...item,
+        status:
+          item.count === 0
+            ? ('unused' as const)
+            : item.count === 1
+              ? ('single' as const)
+              : ('multi' as const),
+      })),
+    [modelCoverage],
+  );
+
+  const filteredModelStates = useMemo(() => {
+    const keyword = modelFilter.trim().toLowerCase();
+    return modelStates.filter((item) => {
+      if (statusFilter === 'unused' && item.status !== 'unused') {
+        return false;
+      }
+      if (statusFilter === 'single' && item.status !== 'single') {
+        return false;
+      }
+      if (statusFilter === 'multi' && item.status !== 'multi') {
+        return false;
+      }
+      if (!keyword) return true;
+      return item.model.toLowerCase().includes(keyword);
+    });
+  }, [modelFilter, modelStates, statusFilter]);
+
+  const modelCoverageFiltered = useMemo(
+    () =>
+      filteredModelStates
+        .map(({ model, count, pct }) => ({ model, count, pct }))
+        .sort((a, b) => b.pct - a.pct),
+    [filteredModelStates],
+  );
 
   const toggleSeriesCollapse = (series: string) => {
     setCollapsedSeries((prev) => ({
@@ -566,20 +611,68 @@ export const AzureModelsDashboard: React.FC = () => {
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 marginBottom: 6,
               }}
             >
-              <div style={{ fontSize: 13, color: '#e5e7eb' }}>
-                模型覆盖度（区域占比）
+              <div>
+                <div style={{ fontSize: 13, color: '#e5e7eb' }}>
+                  模型覆盖度（区域占比）
+                </div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  每个模型在多少个区域启用
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: '#9ca3af' }}>
-                每个模型在多少个区域启用
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  color: '#9ca3af',
+                }}
+              >
+                <select
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as typeof statusFilter)
+                  }
+                  style={{
+                    padding: '2px 6px',
+                    borderRadius: 999,
+                    border: '1px solid #4b5563',
+                    backgroundColor: '#020617',
+                    color: '#e5e7eb',
+                  }}
+                >
+                  <option value="all">全部状态</option>
+                  <option value="unused">未使用</option>
+                  <option value="single">仅 1 区域</option>
+                  <option value="multi">多区域</option>
+                </select>
+                <select
+                  value={coverageViewMode}
+                  onChange={(e) =>
+                    setCoverageViewMode(
+                      e.target.value as typeof coverageViewMode,
+                    )
+                  }
+                  style={{
+                    padding: '2px 6px',
+                    borderRadius: 999,
+                    border: '1px solid #4b5563',
+                    backgroundColor: '#020617',
+                    color: '#e5e7eb',
+                  }}
+                >
+                  <option value="top10">Top 10</option>
+                  <option value="all">全部</option>
+                </select>
               </div>
             </div>
-            {modelCoverage.length === 0 ? (
+            {modelCoverageFiltered.length === 0 ? (
               <div style={{ fontSize: 12, color: '#6b7280' }}>
-                暂无区域或全局目录为空，无法计算覆盖度。
+                暂无模型或当前筛选条件下没有匹配的模型。
               </div>
             ) : (
               <div
@@ -587,11 +680,14 @@ export const AzureModelsDashboard: React.FC = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 6,
-                  maxHeight: 200,
+                  maxHeight: 260,
                   overflowY: 'auto',
                 }}
               >
-                {modelCoverage.slice(0, 10).map((m) => (
+                {(coverageViewMode === 'top10'
+                  ? modelCoverageFiltered.slice(0, 10)
+                  : modelCoverageFiltered
+                ).map((m) => (
                   <div
                     key={m.model}
                     style={{
@@ -647,6 +743,129 @@ export const AzureModelsDashboard: React.FC = () => {
             )}
           </div>
         </div>
+      </section>
+
+      {/* 模型总览 */}
+      <section
+        style={{
+          padding: 16,
+          borderRadius: 12,
+          border: '1px solid #1f2937',
+          backgroundColor: '#020617',
+        }}
+      >
+        <h2 style={{ fontSize: 18, marginBottom: 4 }}>模型总览</h2>
+        <div
+          style={{
+            fontSize: 12,
+            color: '#9ca3af',
+            marginBottom: 8,
+          }}
+        >
+          当前展示 {filteredModelStates.length} 个模型（共 {modelStates.length}{' '}
+          个），可通过上方的「模型搜索」和状态筛选快速定位。
+        </div>
+        {modelStates.length === 0 ? (
+          <div style={{ fontSize: 12, color: '#6b7280' }}>
+            暂无模型，请先在全局模型目录中配置模型。
+          </div>
+        ) : filteredModelStates.length === 0 ? (
+          <div style={{ fontSize: 12, color: '#6b7280' }}>
+            当前筛选条件下没有匹配的模型，请调整搜索或状态筛选。
+          </div>
+        ) : (
+          <div
+            style={{
+              borderRadius: 10,
+              border: '1px solid #1f2937',
+              backgroundColor: '#020617',
+              maxHeight: 280,
+              overflowY: 'auto',
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 2.5fr) 120px 130px 110px',
+                padding: '6px 10px',
+                borderBottom: '1px solid #1f2937',
+                fontSize: 12,
+                color: '#9ca3af',
+              }}
+            >
+              <div>模型 ID</div>
+              <div>状态</div>
+              <div>覆盖区域数</div>
+              <div>覆盖率</div>
+            </div>
+            {filteredModelStates.map((item) => {
+              let statusLabel = '';
+              let borderColor = '#4b5563';
+              let bgColor = '#020617';
+              let textColor = '#e5e7eb';
+              if (item.status === 'unused') {
+                statusLabel = '未使用';
+                borderColor = '#7f1d1d';
+                bgColor = '#451a1a';
+                textColor = '#fecaca';
+              } else if (item.status === 'single') {
+                statusLabel = '仅 1 区域';
+                borderColor = '#92400e';
+                bgColor = '#451a03';
+                textColor = '#fed7aa';
+              } else {
+                statusLabel = '多区域';
+                borderColor = '#14532d';
+                bgColor = '#022c22';
+                textColor = '#bbf7d0';
+              }
+              return (
+                <div
+                  key={item.model}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 2.5fr) 120px 130px 110px',
+                    padding: '6px 10px',
+                    borderBottom: '1px solid #111827',
+                    fontSize: 12,
+                    color: '#e5e7eb',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title={item.model}
+                  >
+                    {item.model}
+                  </div>
+                  <div>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        border: `1px solid ${borderColor}`,
+                        backgroundColor: bgColor,
+                        color: textColor,
+                        fontSize: 11,
+                      }}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <div>
+                    {item.count}/{totalRegions}
+                  </div>
+                  <div>{item.pct}%</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* 本地账号 & 区域配置 */}
@@ -831,40 +1050,9 @@ export const AzureModelsDashboard: React.FC = () => {
                     marginBottom: 4,
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCollapsedAccountRegions((prev) => ({
-                        ...prev,
-                        [acct.id]: !prev[acct.id],
-                      }))
-                    }
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: 0,
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#e5e7eb',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        width: 14,
-                        textAlign: 'center',
-                        color: '#9ca3af',
-                        fontSize: 12,
-                      }}
-                    >
-                      {collapsedAccountRegions[acct.id] ?? true ? '▶' : '▼'}
-                    </span>
-                    <span>区域列表</span>
-                  </button>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>
+                    区域列表
+                  </div>
                   <button
                     onClick={() => addRegion(acct.id)}
                     style={{
@@ -880,139 +1068,172 @@ export const AzureModelsDashboard: React.FC = () => {
                     + 新增区域
                   </button>
                 </div>
-                {!(collapsedAccountRegions[acct.id] ?? true) && (
-                  <>
-                    {acct.regions.length === 0 && (
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>
-                        暂无区域，请点击“新增区域”开始配置。
-                      </div>
-                    )}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                        marginTop: 4,
-                      }}
-                    >
-                      {acct.regions.map((reg) => {
-                        const selectedSet = new Set(
-                          parseModels(reg.modelsText),
-                        );
-                        const regionModels = Array.from(selectedSet).sort();
-                        return (
-                          <div
-                            key={reg.id}
+                {acct.regions.length === 0 && (
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    暂无区域，请点击“新增区域”开始配置。
+                  </div>
+                )}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    marginTop: 4,
+                  }}
+                >
+                  {acct.regions.map((reg) => {
+                    const selectedSet = new Set(parseModels(reg.modelsText));
+                    const regionModels = Array.from(selectedSet).sort();
+                    const regionCollapsed =
+                      collapsedRegionModels[reg.id] ?? true;
+                    return (
+                      <div
+                        key={reg.id}
+                        style={{
+                          borderRadius: 8,
+                          border: '1px solid #1f2937',
+                          padding: 8,
+                          backgroundColor: '#020617',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 6,
+                            gap: 8,
+                          }}
+                        >
+                          <label
                             style={{
-                              borderRadius: 8,
-                              border: '1px solid #1f2937',
-                              padding: 8,
-                              backgroundColor: '#020617',
+                              fontSize: 13,
+                              flex: 1,
                             }}
                           >
-                            <div
+                            区域名称：
+                            <input
                               style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: 6,
-                                gap: 8,
+                                width: '100%',
+                                padding: 5,
+                                marginTop: 4,
+                                borderRadius: 8,
+                                border: '1px solid #374151',
+                                backgroundColor: '#020617',
+                                color: '#e5e7eb',
+                                fontSize: 13,
+                              }}
+                              value={reg.name}
+                              onChange={(e) =>
+                                updateRegionName(acct.id, reg.id, e.target.value)
+                              }
+                              placeholder="例如：eastus、swedencentral"
+                            />
+                          </label>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <button
+                              onClick={() => selectAllForRegion(acct.id, reg.id)}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #14532d',
+                                backgroundColor: '#022c22',
+                                color: '#bbf7d0',
+                                cursor: 'pointer',
+                                fontSize: 11,
                               }}
                             >
-                              <label
-                                style={{
-                                  fontSize: 13,
-                                  flex: 1,
-                                }}
-                              >
-                                区域名称：
-                                <input
-                                  style={{
-                                    width: '100%',
-                                    padding: 5,
-                                    marginTop: 4,
-                                    borderRadius: 8,
-                                    border: '1px solid #374151',
-                                    backgroundColor: '#020617',
-                                    color: '#e5e7eb',
-                                    fontSize: 13,
-                                  }}
-                                  value={reg.name}
-                                  onChange={(e) =>
-                                    updateRegionName(
-                                      acct.id,
-                                      reg.id,
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="例如：eastus、swedencentral"
-                                />
-                              </label>
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                }}
-                              >
-                                <button
-                                  onClick={() =>
-                                    selectAllForRegion(acct.id, reg.id)
-                                  }
-                                  style={{
-                                    padding: '3px 8px',
-                                    borderRadius: 999,
-                                    border: '1px solid #14532d',
-                                    backgroundColor: '#022c22',
-                                    color: '#bbf7d0',
-                                    cursor: 'pointer',
-                                    fontSize: 11,
-                                  }}
-                                >
-                                  全选
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    clearRegionModels(acct.id, reg.id)
-                                  }
-                                  style={{
-                                    padding: '3px 8px',
-                                    borderRadius: 999,
-                                    border: '1px solid #7f1d1d',
-                                    backgroundColor: '#451a1a',
-                                    color: '#fecaca',
-                                    cursor: 'pointer',
-                                    fontSize: 11,
-                                  }}
-                                >
-                                  清空
-                                </button>
-                                <button
-                                  onClick={() => deleteRegion(acct.id, reg.id)}
-                                  style={{
-                                    padding: '3px 8px',
-                                    borderRadius: 999,
-                                    border: '1px solid #7f1d1d',
-                                    backgroundColor: 'transparent',
-                                    color: '#fecaca',
-                                    cursor: 'pointer',
-                                    fontSize: 11,
-                                  }}
-                                >
-                                  删除区域
-                                </button>
-                              </div>
-                            </div>
+                              全选
+                            </button>
+                            <button
+                              onClick={() => clearRegionModels(acct.id, reg.id)}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #7f1d1d',
+                                backgroundColor: '#451a1a',
+                                color: '#fecaca',
+                                cursor: 'pointer',
+                                fontSize: 11,
+                              }}
+                            >
+                              清空
+                            </button>
+                            <button
+                              onClick={() => deleteRegion(acct.id, reg.id)}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #7f1d1d',
+                                backgroundColor: 'transparent',
+                                color: '#fecaca',
+                                cursor: 'pointer',
+                                fontSize: 11,
+                              }}
+                            >
+                              删除区域
+                            </button>
+                          </div>
+                        </div>
 
-                            <div
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: 12,
+                            color: '#9ca3af',
+                            marginBottom: regionCollapsed ? 4 : 2,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCollapsedRegionModels((prev) => ({
+                                ...prev,
+                                [reg.id]: !regionCollapsed,
+                              }))
+                            }
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: 0,
+                              border: 'none',
+                              background: 'transparent',
+                              color: '#e5e7eb',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span
                               style={{
-                                fontSize: 12,
+                                display: 'inline-block',
+                                width: 14,
+                                textAlign: 'center',
                                 color: '#9ca3af',
-                                marginBottom: 4,
+                                fontSize: 11,
                               }}
                             >
-                              模型（点击切换选中状态）：
-                            </div>
+                              {regionCollapsed ? '▶' : '▼'}
+                            </span>
+                            <span>模型（点击切换选中状态）</span>
+                          </button>
+                          {regionModels.length > 0 && (
+                            <span>
+                              已选：{regionModels.length} 个
+                            </span>
+                          )}
+                        </div>
+
+                        {!regionCollapsed && (
+                          <>
                             {masterModels.length === 0 ? (
                               <div
                                 style={{
@@ -1078,49 +1299,49 @@ export const AzureModelsDashboard: React.FC = () => {
                                 })}
                               </div>
                             )}
+                          </>
+                        )}
 
-                            {regionModels.length > 0 && (
-                              <div
-                                style={{
-                                  marginTop: 6,
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  fontSize: 12,
-                                  color: '#9ca3af',
-                                }}
-                              >
-                                <span>
-                                  已选模型数：{regionModels.length}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    handleCopy(
-                                      buildCopyString(regionModels),
-                                      `账号 ${acct.name || acct.id} / 区域 ${
-                                        reg.name || '未命名'
-                                      }`,
-                                    )
-                                  }
-                                  style={{
-                                    padding: '3px 8px',
-                                    borderRadius: 999,
-                                    border: '1px solid #4b5563',
-                                    backgroundColor: '#020617',
-                                    color: '#e5e7eb',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  复制本区域模型
-                                </button>
-                              </div>
-                            )}
+                        {regionModels.length > 0 && (
+                          <div
+                            style={{
+                              marginTop: 6,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: 12,
+                              color: '#9ca3af',
+                            }}
+                          >
+                            <span>
+                              已选模型数：{regionModels.length}
+                            </span>
+                            <button
+                              onClick={() =>
+                                handleCopy(
+                                  buildCopyString(regionModels),
+                                  `账号 ${acct.name || acct.id} / 区域 ${
+                                    reg.name || '未命名'
+                                  }`,
+                                )
+                              }
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #4b5563',
+                                backgroundColor: '#020617',
+                                color: '#e5e7eb',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              复制本区域模型
+                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ))}
