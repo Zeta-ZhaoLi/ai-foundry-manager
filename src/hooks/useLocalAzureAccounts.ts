@@ -257,39 +257,6 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
-  const importAccounts = useCallback((next: LocalAccount[]) => {
-    if (!Array.isArray(next) || next.length === 0) {
-      setAccounts([]);
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-      } catch {
-        // ignore
-      }
-      return;
-    }
-    const normalized = next.map((acct) => ({
-      id: acct.id,
-      name: acct.name,
-      note: acct.note,
-      enabled: acct.enabled !== false,
-      regions: Array.isArray(acct.regions)
-        ? acct.regions.map((reg) => ({
-            id: reg.id,
-            name: reg.name,
-            modelsText: reg.modelsText || '',
-            endpoint: reg.endpoint,
-            apiKey: reg.apiKey,
-          }))
-        : [],
-    }));
-    setAccounts(normalized);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-    } catch {
-      // ignore
-    }
-  }, []);
-
   // 仅统计 enabled 的账号
   const enabledAccounts = useMemo(
     () => accounts.filter((a) => a.enabled !== false),
@@ -360,6 +327,5 @@ export function useLocalAzureAccounts() {
     deleteRegion,
     updateRegionEndpoint,
     updateRegionApiKey,
-    importAccounts,
   };
 }
