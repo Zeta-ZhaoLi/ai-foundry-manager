@@ -143,6 +143,16 @@ export const AzureModelsDashboard: React.FC = () => {
       .sort((a, b) => b.pct - a.pct);
   }, [allRegions, masterModels, totalRegions]);
 
+  const unusedModelsCount = useMemo(
+    () => (totalMasterModels > 0 ? totalMasterModels - totalUsedModels : 0),
+    [totalMasterModels, totalUsedModels],
+  );
+
+  const singleRegionModelsCount = useMemo(() => {
+    if (modelCoverage.length === 0) return 0;
+    return modelCoverage.filter((m) => m.count === 1).length;
+  }, [modelCoverage]);
+
   const toggleSeriesCollapse = (series: string) => {
     setCollapsedSeries((prev) => ({
       ...prev,
@@ -426,6 +436,22 @@ export const AzureModelsDashboard: React.FC = () => {
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 600 }}>
                   {totalUsedModels}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  未使用模型数
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {unusedModelsCount}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                  仅 1 区域使用的模型
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>
+                  {singleRegionModelsCount}
                 </div>
               </div>
             </div>
