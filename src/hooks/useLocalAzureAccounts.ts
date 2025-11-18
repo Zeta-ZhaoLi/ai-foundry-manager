@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSeries } from '../utils/modelSeries';
 
+export type AccountGroup = 'prod' | 'staging' | 'dev' | 'other';
+export type RegionStatus = 'unknown' | 'testing' | 'verified' | 'deprecated';
+
 export interface LocalRegion {
   id: string;
   name: string;
   modelsText: string;
+  status?: RegionStatus;
 }
 
 export interface LocalAccount {
   id: string;
   name: string;
   note?: string;
+  group?: AccountGroup;
   regions: LocalRegion[];
 }
 
 export interface AccountSummary {
   accountKey: string;
+  group?: AccountGroup;
   regions: {
     [regionLabel: string]: {
       models: string[];
@@ -60,11 +66,13 @@ export function useLocalAzureAccounts() {
         id: 'sample-account',
         name: '示例账号',
         note: '你可以删除这个示例并添加自己的账号',
+        group: 'dev',
         regions: [
           {
             id: 'sample-region',
             name: 'eastus',
             modelsText: 'gpt-4o,gpt-4o-mini',
+            status: 'testing',
           },
         ],
       },
@@ -87,12 +95,22 @@ export function useLocalAzureAccounts() {
     [],
   );
 
+  const replaceAllAccounts = useCallback((next: LocalAccount[]) => {
+    setAccounts(next);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const addAccount = useCallback(() => {
     const id = `acct_${Date.now().toString(36)}`;
     const newAccount: LocalAccount = {
       id,
       name: '新账号',
       note: '',
+      group: 'prod',
       regions: [],
     };
     saveAccounts((prev) => [...prev, newAccount]);
@@ -116,6 +134,15 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
+  const updateAccountGroup = useCallback(
+    (id: string, group: AccountGroup) => {
+      saveAccounts((prev) =>
+        prev.map((acct) => (acct.id === id ? { ...acct, group } : acct)),
+      );
+    },
+    [saveAccounts],
+  );
+
   const deleteAccount = useCallback(
     (id: string) => {
       saveAccounts((prev) => prev.filter((acct) => acct.id !== id));
@@ -132,6 +159,7 @@ export function useLocalAzureAccounts() {
         id: regionId,
         name: 'new-region',
         modelsText: '',
+        status: 'unknown',
       };
       saveAccounts((prev) =>
         prev.map((acct) =>
@@ -171,6 +199,24 @@ export function useLocalAzureAccounts() {
                 ...acct,
                 regions: acct.regions.map((reg) =>
                   reg.id === regionId ? { ...reg, modelsText } : reg,
+                ),
+              }
+            : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateRegionStatus = useCallback(
+    (accountId: string, regionId: string, status: RegionStatus) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId ? { ...reg, status } : reg,
                 ),
               }
             : acct,
@@ -221,6 +267,7 @@ export function useLocalAzureAccounts() {
 
       return {
         accountKey: acct.name || acct.id,
+        group: acct.group,
         regions: normalizedRegions,
         allModels: Array.from(allModelsSet).sort(),
       };
@@ -252,11 +299,14 @@ export function useLocalAzureAccounts() {
     addAccount,
     updateAccountName,
     updateAccountNote,
+    updateAccountGroup,
     deleteAccount,
     addRegion,
     updateRegionName,
     updateRegionModelsText,
+    updateRegionStatus,
     deleteRegion,
+    replaceAllAccounts,
   };
 }
 

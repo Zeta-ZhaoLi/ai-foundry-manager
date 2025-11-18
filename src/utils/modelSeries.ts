@@ -1,4 +1,6 @@
-// 简单的模型系列归类工具，用于按系列聚合 Azure OpenAI 模型
+// 模型系列归类 & 文本导出工具
+
+export type ExportFormat = 'comma' | 'lines';
 
 export function getSeries(modelId: string): string {
   const id = modelId.toLowerCase();
@@ -18,11 +20,20 @@ export function getSeries(modelId: string): string {
   return modelId;
 }
 
-export function buildCopyString(models: string[]): string {
-  // 每个模型后面加一个逗号，中间用空格分隔，方便一键复制
-  return models
+export function buildCopyString(
+  models: string[],
+  format: ExportFormat = 'comma',
+): string {
+  const list = models
     .filter((m) => m && m.trim().length > 0)
-    .map((m) => `${m.trim()},`)
-    .join(' ');
+    .map((m) => m.trim());
+
+  if (format === 'lines') {
+    // 每行一个模型，末尾保留逗号，方便粘贴
+    return list.map((m) => `${m},`).join('\n');
+  }
+
+  // 默认：每个模型后加逗号，之间用空格分隔
+  return list.map((m) => `${m},`).join(' ');
 }
 
