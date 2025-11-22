@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { getSeries } from '../utils/modelSeries';
+import { parseModels, debounce, generateId } from '../utils/common';
+import { encryptData, decryptData } from '../utils/encryption';
 
 export interface LocalRegion {
   id: string;
@@ -33,17 +35,42 @@ export interface SeriesSummary {
 
 const STORAGE_KEY = 'azure-openai-manager:accounts';
 
-function parseModels(text: string): string[] {
-  if (!text) return [];
-  const parts = text
-    .split(/[\s,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return Array.from(new Set(parts));
-}
-
 export function useLocalAzureAccounts() {
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
+
+  // 解密敏感字段
+  const decryptAccounts = useCallback((accounts: LocalAccount[]): LocalAccount[] => {
+    return accounts.map((acct) => ({
+      ...acct,
+      regions: acct.regions.map((reg) => ({
+        ...reg,
+        apiKey: reg.apiKey ? decryptData(reg.apiKey) : reg.apiKey,
+      })),
+    }));
+  }, []);
+
+  // 加密敏感字段
+  const encryptAccounts = useCallback((accounts: LocalAccount[]): LocalAccount[] => {
+    return accounts.map((acct) => ({
+      ...acct,
+      regions: acct.regions.map((reg) => ({
+        ...reg,
+        apiKey: reg.apiKey ? encryptData(reg.apiKey) : reg.apiKey,
+      })),
+    }));
+  }, []);
+
+  // Debounced save function
+  const debouncedSaveRef = useRef(
+    debounce((accounts: LocalAccount[]) => {
+      try {
+        const encrypted = JSON.stringify(encryptAccounts(accounts));
+        window.localStorage.setItem(STORAGE_KEY, encrypted);
+      } catch (error) {
+        console.error('Failed to save accounts:', error);
+      }
+    }, 500)
+  );
 
   useEffect(() => {
     try {
@@ -56,12 +83,13 @@ export function useLocalAzureAccounts() {
             enabled: acct.enabled !== false,
             ...acct,
           }));
-          setAccounts(normalized);
+          const decrypted = decryptAccounts(normalized);
+          setAccounts(decrypted);
           return;
         }
       }
-    } catch {
-      // ignore parse errors
+    } catch (error) {
+      console.error('Failed to load accounts:', error);
     }
 
     const initial: LocalAccount[] = [
@@ -80,22 +108,14 @@ export function useLocalAzureAccounts() {
       },
     ];
     setAccounts(initial);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-    } catch {
-      // ignore
-    }
-  }, []);
+    debouncedSaveRef.current(initial);
+  }, [decryptAccounts]);
 
   const saveAccounts = useCallback(
     (updater: (prev: LocalAccount[]) => LocalAccount[]) => {
       setAccounts((prev) => {
         const next = updater(prev);
-        try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        } catch {
-          // ignore quota errors
-        }
+        debouncedSaveRef.current(next);
         return next;
       });
     },
@@ -103,9 +123,8 @@ export function useLocalAzureAccounts() {
   );
 
   const addAccount = useCallback(() => {
-    const id = `acct_${Date.now().toString(36)}`;
     const newAccount: LocalAccount = {
-      id,
+      id: generateId('acct'),
       name: '新账号',
       note: '',
       enabled: true,
@@ -150,11 +169,8 @@ export function useLocalAzureAccounts() {
 
   const addRegion = useCallback(
     (accountId: string) => {
-      const regionId = `reg_${Date.now().toString(36)}_${Math.random()
-        .toString(36)
-        .slice(2, 6)}`;
       const region: LocalRegion = {
-        id: regionId,
+        id: generateId('reg'),
         name: 'new-region',
         modelsText: '',
       };

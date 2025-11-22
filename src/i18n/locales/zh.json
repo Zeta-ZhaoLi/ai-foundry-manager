@@ -1,0 +1,84 @@
+{
+  "app": {
+    "title": "Azure OpenAI 通道模型面板",
+    "subtitle": "先在顶部维护一份总模型清单，然后通过点击为每个账号 / 区域分配可用模型，自动生成账号级和全局可用模型列表（每个模型名后接逗号，方便复制粘贴）。"
+  },
+  "masterModels": {
+    "title": "全局模型目录",
+    "description": "在此一次性维护所有可能用到的模型（使用逗号、空格或换行分隔）。下方账号 / 区域的模型都通过点击选择，不再重复输入。",
+    "placeholder": "例如：gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ...",
+    "parsedCount": "已解析模型数",
+    "copyButton": "复制目录列表（带逗号）"
+  },
+  "dashboard": {
+    "title": "可视化概览",
+    "accounts": "账号数",
+    "regions": "区域数",
+    "regionsWithModels": "有配置模型的区域",
+    "avgModelsPerRegion": "每区域平均模型数",
+    "masterModelsCount": "全局目录模型数",
+    "usedModelsCount": "实际使用模型数",
+    "unusedModelsCount": "未使用模型数",
+    "singleRegionModels": "仅 1 区域使用的模型"
+  },
+  "coverage": {
+    "regionTitle": "区域覆盖度（模型占比）",
+    "regionDescription": "各区域覆盖全局目录的比例",
+    "modelTitle": "模型覆盖度（区域占比）",
+    "modelDescription": "每个模型在多少个区域启用"
+  },
+  "accounts": {
+    "title": "本地 Azure 账号配置",
+    "description": "为每个账号添加区域，并通过点击选择可用模型。所有配置存储在浏览器 localStorage 中。",
+    "addAccount": "新增账号",
+    "exportConfig": "导出配置（JSON）",
+    "importConfig": "导入配置",
+    "accountName": "账号名称",
+    "accountNote": "备注（可选）",
+    "deleteAccount": "删除账号",
+    "enableAccount": "参与统计 / 启用账号"
+  },
+  "regions": {
+    "title": "区域列表",
+    "addRegion": "新增区域",
+    "regionName": "区域名称",
+    "endpoint": "Azure OpenAI Endpoint",
+    "apiKey": "Azure OpenAI API Key",
+    "models": "模型（点击切换选中状态）",
+    "selectAll": "全选",
+    "clearAll": "清空",
+    "deleteRegion": "删除区域",
+    "selectedModels": "已选模型数",
+    "copyModels": "复制本区域模型"
+  },
+  "models": {
+    "overview": "模型总览",
+    "search": "模型搜索",
+    "searchPlaceholder": "按模型关键字过滤，例如：gpt-4o",
+    "clearFilter": "清除",
+    "status": {
+      "all": "全部状态",
+      "unused": "未使用",
+      "single": "仅 1 区域",
+      "multi": "多区域"
+    }
+  },
+  "toast": {
+    "copied": "已复制",
+    "copyFailed": "复制失败，请手动选择文本",
+    "configExported": "配置已导出为 JSON 文件",
+    "configImported": "配置导入成功",
+    "configImportFailed": "配置导入失败",
+    "exportFailed": "导出失败，请重试",
+    "invalidConfig": "无效的配置文件"
+  },
+  "common": {
+    "copy": "复制",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭"
+  }
+}

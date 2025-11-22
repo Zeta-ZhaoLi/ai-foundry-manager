@@ -1,0 +1,84 @@
+{
+  "app": {
+    "title": "Azure OpenAI Channel Model Panel",
+    "subtitle": "Maintain a master model list at the top, then select available models for each account/region by clicking. Automatically generate account-level and global model lists (with commas after each model name for easy copy-paste)."
+  },
+  "masterModels": {
+    "title": "Global Model Directory",
+    "description": "Maintain all possible models here once (separated by commas, spaces, or newlines). Models for accounts/regions below are selected by clicking, no need to re-enter.",
+    "placeholder": "e.g.: gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ...",
+    "parsedCount": "Parsed Models",
+    "copyButton": "Copy Directory List (with commas)"
+  },
+  "dashboard": {
+    "title": "Visual Overview",
+    "accounts": "Accounts",
+    "regions": "Regions",
+    "regionsWithModels": "Regions with Models",
+    "avgModelsPerRegion": "Avg Models per Region",
+    "masterModelsCount": "Master Model Count",
+    "usedModelsCount": "Used Model Count",
+    "unusedModelsCount": "Unused Models",
+    "singleRegionModels": "Single Region Models"
+  },
+  "coverage": {
+    "regionTitle": "Region Coverage (Model Ratio)",
+    "regionDescription": "Percentage of global directory covered by each region",
+    "modelTitle": "Model Coverage (Region Ratio)",
+    "modelDescription": "Number of regions each model is enabled in"
+  },
+  "accounts": {
+    "title": "Local Azure Account Configuration",
+    "description": "Add regions for each account and select available models by clicking. All configurations are stored in browser localStorage.",
+    "addAccount": "Add Account",
+    "exportConfig": "Export Config (JSON)",
+    "importConfig": "Import Config",
+    "accountName": "Account Name",
+    "accountNote": "Note (optional)",
+    "deleteAccount": "Delete Account",
+    "enableAccount": "Enable / Include in Stats"
+  },
+  "regions": {
+    "title": "Region List",
+    "addRegion": "Add Region",
+    "regionName": "Region Name",
+    "endpoint": "Azure OpenAI Endpoint",
+    "apiKey": "Azure OpenAI API Key",
+    "models": "Models (click to toggle)",
+    "selectAll": "Select All",
+    "clearAll": "Clear",
+    "deleteRegion": "Delete Region",
+    "selectedModels": "Selected Models",
+    "copyModels": "Copy Region Models"
+  },
+  "models": {
+    "overview": "Model Overview",
+    "search": "Model Search",
+    "searchPlaceholder": "Filter by model keyword, e.g.: gpt-4o",
+    "clearFilter": "Clear",
+    "status": {
+      "all": "All Status",
+      "unused": "Unused",
+      "single": "Single Region",
+      "multi": "Multi Region"
+    }
+  },
+  "toast": {
+    "copied": "Copied",
+    "copyFailed": "Copy failed, please select text manually",
+    "configExported": "Config exported as JSON file",
+    "configImported": "Config imported successfully",
+    "configImportFailed": "Config import failed",
+    "exportFailed": "Export failed, please try again",
+    "invalidConfig": "Invalid configuration file"
+  },
+  "common": {
+    "copy": "Copy",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close"
+  }
+}
