@@ -1,4 +1,4 @@
-## Azure OpenAI Manager
+## Azure AI Foundry Manager
 
 独立的前端小工具，用来对接 `new-api`，专门管理 Azure OpenAI 渠道：
 
