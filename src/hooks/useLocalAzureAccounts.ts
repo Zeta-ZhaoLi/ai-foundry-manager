@@ -13,12 +13,22 @@ export interface LocalRegion {
   enabled?: boolean;  // 默认 true，控制是否参与统计
 }
 
+export type AccountTier = 'premium' | 'standard';
+export type AccountQuota = '200' | '1000' | '2000' | '5000' | '20000' | '25000' | '45000' | 'custom';
+export type CurrencyType = 'USD' | 'CNY';
+
 export interface LocalAccount {
   id: string;
   name: string;
   note?: string;
   enabled: boolean;
   regions: LocalRegion[];
+  tier?: AccountTier;       // 账号类别（高级/普通）
+  quota?: AccountQuota;     // 额度选项
+  customQuota?: number;     // 自定义额度值
+  purchaseAmount?: number;      // 购买金额
+  purchaseCurrency?: CurrencyType;  // 货币类型 (默认 USD)
+  usedAmount?: number;          // 已使用额度
 }
 
 export interface AccountSummary {
@@ -131,6 +141,7 @@ export function useLocalAzureAccounts() {
       note: '',
       enabled: true,
       regions: [],
+      quota: '2000',  // 默认额度 $2,000
     };
     saveAccounts((prev) => [...prev, newAccount]);
   }, [saveAccounts]);
@@ -157,6 +168,48 @@ export function useLocalAzureAccounts() {
     (id: string, enabled: boolean) => {
       saveAccounts((prev) =>
         prev.map((acct) => (acct.id === id ? { ...acct, enabled } : acct)),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateAccountTier = useCallback(
+    (id: string, tier: AccountTier) => {
+      saveAccounts((prev) =>
+        prev.map((acct) => (acct.id === id ? { ...acct, tier } : acct)),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateAccountQuota = useCallback(
+    (id: string, quota: AccountQuota, customQuota?: number) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, quota, customQuota } : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateAccountPurchase = useCallback(
+    (id: string, purchaseAmount: number, purchaseCurrency: CurrencyType) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, purchaseAmount, purchaseCurrency } : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateAccountUsedAmount = useCallback(
+    (id: string, usedAmount: number) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, usedAmount } : acct,
+        ),
       );
     },
     [saveAccounts],
@@ -406,6 +459,10 @@ export function useLocalAzureAccounts() {
     updateAccountName,
     updateAccountNote,
     updateAccountEnabled,
+    updateAccountTier,
+    updateAccountQuota,
+    updateAccountPurchase,
+    updateAccountUsedAmount,
     deleteAccount,
     addRegion,
     updateRegionName,

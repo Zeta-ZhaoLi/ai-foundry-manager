@@ -30,8 +30,9 @@ export const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
     <div
       ref={setNodeRef}
       style={style}
+      id={`account-card-${account.id}`}
       className={clsx(
-        'relative',
+        'relative account-card-glow',
         isDragging && 'z-50 opacity-90 shadow-2xl'
       )}
     >
@@ -43,7 +44,7 @@ export const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
           'absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center',
           'cursor-grab active:cursor-grabbing',
           'text-muted-foreground hover:text-foreground transition-colors',
-          'rounded-l-xl'
+          'rounded-l-xl z-10'
         )}
         title="拖拽排序"
       >

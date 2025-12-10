@@ -8,6 +8,11 @@
     "copyright": "2024 ZetaTechs",
     "author": "作者：赵利利"
   },
+  "privacy": {
+    "toggle": "隐私模式",
+    "showInfo": "显示敏感信息",
+    "hideInfo": "隐藏敏感信息"
+  },
   "masterModels": {
     "title": "全局模型目录",
     "description": "在此一次性维护所有可能用到的模型（使用逗号、空格或换行分隔）。下方账号 / 区域的模型都通过点击选择，不再重复输入。",
@@ -45,15 +50,27 @@
     "addAccount": "新增账号",
     "exportConfig": "导出配置（JSON）",
     "importConfig": "导入配置",
-    "accountName": "账号名称：",
+    "accountName": "账号名称",
     "accountNamePlaceholder": "例如：Prod-Subscription-AzureOpenAI",
-    "note": "备注（可选）：",
+    "note": "备注（可选）",
     "notePlaceholder": "例如：租户 ID、订阅 ID 等",
     "deleteAccount": "删除账号",
     "enableAccount": "参与统计 / 启用账号",
     "account": "账号",
     "modelSearch": "模型搜索：",
-    "searchPlaceholder": "按模型关键字过滤，例如：gpt-4o"
+    "searchPlaceholder": "按模型关键字过滤，例如：gpt-4o",
+    "tier": "类别",
+    "tierPremium": "高级",
+    "tierStandard": "普通",
+    "quota": "额度",
+    "quotaCustom": "自定义",
+    "expand": "展开",
+    "collapse": "收起",
+    "purchaseAmount": "购买金额",
+    "usedAmount": "已使用",
+    "accountCost": "账号成本/$",
+    "actualCost": "实际成本/$",
+    "usageRate": "使用率"
   },
   "regions": {
     "regionList": "区域列表",
@@ -76,7 +93,13 @@
     "noMatchingModels": "当前搜索条件下没有匹配的模型。",
     "region": "区域",
     "unnamed": "未命名",
-    "enableRegion": "启用区域（参与统计）"
+    "enableRegion": "启用区域（参与统计）",
+    "pasteModels": "粘贴导入",
+    "pasteSuccess": "已导入 {{count}} 个模型",
+    "pasteEmpty": "剪贴板为空或没有有效的模型",
+    "pasteFailed": "读取剪贴板失败",
+    "copyCategoryModels": "复制此分类模型",
+    "disabled": "已禁用"
   },
   "modelCategory": {
     "standard": "常规模型 (OpenAI 系列 + 其他模型)",
@@ -124,6 +147,11 @@
     "securityDescription": "导出的配置文件包含敏感信息（API Key），请妥善保管，不要分享给他人。",
     "proceed": "继续导出"
   },
+  "language": {
+    "zh": "中文",
+    "en": "English",
+    "toggle": "切换语言"
+  },
   "theme": {
     "light": "浅色",
     "dark": "深色",
@@ -149,7 +177,8 @@
     "clear": "清除",
     "show": "显示",
     "hide": "隐藏",
-    "noData": "暂无数据"
+    "noData": "暂无数据",
+    "clickToCopy": "点击复制"
   },
   "statistics": {
     "deploymentStatus": "部署状态分布",
@@ -160,6 +189,33 @@
     "unused": "未使用",
     "accountDistribution": "账号模型分布",
     "accountDistributionDesc": "各账号拥有的模型数量",
-    "regionDeployment": "区域部署概览"
+    "regionDeployment": "区域部署概览",
+    "accountOverview": "账号总览",
+    "accountSummary": "共 {{total}} 个账号，{{enabled}} 个已启用",
+    "accountStatus": "账号状态分布",
+    "tierDistribution": "账号类别分布",
+    "quotaDistribution": "账号额度分布",
+    "enabled": "已启用",
+    "disabledLabel": "已禁用",
+    "regionCount": "区域数",
+    "modelCount": "模型数",
+    "noAccounts": "暂无账号，请先添加账号。",
+    "doubleClickToLocate": "双击定位到账号配置"
+  },
+  "modelStatistics": {
+    "title": "模型总览",
+    "summary": "共 {{total}} 个模型，{{deployed}} 个已部署，{{unused}} 个未使用",
+    "deploymentStatus": "部署状态分布",
+    "categoryDistribution": "模型分类分布",
+    "coverageDistribution": "覆盖率分布",
+    "unused": "未部署",
+    "singleRegion": "单区域",
+    "multiRegion": "多区域",
+    "columnModel": "模型名称",
+    "columnCategory": "分类",
+    "columnStatus": "部署状态",
+    "columnRegions": "覆盖区域",
+    "columnCoverage": "覆盖率",
+    "noModels": "暂无模型，请先在全局模型目录中配置模型。"
   }
 }

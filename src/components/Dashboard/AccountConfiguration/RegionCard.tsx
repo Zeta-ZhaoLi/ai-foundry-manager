@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { buildCopyString, groupModelsByCategory, ModelCategory } from '../../../utils/modelSeries';
+import { useToast } from '../../../hooks/useToast';
 
 export interface LocalRegion {
   id: string;
@@ -16,6 +17,8 @@ export interface LocalRegion {
 
 export interface RegionCardProps {
   region: LocalRegion;
+  regionIndex?: number;
+  privacyMode?: boolean;
   accountId: string;
   accountName: string;
   masterModels: string[];
@@ -39,6 +42,21 @@ const parseModels = (text: string): string[] => {
   return Array.from(new Set(parts));
 };
 
+// 隐私模式下打码 Endpoint
+const maskEndpoint = (url: string): string => {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.hostname.split('.');
+    if (parts.length >= 2) {
+      parts[0] = '***';  // 打码第一段
+    }
+    return `${parsed.protocol}//${parts.join('.')}`;
+  } catch {
+    return '***';
+  }
+};
+
 // 分类标签配置
 const CATEGORY_CONFIG: Record<ModelCategory, { labelKey: string; color: string }> = {
   standard: { labelKey: 'modelCategory.standard', color: 'text-cyan-400' },
@@ -48,6 +66,8 @@ const CATEGORY_CONFIG: Record<ModelCategory, { labelKey: string; color: string }
 
 export const RegionCard: React.FC<RegionCardProps> = ({
   region,
+  regionIndex = 0,
+  privacyMode = false,
   accountName,
   masterModels,
   filteredModels,
@@ -61,9 +81,11 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   onCopy,
 }) => {
   const { t } = useTranslation();
+  const toast = useToast();
   const [collapsed, setCollapsed] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(region.enabled !== false);
 
   const selectedSet = new Set(parseModels(region.modelsText));
   const regionModels = Array.from(selectedSet).sort();
@@ -103,6 +125,29 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     onUpdateModelsText('');
   };
 
+  // 粘贴导入模型
+  const handlePasteModels = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const models = text
+        .split(/[\s,\n]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (models.length === 0) {
+        toast.error(t('regions.pasteEmpty'));
+        return;
+      }
+
+      const currentModels = parseModels(region.modelsText);
+      const mergedSet = new Set([...currentModels, ...models]);
+      onUpdateModelsText(Array.from(mergedSet).sort().join(','));
+      toast.success(t('regions.pasteSuccess', { count: models.length }));
+    } catch {
+      toast.error(t('regions.pasteFailed'));
+    }
+  };
+
   // 计算各分类已选数量
   const selectedByCategory = useMemo(() => {
     const result: Record<ModelCategory, number> = { standard: 0, sora: 0, claude: 0 };
@@ -116,6 +161,33 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   }, [regionModels]);
 
   const isDisabled = region.enabled === false;
+
+  // 隐私模式下显示的区域名称
+  const displayRegionName = privacyMode
+    ? t('regions.region') + ` ${regionIndex + 1}`
+    : region.name || t('regions.region') + ` ${regionIndex + 1}`;
+
+  // 未启用区域收起时的简化视图
+  if (isDisabled && !isExpanded) {
+    return (
+      <div className="rounded-lg border border-gray-800 p-2.5 bg-background opacity-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-medium">{regionIndex + 1}.</span>
+            <span className="text-sm">{displayRegionName}</span>
+            <span className="text-xs text-gray-500">({t('regions.disabled')})</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsExpanded(true)}
+            className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
+          >
+            {t('accounts.expand')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -132,10 +204,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           {t('regions.deleteRegion')}
         </button>
 
-        {/* 第一行: 启用开关 + 区域名称 + API Key (含显示/复制按钮) */}
-        {/* 移动端：单列布局 | 桌面端：双列布局 */}
+        {/* 第一行: 启用开关 + 区域编号 + 区域名称 + API Key */}
         <div className="flex flex-col md:flex-row md:items-start gap-3 mb-2 pr-0 md:pr-20">
-          {/* 启用开关 + 区域名称 */}
+          {/* 启用开关 + 编号 + 区域名称 */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="pt-6 shrink-0">
               <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title={t('regions.enableRegion')}>
@@ -148,25 +219,29 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               </label>
             </div>
 
-            {/* 区域名称 */}
+            {/* 区域编号 + 区域名称 */}
             <div className="flex-1 min-w-0">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('regions.regionName')}
-              </label>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs text-muted-foreground font-medium">{regionIndex + 1}.</span>
+                <label className="text-xs text-muted-foreground">
+                  {t('regions.regionName')}
+                </label>
+              </div>
               <input
                 className={clsx(
                   'w-full p-1.5 rounded-lg',
                   'border border-gray-700 bg-background text-foreground text-sm',
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
-                value={region.name}
+                value={privacyMode ? displayRegionName : region.name}
                 onChange={(e) => onUpdateName(e.target.value)}
                 placeholder={t('regions.regionNamePlaceholder')}
+                disabled={privacyMode}
               />
             </div>
           </div>
 
-          {/* API Key 带显示/隐藏/复制按钮 - 移动端全宽 */}
+          {/* API Key 带显示/隐藏/复制按钮 */}
           <div className="flex-1 min-w-0 pl-7 md:pl-0">
             <label className="text-xs text-muted-foreground block mb-1">
               {t('regions.apiKey')}
@@ -221,7 +296,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         </div>
 
         {/* 第二行: OpenAI Endpoint + Anthropic Endpoint */}
-        {/* 移动端：单列布局 | 桌面端：双列布局 */}
         <div className="flex flex-col md:flex-row md:items-start gap-3 mb-2 pl-7">
           {/* OpenAI Endpoint */}
           <div className="flex-1 min-w-0">
@@ -234,9 +308,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 'border border-gray-700 bg-background text-foreground text-sm',
                 'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
               )}
-              value={region.openaiEndpoint || ''}
+              value={privacyMode ? maskEndpoint(region.openaiEndpoint || '') : (region.openaiEndpoint || '')}
               onChange={(e) => onUpdateOpenaiEndpoint(e.target.value)}
               placeholder="https://xxx.openai.azure.com"
+              disabled={privacyMode}
             />
           </div>
 
@@ -251,11 +326,25 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 'border border-gray-700 bg-background text-foreground text-sm',
                 'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
               )}
-              value={region.anthropicEndpoint || ''}
+              value={privacyMode ? maskEndpoint(region.anthropicEndpoint || '') : (region.anthropicEndpoint || '')}
               onChange={(e) => onUpdateAnthropicEndpoint(e.target.value)}
               placeholder="https://xxx.services.ai.azure.com"
+              disabled={privacyMode}
             />
           </div>
+
+          {/* 收起按钮 (未启用时显示) */}
+          {isDisabled && (
+            <div className="flex items-end pb-1">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
+              >
+                {t('accounts.collapse')}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 模型选择区域 */}
@@ -279,6 +368,14 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             </button>
 
             <div className="flex items-center gap-1.5">
+              {/* 粘贴导入按钮 */}
+              <button
+                type="button"
+                onClick={handlePasteModels}
+                className="px-2 py-0.5 rounded-full border border-blue-900 bg-blue-900/30 text-blue-300 text-xs cursor-pointer hover:bg-blue-900/50"
+              >
+                {t('regions.pasteModels')}
+              </button>
               <button
                 type="button"
                 onClick={selectAll}
@@ -315,6 +412,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                     if (models.length === 0) return null;
                     const config = CATEGORY_CONFIG[category];
                     const selectedCount = selectedByCategory[category];
+                    const selectedModels = models.filter((m) => selectedSet.has(m));
 
                     return (
                       <div key={category} className="border border-gray-800 rounded-lg p-2">
@@ -325,13 +423,29 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                               ({selectedCount}/{models.length})
                             </span>
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => selectCategory(category)}
-                            className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
-                          >
-                            {t('regions.selectCategory')}
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {/* 复制此分类已选模型 */}
+                            {selectedModels.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => onCopy(
+                                  buildCopyString(selectedModels),
+                                  `${displayRegionName} - ${t(config.labelKey)}`
+                                )}
+                                className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
+                                title={t('regions.copyCategoryModels')}
+                              >
+                                📋
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => selectCategory(category)}
+                              className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
+                            >
+                              {t('regions.selectCategory')}
+                            </button>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {models.map((model) => {
@@ -370,7 +484,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 onClick={() =>
                   onCopy(
                     buildCopyString(regionModels),
-                    `${t('accounts.account')} ${accountName} / ${t('regions.region')} ${region.name || t('regions.unnamed')}`
+                    `${t('accounts.account')} ${accountName} / ${t('regions.region')} ${displayRegionName}`
                   )
                 }
                 className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground cursor-pointer hover:bg-slate-800"

@@ -9,14 +9,11 @@ export interface ModelCoverageItem {
 }
 
 export type StatusFilter = 'all' | 'unused' | 'single' | 'multi';
-export type CoverageViewMode = 'top10' | 'all';
 
 export interface ModelCoverageChartProps {
   modelCoverage: ModelCoverageItem[];
   statusFilter: StatusFilter;
   onStatusFilterChange: (filter: StatusFilter) => void;
-  coverageViewMode: CoverageViewMode;
-  onCoverageViewModeChange: (mode: CoverageViewMode) => void;
   totalRegions: number;
 }
 
@@ -24,15 +21,9 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
   modelCoverage,
   statusFilter,
   onStatusFilterChange,
-  coverageViewMode,
-  onCoverageViewModeChange,
   totalRegions,
 }) => {
   const { t } = useTranslation();
-
-  const displayItems = coverageViewMode === 'top10'
-    ? modelCoverage.slice(0, 10)
-    : modelCoverage;
 
   return (
     <div
@@ -65,18 +56,6 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
             <option value="single">{t('coverage.filterSingle')}</option>
             <option value="multi">{t('coverage.filterMulti')}</option>
           </select>
-          <select
-            value={coverageViewMode}
-            onChange={(e) => onCoverageViewModeChange(e.target.value as CoverageViewMode)}
-            className={clsx(
-              'px-1.5 py-0.5 rounded-full',
-              'border border-gray-600 bg-background text-foreground',
-              'cursor-pointer'
-            )}
-          >
-            <option value="top10">Top 10</option>
-            <option value="all">{t('coverage.viewAll')}</option>
-          </select>
         </div>
       </div>
 
@@ -86,7 +65,7 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
         </div>
       ) : (
         <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
-          {displayItems.map((m) => (
+          {modelCoverage.map((m) => (
             <div
               key={m.model}
               className="flex items-center gap-2 text-xs"

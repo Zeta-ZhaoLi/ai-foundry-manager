@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,18 +18,24 @@ import {
 import { LocalAccount } from './AccountCard';
 import { SortableAccountCard } from './SortableAccountCard';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
+import { AccountTier, AccountQuota, CurrencyType } from '../../../hooks/useLocalAzureAccounts';
 
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
   masterModels: string[];
   filteredModels: string[];
   modelFilterInput: string;
+  privacyMode?: boolean;
   onFilterChange: (value: string) => void;
   onAddAccount: () => void;
   onExportConfig: () => void;
   onUpdateAccountName: (accountId: string, name: string) => void;
   onUpdateAccountNote: (accountId: string, note: string) => void;
   onUpdateAccountEnabled: (accountId: string, enabled: boolean) => void;
+  onUpdateAccountTier: (accountId: string, tier: AccountTier) => void;
+  onUpdateAccountQuota: (accountId: string, quota: AccountQuota, customQuota?: number) => void;
+  onUpdateAccountPurchase?: (accountId: string, amount: number, currency: CurrencyType) => void;
+  onUpdateAccountUsedAmount?: (accountId: string, usedAmount: number) => void;
   onDeleteAccount: (accountId: string) => void;
   onAddRegion: (accountId: string) => void;
   onDeleteRegion: (accountId: string, regionId: string) => void;
@@ -49,12 +55,17 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   masterModels,
   filteredModels,
   modelFilterInput,
+  privacyMode = false,
   onFilterChange,
   onAddAccount,
   onExportConfig,
   onUpdateAccountName,
   onUpdateAccountNote,
   onUpdateAccountEnabled,
+  onUpdateAccountTier,
+  onUpdateAccountQuota,
+  onUpdateAccountPurchase,
+  onUpdateAccountUsedAmount,
   onDeleteAccount,
   onAddRegion,
   onDeleteRegion,
@@ -86,6 +97,18 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
     setShowExportWarning(false);
     onExportConfig();
   };
+
+  // Sort accounts: premium accounts first, then maintain original order
+  const sortedAccounts = useMemo(() => {
+    return [...accounts]
+      .map((account, originalIndex) => ({ account, originalIndex }))
+      .sort((a, b) => {
+        const aTier = a.account.tier === 'premium' ? 0 : 1;
+        const bTier = b.account.tier === 'premium' ? 0 : 1;
+        if (aTier !== bTier) return aTier - bTier;
+        return a.originalIndex - b.originalIndex;
+      });
+  }, [accounts]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -171,19 +194,25 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={accounts.map((a) => a.id)}
+            items={sortedAccounts.map((item) => item.account.id)}
             strategy={verticalListSortingStrategy}
           >
             <div className="flex flex-col gap-3">
-              {accounts.map((account) => (
+              {sortedAccounts.map(({ account, originalIndex }) => (
                 <SortableAccountCard
                   key={account.id}
                   account={account}
+                  index={originalIndex}
+                  privacyMode={privacyMode}
                   masterModels={masterModels}
                   filteredModels={filteredModels}
                   onUpdateName={(name) => onUpdateAccountName(account.id, name)}
                   onUpdateNote={(note) => onUpdateAccountNote(account.id, note)}
                   onUpdateEnabled={(enabled) => onUpdateAccountEnabled(account.id, enabled)}
+                  onUpdateTier={(tier) => onUpdateAccountTier(account.id, tier)}
+                  onUpdateQuota={(quota, customQuota) => onUpdateAccountQuota(account.id, quota, customQuota)}
+                  onUpdatePurchase={onUpdateAccountPurchase ? (amount, currency) => onUpdateAccountPurchase(account.id, amount, currency) : undefined}
+                  onUpdateUsedAmount={onUpdateAccountUsedAmount ? (usedAmount) => onUpdateAccountUsedAmount(account.id, usedAmount) : undefined}
                   onDelete={() => onDeleteAccount(account.id)}
                   onAddRegion={() => onAddRegion(account.id)}
                   onDeleteRegion={(regionId) => onDeleteRegion(account.id, regionId)}

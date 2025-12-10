@@ -8,6 +8,11 @@
     "copyright": "2024 ZetaTechs",
     "author": "Author: Zhao Lili"
   },
+  "privacy": {
+    "toggle": "Privacy Mode",
+    "showInfo": "Show sensitive info",
+    "hideInfo": "Hide sensitive info"
+  },
   "masterModels": {
     "title": "Global Model Directory",
     "description": "Maintain all possible models here once (separated by commas, spaces, or newlines). Models for accounts/regions below are selected by clicking, no need to re-enter.",
@@ -53,7 +58,19 @@
     "enableAccount": "Enable / Include in Stats",
     "account": "Account",
     "modelSearch": "Model Search:",
-    "searchPlaceholder": "Filter by model keyword, e.g.: gpt-4o"
+    "searchPlaceholder": "Filter by model keyword, e.g.: gpt-4o",
+    "tier": "Account Tier",
+    "tierPremium": "Premium",
+    "tierStandard": "Standard",
+    "quota": "Quota",
+    "quotaCustom": "Custom",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "purchaseAmount": "Purchase Amount",
+    "usedAmount": "Used Amount",
+    "accountCost": "Account Cost/$",
+    "actualCost": "Actual Cost/$",
+    "usageRate": "Usage"
   },
   "regions": {
     "regionList": "Region List",
@@ -76,7 +93,13 @@
     "noMatchingModels": "No matching models for current search.",
     "region": "Region",
     "unnamed": "Unnamed",
-    "enableRegion": "Enable Region (Include in Stats)"
+    "enableRegion": "Enable Region (Include in Stats)",
+    "pasteModels": "Paste Import",
+    "pasteSuccess": "Imported {{count}} models",
+    "pasteEmpty": "Clipboard is empty or has no valid models",
+    "pasteFailed": "Failed to read clipboard",
+    "copyCategoryModels": "Copy category models",
+    "disabled": "Disabled"
   },
   "modelCategory": {
     "standard": "Standard Models (OpenAI + Others)",
@@ -124,6 +147,11 @@
     "securityDescription": "The exported config file contains sensitive information (API Keys). Please keep it safe and do not share with others.",
     "proceed": "Proceed with Export"
   },
+  "language": {
+    "zh": "中文",
+    "en": "English",
+    "toggle": "Toggle Language"
+  },
   "theme": {
     "light": "Light",
     "dark": "Dark",
@@ -149,7 +177,8 @@
     "clear": "Clear",
     "show": "Show",
     "hide": "Hide",
-    "noData": "No data"
+    "noData": "No data",
+    "clickToCopy": "Click to copy"
   },
   "statistics": {
     "deploymentStatus": "Deployment Status",
@@ -160,6 +189,33 @@
     "unused": "Unused",
     "accountDistribution": "Account Model Distribution",
     "accountDistributionDesc": "Model count by account",
-    "regionDeployment": "Region Deployment Overview"
+    "regionDeployment": "Region Deployment Overview",
+    "accountOverview": "Account Overview",
+    "accountSummary": "{{total}} accounts total, {{enabled}} enabled",
+    "accountStatus": "Account Status",
+    "tierDistribution": "Account Tier Distribution",
+    "quotaDistribution": "Quota Distribution",
+    "enabled": "Enabled",
+    "disabledLabel": "Disabled",
+    "regionCount": "Regions",
+    "modelCount": "Models",
+    "noAccounts": "No accounts yet. Please add an account.",
+    "doubleClickToLocate": "Double-click to locate account"
+  },
+  "modelStatistics": {
+    "title": "Model Statistics",
+    "summary": "{{total}} models total, {{deployed}} deployed, {{unused}} unused",
+    "deploymentStatus": "Deployment Status",
+    "categoryDistribution": "Category Distribution",
+    "coverageDistribution": "Coverage Distribution",
+    "unused": "Unused",
+    "singleRegion": "Single Region",
+    "multiRegion": "Multi Region",
+    "columnModel": "Model Name",
+    "columnCategory": "Category",
+    "columnStatus": "Status",
+    "columnRegions": "Regions",
+    "columnCoverage": "Coverage",
+    "noModels": "No models yet. Please configure models in Global Model Directory first."
   }
 }

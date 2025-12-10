@@ -7,10 +7,10 @@ import { debounce } from '../utils/common';
 import { MasterModelDirectory } from './Dashboard/MasterModelDirectory';
 import { OverviewDashboard } from './Dashboard/OverviewDashboard';
 import { RegionCoverageChart } from './Dashboard/CoverageCharts/RegionCoverageChart';
-import { ModelCoverageChart, StatusFilter, CoverageViewMode } from './Dashboard/CoverageCharts/ModelCoverageChart';
+import { ModelCoverageChart, StatusFilter } from './Dashboard/CoverageCharts/ModelCoverageChart';
 import { ModelOverviewTable, ModelState } from './Dashboard/ModelOverviewTable';
+import { ModelStatisticsTable } from './Dashboard/ModelStatisticsTable';
 import { AccountsSection } from './Dashboard/AccountConfiguration/AccountsSection';
-import { AccountSummary } from './Dashboard/Summary/AccountSummary';
 import { GlobalSummary } from './Dashboard/Summary/GlobalSummary';
 
 const MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
@@ -24,7 +24,11 @@ const parseModels = (text: string): string[] => {
   return Array.from(new Set(parts));
 };
 
-export const AzureModelsDashboard: React.FC = () => {
+export interface AzureModelsDashboardProps {
+  privacyMode?: boolean;
+}
+
+export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ privacyMode = false }) => {
   const { t } = useTranslation();
   const toast = useToast();
 
@@ -36,6 +40,10 @@ export const AzureModelsDashboard: React.FC = () => {
     updateAccountName,
     updateAccountNote,
     updateAccountEnabled,
+    updateAccountTier,
+    updateAccountQuota,
+    updateAccountPurchase,
+    updateAccountUsedAmount,
     deleteAccount,
     addRegion,
     updateRegionName,
@@ -71,7 +79,6 @@ export const AzureModelsDashboard: React.FC = () => {
   const [modelFilterInput, setModelFilterInput] = useState('');
   const [modelFilter, setModelFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [coverageViewMode, setCoverageViewMode] = useState<CoverageViewMode>('top10');
 
   const debouncedSetFilter = useMemo(
     () => debounce((value: string) => setModelFilter(value), 300),
@@ -128,19 +135,35 @@ export const AzureModelsDashboard: React.FC = () => {
   const regionCoverage = useMemo(() => {
     if (totalMasterModels === 0) return [];
     const masterSet = new Set(masterModels);
+
+    // 获取每个账号的 tier
+    const accountTierMap = new Map<string, 'premium' | 'standard'>();
+    accounts.forEach((acc) => {
+      accountTierMap.set(acc.id, acc.tier || 'standard');
+    });
+
     return allRegions
       .map((r) => {
         const used = r.models.filter((m) => masterSet.has(m));
         const pct = Math.round((used.length / totalMasterModels) * 100);
+        const accountTier = accountTierMap.get(r.accountId) || 'standard';
         return {
           key: `${r.accountId}-${r.regionId}`,
           label: `${r.accountName || r.accountId} / ${r.regionName || t('regions.unnamed')}`,
           usedCount: used.length,
           pct,
+          accountId: r.accountId,
+          accountTier,
         };
       })
-      .sort((a, b) => b.pct - a.pct);
-  }, [allRegions, masterModels, totalMasterModels, t]);
+      // 排序：高级账号在前，然后按覆盖度降序
+      .sort((a, b) => {
+        const aTier = a.accountTier === 'premium' ? 0 : 1;
+        const bTier = b.accountTier === 'premium' ? 0 : 1;
+        if (aTier !== bTier) return aTier - bTier;
+        return b.pct - a.pct;
+      });
+  }, [allRegions, masterModels, totalMasterModels, accounts, t]);
 
   const modelCoverage = useMemo(() => {
     if (masterModels.length === 0 || totalRegions === 0) return [];
@@ -270,13 +293,12 @@ export const AzureModelsDashboard: React.FC = () => {
           <RegionCoverageChart
             regionCoverage={regionCoverage}
             totalMasterModels={totalMasterModels}
+            privacyMode={privacyMode}
           />
           <ModelCoverageChart
             modelCoverage={modelCoverageFiltered}
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
-            coverageViewMode={coverageViewMode}
-            onCoverageViewModeChange={setCoverageViewMode}
             totalRegions={totalRegions}
           />
         </div>
@@ -287,6 +309,18 @@ export const AzureModelsDashboard: React.FC = () => {
         filteredModelStates={filteredModelStates}
         modelStates={modelStates}
         totalRegions={totalRegions}
+        accounts={accounts}
+        privacyMode={privacyMode}
+      />
+
+      {/* Model Statistics */}
+      <ModelStatisticsTable
+        modelStates={modelStates}
+        filteredModelStates={filteredModelStates}
+        totalRegions={totalRegions}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onCopy={handleCopy}
       />
 
       {/* Account Configuration */}
@@ -295,12 +329,17 @@ export const AzureModelsDashboard: React.FC = () => {
         masterModels={masterModels}
         filteredModels={filteredModels}
         modelFilterInput={modelFilterInput}
+        privacyMode={privacyMode}
         onFilterChange={handleFilterChange}
         onAddAccount={addAccount}
         onExportConfig={handleExportConfig}
         onUpdateAccountName={updateAccountName}
         onUpdateAccountNote={updateAccountNote}
         onUpdateAccountEnabled={updateAccountEnabled}
+        onUpdateAccountTier={updateAccountTier}
+        onUpdateAccountQuota={updateAccountQuota}
+        onUpdateAccountPurchase={updateAccountPurchase}
+        onUpdateAccountUsedAmount={updateAccountUsedAmount}
         onDeleteAccount={deleteAccount}
         onAddRegion={addRegion}
         onDeleteRegion={deleteRegion}
@@ -312,12 +351,6 @@ export const AzureModelsDashboard: React.FC = () => {
         onUpdateRegionEnabled={updateRegionEnabled}
         onReorderAccounts={reorderAccounts}
         onReorderRegions={reorderRegions}
-        onCopy={handleCopy}
-      />
-
-      {/* Account Summary */}
-      <AccountSummary
-        accountSummaries={accountSummaries}
         onCopy={handleCopy}
       />
 

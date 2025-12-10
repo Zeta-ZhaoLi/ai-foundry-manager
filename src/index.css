@@ -7,3 +7,47 @@ body {
   @apply bg-background text-foreground;
 }
 
+/* 高亮闪烁动画 - 用于双击定位账号卡片 */
+@keyframes highlight-flash {
+  0%, 100% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow: 0 0 0 3px #22d3ee, 0 0 15px rgba(34, 211, 238, 0.5);
+  }
+}
+
+.highlight-flash {
+  animation: highlight-flash 0.5s ease-in-out 3;
+}
+
+/* 账号卡片悬停流光边框效果 */
+@keyframes glow-flow {
+  0% {
+    box-shadow: 0 0 0 1px #22d3ee, 0 0 8px rgba(34, 211, 238, 0.4);
+  }
+  20% {
+    box-shadow: 0 0 0 1px #4ade80, 0 0 8px rgba(74, 222, 128, 0.4);
+  }
+  40% {
+    box-shadow: 0 0 0 1px #a78bfa, 0 0 8px rgba(167, 139, 250, 0.4);
+  }
+  60% {
+    box-shadow: 0 0 0 1px #fb923c, 0 0 8px rgba(251, 146, 60, 0.4);
+  }
+  80% {
+    box-shadow: 0 0 0 1px #f87171, 0 0 8px rgba(248, 113, 113, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 1px #22d3ee, 0 0 8px rgba(34, 211, 238, 0.4);
+  }
+}
+
+.account-card-glow {
+  border-radius: 0.75rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.account-card-glow:hover {
+  animation: glow-flow 3s linear infinite;
+}
