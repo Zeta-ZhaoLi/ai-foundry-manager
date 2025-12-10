@@ -7,8 +7,10 @@ export interface LocalRegion {
   id: string;
   name: string;
   modelsText: string;
-  endpoint?: string;
+  openaiEndpoint?: string;
+  anthropicEndpoint?: string;
   apiKey?: string;
+  enabled?: boolean;  // 默认 true，控制是否参与统计
 }
 
 export interface LocalAccount {
@@ -237,15 +239,33 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
-  const updateRegionEndpoint = useCallback(
-    (accountId: string, regionId: string, endpoint: string) => {
+  const updateRegionOpenaiEndpoint = useCallback(
+    (accountId: string, regionId: string, openaiEndpoint: string) => {
       saveAccounts((prev) =>
         prev.map((acct) =>
           acct.id === accountId
             ? {
                 ...acct,
                 regions: acct.regions.map((reg) =>
-                  reg.id === regionId ? { ...reg, endpoint } : reg,
+                  reg.id === regionId ? { ...reg, openaiEndpoint } : reg,
+                ),
+              }
+            : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateRegionAnthropicEndpoint = useCallback(
+    (accountId: string, regionId: string, anthropicEndpoint: string) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId ? { ...reg, anthropicEndpoint } : reg,
                 ),
               }
             : acct,
@@ -273,6 +293,54 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
+  // 重新排序账号
+  const reorderAccounts = useCallback(
+    (oldIndex: number, newIndex: number) => {
+      saveAccounts((prev) => {
+        const result = Array.from(prev);
+        const [removed] = result.splice(oldIndex, 1);
+        result.splice(newIndex, 0, removed);
+        return result;
+      });
+    },
+    [saveAccounts],
+  );
+
+  // 重新排序区域
+  const reorderRegions = useCallback(
+    (accountId: string, oldIndex: number, newIndex: number) => {
+      saveAccounts((prev) =>
+        prev.map((acct) => {
+          if (acct.id !== accountId) return acct;
+          const regions = Array.from(acct.regions);
+          const [removed] = regions.splice(oldIndex, 1);
+          regions.splice(newIndex, 0, removed);
+          return { ...acct, regions };
+        }),
+      );
+    },
+    [saveAccounts],
+  );
+
+  // 更新区域启用状态
+  const updateRegionEnabled = useCallback(
+    (accountId: string, regionId: string, enabled: boolean) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId ? { ...reg, enabled } : reg,
+                ),
+              }
+            : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
   // 仅统计 enabled 的账号
   const enabledAccounts = useMemo(
     () => accounts.filter((a) => a.enabled !== false),
@@ -284,7 +352,9 @@ export function useLocalAzureAccounts() {
       const regions: AccountSummary['regions'] = {};
       const allModelsSet = new Set<string>();
 
-      for (const reg of acct.regions) {
+      // 只统计启用的区域
+      const enabledRegions = acct.regions.filter((r) => r.enabled !== false);
+      for (const reg of enabledRegions) {
         const models = parseModels(reg.modelsText);
         if (!regions[reg.name]) {
           regions[reg.name] = { models: [] };
@@ -341,7 +411,11 @@ export function useLocalAzureAccounts() {
     updateRegionName,
     updateRegionModelsText,
     deleteRegion,
-    updateRegionEndpoint,
+    updateRegionOpenaiEndpoint,
+    updateRegionAnthropicEndpoint,
     updateRegionApiKey,
+    updateRegionEnabled,
+    reorderAccounts,
+    reorderRegions,
   };
 }

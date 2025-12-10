@@ -1,19 +1,24 @@
 {
   "app": {
-    "title": "Azure OpenAI Channel Model Panel",
-    "subtitle": "Maintain a master model list at the top, then select available models for each account/region by clicking. Automatically generate account-level and global model lists (with commas after each model name for easy copy-paste)."
+    "title": "Azure AI Foundry Management Panel",
+    "subtitle": "Maintain a master model list at the top, then select available models for each account/region by clicking. Automatically generate account-level and global model lists (with commas after each model name for easy copy-paste).",
+    "description": "Maintain a master model list at the top, then select available models for each account/region by clicking. Automatically generate account-level and global model lists (with commas after each model name for easy copy-paste)."
+  },
+  "footer": {
+    "copyright": "2024 ZetaTechs",
+    "author": "Author: Zhao Lili"
   },
   "masterModels": {
     "title": "Global Model Directory",
     "description": "Maintain all possible models here once (separated by commas, spaces, or newlines). Models for accounts/regions below are selected by clicking, no need to re-enter.",
     "placeholder": "e.g.: gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ...",
-    "parsedCount": "Parsed Models",
-    "copyButton": "Copy Directory List (with commas)"
+    "parsedCount": "Parsed Models: {{count}}",
+    "copyList": "Copy Directory List (with commas)"
   },
   "dashboard": {
     "title": "Visual Overview",
-    "accounts": "Accounts",
-    "regions": "Regions",
+    "accountCount": "Accounts",
+    "regionCount": "Regions",
     "regionsWithModels": "Regions with Models",
     "avgModelsPerRegion": "Avg Models per Region",
     "masterModelsCount": "Master Model Count",
@@ -22,46 +27,107 @@
     "singleRegionModels": "Single Region Models"
   },
   "coverage": {
-    "regionTitle": "Region Coverage (Model Ratio)",
-    "regionDescription": "Percentage of global directory covered by each region",
-    "modelTitle": "Model Coverage (Region Ratio)",
-    "modelDescription": "Number of regions each model is enabled in"
+    "regionCoverage": "Region Coverage (Model Ratio)",
+    "regionCoverageDesc": "Percentage of global directory covered by each region",
+    "modelCoverage": "Model Coverage (Region Ratio)",
+    "modelCoverageDesc": "Number of regions each model is enabled in",
+    "noRegionsOrEmptyMaster": "No regions or empty master list, cannot calculate coverage.",
+    "noModelsOrNoMatch": "No models or no matching models for current filter.",
+    "filterAll": "All Status",
+    "filterUnused": "Unused",
+    "filterSingle": "Single Region",
+    "filterMulti": "Multi Region",
+    "viewAll": "All"
   },
   "accounts": {
-    "title": "Local Azure Account Configuration",
+    "title": "Azure Account Configuration",
     "description": "Add regions for each account and select available models by clicking. All configurations are stored in browser localStorage.",
     "addAccount": "Add Account",
     "exportConfig": "Export Config (JSON)",
     "importConfig": "Import Config",
-    "accountName": "Account Name",
-    "accountNote": "Note (optional)",
+    "accountName": "Account Name:",
+    "accountNamePlaceholder": "e.g.: Prod-Subscription-AzureOpenAI",
+    "note": "Note (optional):",
+    "notePlaceholder": "e.g.: Tenant ID, Subscription ID, etc.",
     "deleteAccount": "Delete Account",
-    "enableAccount": "Enable / Include in Stats"
+    "enableAccount": "Enable / Include in Stats",
+    "account": "Account",
+    "modelSearch": "Model Search:",
+    "searchPlaceholder": "Filter by model keyword, e.g.: gpt-4o"
   },
   "regions": {
-    "title": "Region List",
+    "regionList": "Region List",
     "addRegion": "Add Region",
     "regionName": "Region Name",
-    "endpoint": "Azure OpenAI Endpoint",
-    "apiKey": "Azure OpenAI API Key",
-    "models": "Models (click to toggle)",
+    "regionNamePlaceholder": "e.g.: eastus, swedencentral",
+    "openaiEndpoint": "OpenAI Endpoint",
+    "anthropicEndpoint": "Anthropic Endpoint",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "API Key",
+    "modelsToggle": "Models (click to toggle)",
     "selectAll": "Select All",
-    "clearAll": "Clear",
+    "selectCategory": "Select Category",
+    "clear": "Clear",
     "deleteRegion": "Delete Region",
-    "selectedModels": "Selected Models",
-    "copyModels": "Copy Region Models"
+    "selectedCount": "Selected: {{count}}",
+    "copyRegionModels": "Copy Region Models",
+    "noRegions": "No regions yet. Click \"Add Region\" to start.",
+    "configureMasterFirst": "Please configure \"Global Model Directory\" at the top first.",
+    "noMatchingModels": "No matching models for current search.",
+    "region": "Region",
+    "unnamed": "Unnamed",
+    "enableRegion": "Enable Region (Include in Stats)"
+  },
+  "modelCategory": {
+    "standard": "Standard Models (OpenAI + Others)",
+    "sora": "Sora Series",
+    "claude": "Claude Series"
   },
   "models": {
-    "overview": "Model Overview",
-    "search": "Model Search",
-    "searchPlaceholder": "Filter by model keyword, e.g.: gpt-4o",
-    "clearFilter": "Clear",
-    "status": {
-      "all": "All Status",
-      "unused": "Unused",
-      "single": "Single Region",
-      "multi": "Multi Region"
+    "title": "Model Overview",
+    "showingCount": "Showing {{showing}} models ({{total}} total). Use search and status filter above to locate.",
+    "emptyMaster": "No models. Please configure models in Global Model Directory first.",
+    "noMatch": "No matching models for current filter. Adjust search or status filter.",
+    "modelId": "Model ID",
+    "status": "Status",
+    "regionCoverage": "Region Coverage",
+    "coverageRate": "Coverage Rate",
+    "statusUnused": "Unused",
+    "statusSingle": "Single Region",
+    "statusMulti": "Multi Region"
+  },
+  "summary": {
+    "byAccount": "By Account",
+    "account": "Account",
+    "regionCount": "Regions: {{count}}, ",
+    "modelCount": "Models: {{count}}",
+    "modelList": "'s model list",
+    "copyAccountModels": "Copy Account Models (with commas)",
+    "globalTitle": "Global Model Summary",
+    "totalModels": "Total models across all accounts: {{count}}",
+    "globalModelList": "Global Available Model List",
+    "copyAllModels": "Copy All Models (with commas)",
+    "series": "Series"
+  },
+  "confirmDialog": {
+    "deleteAccount": {
+      "title": "Delete Account",
+      "description": "Are you sure you want to delete this account? This action cannot be undone. All regions under this account will also be deleted."
+    },
+    "deleteRegion": {
+      "title": "Delete Region",
+      "description": "Are you sure you want to delete this region? This action cannot be undone."
     }
+  },
+  "export": {
+    "securityWarning": "Security Warning",
+    "securityDescription": "The exported config file contains sensitive information (API Keys). Please keep it safe and do not share with others.",
+    "proceed": "Proceed with Export"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   },
   "toast": {
     "copied": "Copied",
@@ -79,6 +145,21 @@
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
-    "close": "Close"
+    "close": "Close",
+    "clear": "Clear",
+    "show": "Show",
+    "hide": "Hide",
+    "noData": "No data"
+  },
+  "statistics": {
+    "deploymentStatus": "Deployment Status",
+    "categoryDistribution": "Category Distribution",
+    "coverageDistribution": "Coverage Distribution",
+    "totalModels": "models",
+    "deployed": "Deployed",
+    "unused": "Unused",
+    "accountDistribution": "Account Model Distribution",
+    "accountDistributionDesc": "Model count by account",
+    "regionDeployment": "Region Deployment Overview"
   }
 }

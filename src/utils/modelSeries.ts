@@ -2,6 +2,43 @@
 
 export type ExportFormat = 'comma' | 'lines';
 
+// 模型大类: 常规模型 (OpenAI + 其他), Sora 系列, Claude 系列
+export type ModelCategory = 'standard' | 'sora' | 'claude';
+
+export function getModelCategory(modelId: string): ModelCategory {
+  const id = modelId.toLowerCase();
+
+  // Claude 系列
+  if (id.startsWith('claude')) return 'claude';
+
+  // Sora 系列
+  if (id.startsWith('sora')) return 'sora';
+
+  // 其他都归为常规模型 (OpenAI 系列 + 其他)
+  return 'standard';
+}
+
+// 按大类分组模型
+export function groupModelsByCategory(models: string[]): Record<ModelCategory, string[]> {
+  const result: Record<ModelCategory, string[]> = {
+    standard: [],
+    sora: [],
+    claude: [],
+  };
+
+  for (const model of models) {
+    const category = getModelCategory(model);
+    result[category].push(model);
+  }
+
+  // 每组内排序
+  result.standard.sort();
+  result.sora.sort();
+  result.claude.sort();
+
+  return result;
+}
+
 export function getSeries(modelId: string): string {
   const id = modelId.toLowerCase();
 

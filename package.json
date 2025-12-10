@@ -1,6 +1,21 @@
 {
-  "name": "azure-openai-manager",
-  "version": "0.0.1",
+  "name": "ai-foundry-manager",
+  "version": "0.1.0",
+  "description": "Azure OpenAI 通道模型可视化管理工具，用于 new-api/one-api 系统的模型配置",
+  "author": "赵利利 (ZetaTechs)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zeta-ZhaoLi/ai-foundry-manager"
+  },
+  "homepage": "https://github.com/Zeta-ZhaoLi/ai-foundry-manager#readme",
+  "keywords": [
+    "azure-openai",
+    "ai-foundry",
+    "model-management",
+    "new-api",
+    "one-api"
+  ],
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -13,6 +28,10 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@tanstack/react-virtual": "^3.13.13",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
     "i18next": "^25.6.3",
