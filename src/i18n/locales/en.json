@@ -223,6 +223,7 @@
     "deployedAccounts": "Accounts",
     "columnRegions": "Regions",
     "columnCoverage": "Coverage",
-    "noModels": "No models yet. Please configure models in Global Model Directory first."
+    "noModels": "No models yet. Please configure models in Global Model Directory first.",
+    "modelsLabel": "models"
   }
 }

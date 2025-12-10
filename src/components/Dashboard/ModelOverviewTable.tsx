@@ -444,17 +444,17 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
               )}
               style={{ gridTemplateColumns: '40px minmax(0, 2fr) 80px 80px 90px 80px 90px 90px 60px 60px 70px' }}
             >
-              <div>#</div>
+              <div className="text-center">#</div>
               <div>{t('accounts.accountName')}</div>
-              <div>{t('accounts.tier')}</div>
-              <div>{t('accounts.quota')}</div>
-              <div>{t('accounts.purchaseAmount')}</div>
-              <div>{t('accounts.usedAmount')}</div>
-              <div>{t('accounts.accountCost')}</div>
-              <div>{t('accounts.actualCost')}</div>
-              <div>{t('statistics.regionCount')}</div>
-              <div>{t('statistics.modelCount')}</div>
-              <div>{t('models.status')}</div>
+              <div className="text-center">{t('accounts.tier')}</div>
+              <div className="text-center">{t('accounts.quota')}</div>
+              <div className="text-center">{t('accounts.purchaseAmount')}</div>
+              <div className="text-center">{t('accounts.usedAmount')}</div>
+              <div className="text-center">{t('accounts.accountCost')}</div>
+              <div className="text-center">{t('accounts.actualCost')}</div>
+              <div className="text-center">{t('statistics.regionCount')}</div>
+              <div className="text-center">{t('statistics.modelCount')}</div>
+              <div className="text-center">{t('models.status')}</div>
             </div>
 
             {/* Virtual Scrolling Rows */}
@@ -493,7 +493,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                     >
-                      <div className="text-muted-foreground">{originalIndex + 1}</div>
+                      <div className="text-muted-foreground text-center">{originalIndex + 1}</div>
                       <div
                         className="whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-1 cursor-pointer hover:text-cyan-400 transition-colors"
                         title={`${getDisplayName(account, originalIndex)} (${t('statistics.doubleClickToLocate')})`}
@@ -502,7 +502,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                         {account.tier === 'premium' && <span>⭐</span>}
                         {getDisplayName(account, originalIndex)}
                       </div>
-                      <div>
+                      <div className="text-center">
                         <span
                           className={clsx(
                             'inline-block px-2 py-0.5 rounded-full text-xs border',
@@ -514,24 +514,24 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                           {account.tier === 'premium' ? t('accounts.tierPremium') : t('accounts.tierStandard')}
                         </span>
                       </div>
-                      <div className="text-muted-foreground">
+                      <div className="text-muted-foreground text-center">
                         {getQuotaLabel(account)}
                       </div>
-                      <div className="text-muted-foreground">
+                      <div className="text-muted-foreground text-center">
                         {privacyMode ? '***' : getPurchaseLabel(account)}
                       </div>
-                      <div className="text-muted-foreground">
+                      <div className="text-muted-foreground text-center">
                         {privacyMode ? '***' : getUsedLabel(account)}
                       </div>
-                      <div className="text-muted-foreground">
+                      <div className="text-muted-foreground text-center">
                         {privacyMode ? '***' : getAccountCostLabel(account)}
                       </div>
-                      <div className="text-muted-foreground">
+                      <div className="text-muted-foreground text-center">
                         {privacyMode ? '***' : getActualCostLabel(account)}
                       </div>
-                      <div>{stats.regionCount}</div>
-                      <div>{stats.modelCount}</div>
-                      <div>
+                      <div className="text-center">{stats.regionCount}</div>
+                      <div className="text-center">{stats.modelCount}</div>
+                      <div className="text-center">
                         <span
                           className={clsx(
                             'inline-block px-2 py-0.5 rounded-full text-xs border',
@@ -559,19 +559,19 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                 )}
                 style={{ gridTemplateColumns: '40px minmax(0, 2fr) 80px 80px 90px 80px 90px 90px 60px 60px 70px' }}
               >
-                <div className="text-cyan-400">{t('statistics.total')}</div>
+                <div className="text-cyan-400 text-center">{t('statistics.total')}</div>
                 <div className="text-cyan-400">
                   {summaryData.accountCount} {t('statistics.accountsLabel')}
                 </div>
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground text-center">
                   <span className="text-amber-300">{summaryData.premiumCount}</span>
                   <span className="mx-0.5">/</span>
                   <span className="text-gray-400">{summaryData.standardCount}</span>
                 </div>
-                <div className="text-cyan-400">
+                <div className="text-cyan-400 text-center">
                   ${summaryData.totalQuota.toLocaleString()}
                 </div>
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground text-center">
                   {privacyMode ? '***' : (
                     <>
                       {summaryData.totalPurchaseUSD > 0 && <span>${summaryData.totalPurchaseUSD.toLocaleString()}</span>}
@@ -581,18 +581,18 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                     </>
                   )}
                 </div>
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground text-center">
                   {privacyMode ? '***' : (summaryData.totalUsed > 0 ? `$${summaryData.totalUsed.toLocaleString()}` : '-')}
                 </div>
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground text-center">
                   {privacyMode ? '***' : (summaryData.avgAccountCost !== null ? `~${summaryData.avgAccountCost.toFixed(2)}` : '-')}
                 </div>
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground text-center">
                   {privacyMode ? '***' : (summaryData.avgActualCost !== null ? `~${summaryData.avgActualCost.toFixed(2)}` : '-')}
                 </div>
-                <div className="text-cyan-400">{summaryData.totalRegions}</div>
-                <div className="text-muted-foreground">~{summaryData.avgModelsPerAccount}</div>
-                <div className="text-muted-foreground">
+                <div className="text-cyan-400 text-center">{summaryData.totalRegions}</div>
+                <div className="text-muted-foreground text-center">~{summaryData.avgModelsPerAccount}</div>
+                <div className="text-muted-foreground text-center">
                   <span className="text-green-300">{summaryData.enabledCount}</span>
                   <span className="mx-0.5">/</span>
                   <span className="text-red-300">{summaryData.disabledCount}</span>

@@ -57,6 +57,50 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
     multi: modelStates.filter(m => m.status === 'multi').length,
   }), [modelStates]);
 
+  // 计算各分类数量
+  const categoryCounts = useMemo(() => {
+    const counts = { standard: 0, sora: 0, claude: 0 };
+    modelStates.forEach(m => {
+      const cat = categorizeModel(m.model);
+      counts[cat]++;
+    });
+    return counts;
+  }, [modelStates]);
+
+  // 合计行数据
+  const modelSummaryData = useMemo(() => {
+    if (modelStates.length === 0) return null;
+
+    // 计算平均部署账号数
+    let totalAccountCount = 0;
+    let modelsWithAccounts = 0;
+    modelStates.forEach(m => {
+      const accounts = modelAccountsMap?.get(m.model);
+      if (accounts && accounts.length > 0) {
+        totalAccountCount += accounts.length;
+        modelsWithAccounts++;
+      }
+    });
+    const avgAccounts = modelsWithAccounts > 0 ? totalAccountCount / modelsWithAccounts : 0;
+
+    // 计算平均覆盖区域数
+    const totalRegionCount = modelStates.reduce((sum, m) => sum + m.count, 0);
+    const avgRegions = modelStates.length > 0 ? totalRegionCount / modelStates.length : 0;
+
+    // 计算平均覆盖率
+    const totalPct = modelStates.reduce((sum, m) => sum + m.pct, 0);
+    const avgPct = modelStates.length > 0 ? totalPct / modelStates.length : 0;
+
+    return {
+      totalModels: modelStates.length,
+      categoryCounts,
+      statusCounts,
+      avgAccounts: Math.round(avgAccounts * 10) / 10,
+      avgRegions: Math.round(avgRegions * 10) / 10,
+      avgPct: Math.round(avgPct * 10) / 10,
+    };
+  }, [modelStates, modelAccountsMap, categoryCounts, statusCounts]);
+
   // 处理模型名点击复制
   const handleCopyModel = (modelName: string) => {
     if (onCopy) {
@@ -266,13 +310,13 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                 gridTemplateColumns: '40px minmax(0, 2fr) 100px 100px 100px 80px 80px',
               }}
             >
-              <div>#</div>
+              <div className="text-center">#</div>
               <div>{t('modelStatistics.columnModel')}</div>
-              <div>{t('modelStatistics.columnCategory')}</div>
-              <div>{t('modelStatistics.columnStatus')}</div>
-              <div>{t('modelStatistics.deployedAccounts')}</div>
-              <div>{t('modelStatistics.columnRegions')}</div>
-              <div>{t('modelStatistics.columnCoverage')}</div>
+              <div className="text-center">{t('modelStatistics.columnCategory')}</div>
+              <div className="text-center">{t('modelStatistics.columnStatus')}</div>
+              <div className="text-center">{t('modelStatistics.deployedAccounts')}</div>
+              <div className="text-center">{t('modelStatistics.columnRegions')}</div>
+              <div className="text-center">{t('modelStatistics.columnCoverage')}</div>
             </div>
 
             {/* Virtual Scrolling Rows */}
@@ -305,7 +349,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                     >
-                      <div className="text-muted-foreground">{virtualRow.index + 1}</div>
+                      <div className="text-muted-foreground text-center">{virtualRow.index + 1}</div>
                       <div
                         className="whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:text-cyan-400 transition-colors"
                         title={`${model.model} (${t('common.clickToCopy')})`}
@@ -313,7 +357,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                       >
                         {model.model}
                       </div>
-                      <div>
+                      <div className="text-center">
                         <span
                           className={clsx(
                             'inline-block px-2 py-0.5 rounded-full text-xs border',
@@ -323,7 +367,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                           {getCategoryLabel(category)}
                         </span>
                       </div>
-                      <div>
+                      <div className="text-center">
                         <span
                           className={clsx(
                             'inline-block px-2 py-0.5 rounded-full text-xs border',
@@ -333,18 +377,52 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                           {getStatusLabel(model.status)}
                         </span>
                       </div>
-                      <div className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis" title={modelAccountsMap?.get(model.model)?.join(', ') || '-'}>
+                      <div className="text-muted-foreground text-center whitespace-nowrap overflow-hidden text-ellipsis" title={modelAccountsMap?.get(model.model)?.join(', ') || '-'}>
                         {modelAccountsMap?.get(model.model)?.join(', ') || '-'}
                       </div>
-                      <div>
+                      <div className="text-center">
                         {model.count}/{totalRegions}
                       </div>
-                      <div>{model.pct}%</div>
+                      <div className="text-center">{model.pct}%</div>
                     </div>
                   );
                 })}
               </div>
             </div>
+
+            {/* 合计行 - 冻结在底部 */}
+            {modelSummaryData && (
+              <div
+                className={clsx(
+                  'grid gap-2 px-2.5 py-2 items-center',
+                  'border-t-2 border-cyan-800 bg-slate-900/80',
+                  'text-xs text-foreground font-medium sticky bottom-0'
+                )}
+                style={{ gridTemplateColumns: '40px minmax(0, 2fr) 100px 100px 100px 80px 80px' }}
+              >
+                <div className="text-cyan-400 text-center">{t('statistics.total')}</div>
+                <div className="text-cyan-400">
+                  {modelSummaryData.totalModels} {t('modelStatistics.modelsLabel')}
+                </div>
+                <div className="text-muted-foreground text-[10px] text-center">
+                  <span className="text-cyan-300">{categoryCounts.standard}</span>
+                  <span className="mx-0.5">/</span>
+                  <span className="text-violet-300">{categoryCounts.sora}</span>
+                  <span className="mx-0.5">/</span>
+                  <span className="text-orange-300">{categoryCounts.claude}</span>
+                </div>
+                <div className="text-muted-foreground text-[10px] text-center">
+                  <span className="text-red-300">{statusCounts.unused}</span>
+                  <span className="mx-0.5">/</span>
+                  <span className="text-amber-300">{statusCounts.single}</span>
+                  <span className="mx-0.5">/</span>
+                  <span className="text-green-300">{statusCounts.multi}</span>
+                </div>
+                <div className="text-muted-foreground text-center">~{modelSummaryData.avgAccounts}</div>
+                <div className="text-muted-foreground text-center">~{modelSummaryData.avgRegions}</div>
+                <div className="text-muted-foreground text-center">~{modelSummaryData.avgPct}%</div>
+              </div>
+            )}
           </div>
         </div>
       )}

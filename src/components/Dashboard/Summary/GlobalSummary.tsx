@@ -57,7 +57,7 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
   };
 
   return (
-    <section className="p-4 rounded-xl border border-gray-800 bg-background">
+    <section className="p-4 rounded-xl border border-gray-800 bg-background section-glow">
       <h2 className="text-lg font-semibold mb-2">{t('summary.globalTitle')}</h2>
 
       {/* 总体统计 */}

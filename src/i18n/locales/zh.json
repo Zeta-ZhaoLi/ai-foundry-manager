@@ -223,6 +223,7 @@
     "deployedAccounts": "部署账号",
     "columnRegions": "覆盖区域",
     "columnCoverage": "覆盖率",
-    "noModels": "暂无模型，请先在全局模型目录中配置模型。"
+    "noModels": "暂无模型，请先在全局模型目录中配置模型。",
+    "modelsLabel": "个模型"
   }
 }
