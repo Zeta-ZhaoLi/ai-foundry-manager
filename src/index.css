@@ -51,3 +51,55 @@ body {
 .account-card-glow:hover {
   animation: glow-flow 3s linear infinite;
 }
+
+/* 大板块顺时针旋转流光边框效果 */
+@property --rotate {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotate-glow {
+  from {
+    --rotate: 0deg;
+  }
+  to {
+    --rotate: 360deg;
+  }
+}
+
+.section-glow {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.section-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--rotate),
+    #22d3ee 0deg,
+    #4ade80 72deg,
+    #a78bfa 144deg,
+    #fb923c 216deg,
+    #f87171 288deg,
+    #22d3ee 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.section-glow:hover::before {
+  opacity: 1;
+  animation: rotate-glow 3s linear infinite;
+}

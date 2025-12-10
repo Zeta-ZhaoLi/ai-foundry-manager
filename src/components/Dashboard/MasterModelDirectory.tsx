@@ -24,7 +24,8 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
       className={clsx(
         'p-4 rounded-xl border border-gray-800',
         'bg-gradient-to-br from-slate-900 via-slate-950 to-black',
-        'text-foreground shadow-lg'
+        'text-foreground shadow-lg',
+        'section-glow'
       )}
     >
       <div

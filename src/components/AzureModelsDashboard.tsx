@@ -40,6 +40,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
     updateAccountName,
     updateAccountNote,
     updateAccountEnabled,
+    updateAccountIncludeInStats,
     updateAccountTier,
     updateAccountQuota,
     updateAccountPurchase,
@@ -188,6 +189,33 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
   const unusedModelsCount = totalMasterModels > 0 ? totalMasterModels - totalUsedModels : 0;
   const singleRegionModelsCount = modelCoverage.filter((m) => m.count === 1).length;
 
+  // 计算每个模型部署在哪些账号上 (编号从1开始)
+  const modelAccountsMap = useMemo(() => {
+    const map = new Map<string, number[]>();
+    // 创建账号ID到编号的映射 (只统计启用的账号)
+    const accountIndexMap = new Map<string, number>();
+    activeAccounts.forEach((acc, idx) => {
+      accountIndexMap.set(acc.id, idx + 1);
+    });
+    // 遍历所有区域，记录每个模型所属的账号编号
+    for (const r of allRegions) {
+      const accountIndex = accountIndexMap.get(r.accountId);
+      if (!accountIndex) continue;
+      for (const model of r.models) {
+        if (!map.has(model)) {
+          map.set(model, []);
+        }
+        const indices = map.get(model)!;
+        if (!indices.includes(accountIndex)) {
+          indices.push(accountIndex);
+        }
+      }
+    }
+    // 对每个模型的账号编号排序
+    map.forEach((indices) => indices.sort((a, b) => a - b));
+    return map;
+  }, [allRegions, activeAccounts]);
+
   const modelStates: ModelState[] = useMemo(
     () =>
       modelCoverage.map((item) => ({
@@ -276,7 +304,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
       />
 
       {/* Overview Dashboard + Coverage Charts */}
-      <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background">
+      <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background section-glow">
         <h2 className="text-base sm:text-lg font-semibold mb-2">{t('dashboard.title')}</h2>
         {/* 移动端：单列 | 平板：两列 | 桌面：三列 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -321,6 +349,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         onCopy={handleCopy}
+        modelAccountsMap={modelAccountsMap}
       />
 
       {/* Account Configuration */}
@@ -336,6 +365,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
         onUpdateAccountName={updateAccountName}
         onUpdateAccountNote={updateAccountNote}
         onUpdateAccountEnabled={updateAccountEnabled}
+        onUpdateAccountIncludeInStats={updateAccountIncludeInStats}
         onUpdateAccountTier={updateAccountTier}
         onUpdateAccountQuota={updateAccountQuota}
         onUpdateAccountPurchase={updateAccountPurchase}

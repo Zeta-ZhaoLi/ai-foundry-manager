@@ -13,6 +13,7 @@ export interface ModelStatisticsTableProps {
   statusFilter: StatusFilter;
   onStatusFilterChange: (filter: StatusFilter) => void;
   onCopy?: (text: string, label: string) => void;
+  modelAccountsMap?: Map<string, number[]>;
 }
 
 // Model category classification
@@ -32,6 +33,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
   statusFilter,
   onStatusFilterChange,
   onCopy,
+  modelAccountsMap,
 }) => {
   const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -62,8 +64,21 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
     }
   };
 
+  // 按分类排序: standard (OpenAI) -> sora -> claude -> 其他
+  const sortedFilteredModelStates = useMemo(() => {
+    const categoryOrder: Record<string, number> = { standard: 0, sora: 1, claude: 2 };
+    return [...filteredModelStates].sort((a, b) => {
+      const catA = categorizeModel(a.model);
+      const catB = categorizeModel(b.model);
+      const orderA = categoryOrder[catA] ?? 3;
+      const orderB = categoryOrder[catB] ?? 3;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.model.localeCompare(b.model);
+    });
+  }, [filteredModelStates]);
+
   const virtualizer = useVirtualizer({
-    count: filteredModelStates.length,
+    count: sortedFilteredModelStates.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 5,
@@ -169,7 +184,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
   };
 
   return (
-    <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background">
+    <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background section-glow">
       <h2 className="text-base sm:text-lg font-semibold mb-1">
         {t('modelStatistics.title')}
       </h2>
@@ -235,7 +250,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
       {/* Model Table */}
       {modelStates.length === 0 ? (
         <div className="text-xs text-gray-500">{t('modelStatistics.noModels')}</div>
-      ) : filteredModelStates.length === 0 ? (
+      ) : sortedFilteredModelStates.length === 0 ? (
         <div className="text-xs text-gray-500">{t('coverage.noModelsOrNoMatch')}</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-800 bg-background">
@@ -248,13 +263,14 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                 'text-xs text-muted-foreground'
               )}
               style={{
-                gridTemplateColumns: '40px minmax(0, 2fr) 100px 100px 80px 80px',
+                gridTemplateColumns: '40px minmax(0, 2fr) 100px 100px 100px 80px 80px',
               }}
             >
               <div>#</div>
               <div>{t('modelStatistics.columnModel')}</div>
               <div>{t('modelStatistics.columnCategory')}</div>
               <div>{t('modelStatistics.columnStatus')}</div>
+              <div>{t('modelStatistics.deployedAccounts')}</div>
               <div>{t('modelStatistics.columnRegions')}</div>
               <div>{t('modelStatistics.columnCoverage')}</div>
             </div>
@@ -269,7 +285,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                 }}
               >
                 {virtualizer.getVirtualItems().map((virtualRow) => {
-                  const model = filteredModelStates[virtualRow.index];
+                  const model = sortedFilteredModelStates[virtualRow.index];
                   const category = categorizeModel(model.model);
                   return (
                     <div
@@ -280,7 +296,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                         'text-xs text-foreground'
                       )}
                       style={{
-                        gridTemplateColumns: '40px minmax(0, 2fr) 100px 100px 80px 80px',
+                        gridTemplateColumns: '40px minmax(0, 2fr) 100px 100px 100px 80px 80px',
                         position: 'absolute',
                         top: 0,
                         left: 0,
@@ -316,6 +332,9 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                         >
                           {getStatusLabel(model.status)}
                         </span>
+                      </div>
+                      <div className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis" title={modelAccountsMap?.get(model.model)?.join(', ') || '-'}>
+                        {modelAccountsMap?.get(model.model)?.join(', ') || '-'}
                       </div>
                       <div>
                         {model.count}/{totalRegions}

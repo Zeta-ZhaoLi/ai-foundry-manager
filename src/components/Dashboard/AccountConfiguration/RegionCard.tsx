@@ -64,6 +64,45 @@ const CATEGORY_CONFIG: Record<ModelCategory, { labelKey: string; color: string }
   claude: { labelKey: 'modelCategory.claude', color: 'text-orange-400' },
 };
 
+// 预设 Azure 区域列表 (value: API值, label: 显示名称)
+const PRESET_REGIONS = [
+  { value: 'eastus2', label: 'East US 2' },
+  { value: 'eastus', label: 'East US' },
+  { value: 'swedencentral', label: 'Sweden Central' },
+  { value: 'westcentralus', label: 'West Central US' },
+  { value: 'westeurope', label: 'West Europe' },
+  { value: 'westus', label: 'West US' },
+  { value: 'westus2', label: 'West US 2' },
+  { value: 'westus3', label: 'West US 3' },
+  { value: 'australiaeast', label: 'Australia East' },
+  { value: 'brazilsouth', label: 'Brazil South' },
+  { value: 'canadacentral', label: 'Canada Central' },
+  { value: 'canadaeast', label: 'Canada East' },
+  { value: 'centralindia', label: 'Central India' },
+  { value: 'centralus', label: 'Central US' },
+  { value: 'eastasia', label: 'East Asia' },
+  { value: 'francecentral', label: 'France Central' },
+  { value: 'germanywestcentral', label: 'Germany West Central' },
+  { value: 'italynorth', label: 'Italy North' },
+  { value: 'japaneast', label: 'Japan East' },
+  { value: 'koreacentral', label: 'Korea Central' },
+  { value: 'northcentralus', label: 'North Central US' },
+  { value: 'northeurope', label: 'North Europe' },
+  { value: 'norwayeast', label: 'Norway East' },
+  { value: 'polandcentral', label: 'Poland Central' },
+  { value: 'qatarcentral', label: 'Qatar Central' },
+  { value: 'southafricanorth', label: 'South Africa North' },
+  { value: 'southcentralus', label: 'South Central US' },
+  { value: 'southindia', label: 'South India' },
+  { value: 'southeastasia', label: 'Southeast Asia' },
+  { value: 'spaincentral', label: 'Spain Central' },
+  { value: 'switzerlandnorth', label: 'Switzerland North' },
+  { value: 'switzerlandwest', label: 'Switzerland West' },
+  { value: 'uaenorth', label: 'UAE North' },
+  { value: 'uksouth', label: 'UK South' },
+  { value: 'ukwest', label: 'UK West' },
+] as const;
+
 export const RegionCard: React.FC<RegionCardProps> = ({
   region,
   regionIndex = 0,
@@ -86,6 +125,16 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isExpanded, setIsExpanded] = useState(region.enabled !== false);
+
+  // 判断当前区域名是否为自定义（不在预设列表中）
+  const isCustomRegion = !PRESET_REGIONS.some(r => r.value === region.name);
+  const [showCustomInput, setShowCustomInput] = useState(isCustomRegion);
+
+  // 获取当前区域的显示标签
+  const getRegionLabel = (value: string) => {
+    const found = PRESET_REGIONS.find(r => r.value === value);
+    return found ? found.label : value;
+  };
 
   const selectedSet = new Set(parseModels(region.modelsText));
   const regionModels = Array.from(selectedSet).sort();
@@ -227,17 +276,64 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   {t('regions.regionName')}
                 </label>
               </div>
-              <input
-                className={clsx(
-                  'w-full p-1.5 rounded-lg',
-                  'border border-gray-700 bg-background text-foreground text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                )}
-                value={privacyMode ? displayRegionName : region.name}
-                onChange={(e) => onUpdateName(e.target.value)}
-                placeholder={t('regions.regionNamePlaceholder')}
-                disabled={privacyMode}
-              />
+              {privacyMode ? (
+                <input
+                  className={clsx(
+                    'w-full p-1.5 rounded-lg',
+                    'border border-gray-700 bg-background text-foreground text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                  )}
+                  value={displayRegionName}
+                  disabled
+                />
+              ) : showCustomInput ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    className={clsx(
+                      'flex-1 p-1.5 rounded-lg',
+                      'border border-gray-700 bg-background text-foreground text-sm',
+                      'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                    )}
+                    value={region.name}
+                    onChange={(e) => onUpdateName(e.target.value)}
+                    placeholder={t('regions.regionNamePlaceholder')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCustomInput(false);
+                      onUpdateName('eastus2');
+                    }}
+                    className="px-2 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:bg-slate-800"
+                    title={t('regions.usePreset')}
+                  >
+                    ↩
+                  </button>
+                </div>
+              ) : (
+                <select
+                  className={clsx(
+                    'w-full p-1.5 rounded-lg',
+                    'border border-gray-700 bg-background text-foreground text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
+                    'cursor-pointer'
+                  )}
+                  value={region.name}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setShowCustomInput(true);
+                      onUpdateName('');
+                    } else {
+                      onUpdateName(e.target.value);
+                    }
+                  }}
+                >
+                  {PRESET_REGIONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                  <option value="__custom__">{t('regions.customRegion')}</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -302,17 +398,33 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             <label className="text-xs text-muted-foreground block mb-1">
               {t('regions.openaiEndpoint')}
             </label>
-            <input
-              className={clsx(
-                'w-full p-1.5 rounded-lg',
-                'border border-gray-700 bg-background text-foreground text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+            <div className="flex items-center gap-1">
+              <input
+                className={clsx(
+                  'flex-1 min-w-0 p-1.5 rounded-lg',
+                  'border border-gray-700 bg-background text-foreground text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                )}
+                value={privacyMode ? maskEndpoint(region.openaiEndpoint || '') : (region.openaiEndpoint || '')}
+                onChange={(e) => onUpdateOpenaiEndpoint(e.target.value)}
+                placeholder="https://xxx.openai.azure.com"
+                disabled={privacyMode}
+              />
+              {/* 复制按钮 */}
+              {region.openaiEndpoint && (
+                <button
+                  type="button"
+                  onClick={() => onCopy(region.openaiEndpoint || '', 'OpenAI Endpoint')}
+                  className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+                  title={t('common.copy')}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
               )}
-              value={privacyMode ? maskEndpoint(region.openaiEndpoint || '') : (region.openaiEndpoint || '')}
-              onChange={(e) => onUpdateOpenaiEndpoint(e.target.value)}
-              placeholder="https://xxx.openai.azure.com"
-              disabled={privacyMode}
-            />
+            </div>
           </div>
 
           {/* Anthropic Endpoint */}
@@ -320,17 +432,33 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             <label className="text-xs text-muted-foreground block mb-1">
               {t('regions.anthropicEndpoint')}
             </label>
-            <input
-              className={clsx(
-                'w-full p-1.5 rounded-lg',
-                'border border-gray-700 bg-background text-foreground text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+            <div className="flex items-center gap-1">
+              <input
+                className={clsx(
+                  'flex-1 min-w-0 p-1.5 rounded-lg',
+                  'border border-gray-700 bg-background text-foreground text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                )}
+                value={privacyMode ? maskEndpoint(region.anthropicEndpoint || '') : (region.anthropicEndpoint || '')}
+                onChange={(e) => onUpdateAnthropicEndpoint(e.target.value)}
+                placeholder="https://xxx.services.ai.azure.com"
+                disabled={privacyMode}
+              />
+              {/* 复制按钮 */}
+              {region.anthropicEndpoint && (
+                <button
+                  type="button"
+                  onClick={() => onCopy(region.anthropicEndpoint || '', 'Anthropic Endpoint')}
+                  className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+                  title={t('common.copy')}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
               )}
-              value={privacyMode ? maskEndpoint(region.anthropicEndpoint || '') : (region.anthropicEndpoint || '')}
-              onChange={(e) => onUpdateAnthropicEndpoint(e.target.value)}
-              placeholder="https://xxx.services.ai.azure.com"
-              disabled={privacyMode}
-            />
+            </div>
           </div>
 
           {/* 收起按钮 (未启用时显示) */}

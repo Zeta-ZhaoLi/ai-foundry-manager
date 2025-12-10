@@ -56,6 +56,8 @@
     "notePlaceholder": "e.g.: Tenant ID, Subscription ID, etc.",
     "deleteAccount": "Delete Account",
     "enableAccount": "Enable / Include in Stats",
+    "includeInStats": "Include in Stats",
+    "enableModels": "Enable Models",
     "account": "Account",
     "modelSearch": "Model Search:",
     "searchPlaceholder": "Filter by model keyword, e.g.: gpt-4o",
@@ -99,7 +101,9 @@
     "pasteEmpty": "Clipboard is empty or has no valid models",
     "pasteFailed": "Failed to read clipboard",
     "copyCategoryModels": "Copy category models",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "customRegion": "Custom",
+    "usePreset": "Use preset region"
   },
   "modelCategory": {
     "standard": "Standard Models (OpenAI + Others)",
@@ -200,7 +204,9 @@
     "regionCount": "Regions",
     "modelCount": "Models",
     "noAccounts": "No accounts yet. Please add an account.",
-    "doubleClickToLocate": "Double-click to locate account"
+    "doubleClickToLocate": "Double-click to locate account",
+    "total": "Total",
+    "accountsLabel": "accounts"
   },
   "modelStatistics": {
     "title": "Model Statistics",
@@ -214,6 +220,7 @@
     "columnModel": "Model Name",
     "columnCategory": "Category",
     "columnStatus": "Status",
+    "deployedAccounts": "Accounts",
     "columnRegions": "Regions",
     "columnCoverage": "Coverage",
     "noModels": "No models yet. Please configure models in Global Model Directory first."

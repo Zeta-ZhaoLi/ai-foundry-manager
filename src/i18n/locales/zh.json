@@ -56,6 +56,8 @@
     "notePlaceholder": "例如：租户 ID、订阅 ID 等",
     "deleteAccount": "删除账号",
     "enableAccount": "参与统计 / 启用账号",
+    "includeInStats": "参与统计",
+    "enableModels": "启用模型",
     "account": "账号",
     "modelSearch": "模型搜索：",
     "searchPlaceholder": "按模型关键字过滤，例如：gpt-4o",
@@ -99,7 +101,9 @@
     "pasteEmpty": "剪贴板为空或没有有效的模型",
     "pasteFailed": "读取剪贴板失败",
     "copyCategoryModels": "复制此分类模型",
-    "disabled": "已禁用"
+    "disabled": "已禁用",
+    "customRegion": "自定义",
+    "usePreset": "使用预设区域"
   },
   "modelCategory": {
     "standard": "常规模型 (OpenAI 系列 + 其他模型)",
@@ -200,7 +204,9 @@
     "regionCount": "区域数",
     "modelCount": "模型数",
     "noAccounts": "暂无账号，请先添加账号。",
-    "doubleClickToLocate": "双击定位到账号配置"
+    "doubleClickToLocate": "双击定位到账号配置",
+    "total": "合计",
+    "accountsLabel": "个账号"
   },
   "modelStatistics": {
     "title": "模型总览",
@@ -214,6 +220,7 @@
     "columnModel": "模型名称",
     "columnCategory": "分类",
     "columnStatus": "部署状态",
+    "deployedAccounts": "部署账号",
     "columnRegions": "覆盖区域",
     "columnCoverage": "覆盖率",
     "noModels": "暂无模型，请先在全局模型目录中配置模型。"

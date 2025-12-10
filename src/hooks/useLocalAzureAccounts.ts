@@ -21,7 +21,8 @@ export interface LocalAccount {
   id: string;
   name: string;
   note?: string;
-  enabled: boolean;
+  enabled: boolean;             // 启用模型 - 模型层面统计（参与模型覆盖度计算）
+  includeInStats?: boolean;     // 参与统计 - 账号层面统计（参与账号总览合计）
   regions: LocalRegion[];
   tier?: AccountTier;       // 账号类别（高级/普通）
   quota?: AccountQuota;     // 额度选项
@@ -140,8 +141,20 @@ export function useLocalAzureAccounts() {
       name: '新账号',
       note: '',
       enabled: true,
-      regions: [],
+      includeInStats: true,  // 默认参与统计
+      regions: [
+        {
+          id: generateId('region'),
+          name: 'eastus2',
+          openaiEndpoint: '',
+          anthropicEndpoint: '',
+          apiKey: '',
+          modelsText: '',
+          enabled: true,
+        },
+      ],
       quota: '2000',  // 默认额度 $2,000
+      purchaseCurrency: 'CNY',  // 默认货币为人民币
     };
     saveAccounts((prev) => [...prev, newAccount]);
   }, [saveAccounts]);
@@ -168,6 +181,15 @@ export function useLocalAzureAccounts() {
     (id: string, enabled: boolean) => {
       saveAccounts((prev) =>
         prev.map((acct) => (acct.id === id ? { ...acct, enabled } : acct)),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateAccountIncludeInStats = useCallback(
+    (id: string, includeInStats: boolean) => {
+      saveAccounts((prev) =>
+        prev.map((acct) => (acct.id === id ? { ...acct, includeInStats } : acct)),
       );
     },
     [saveAccounts],
@@ -459,6 +481,7 @@ export function useLocalAzureAccounts() {
     updateAccountName,
     updateAccountNote,
     updateAccountEnabled,
+    updateAccountIncludeInStats,
     updateAccountTier,
     updateAccountQuota,
     updateAccountPurchase,

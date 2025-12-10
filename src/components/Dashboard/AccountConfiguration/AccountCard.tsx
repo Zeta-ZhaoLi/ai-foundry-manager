@@ -24,7 +24,8 @@ export interface LocalAccount {
   id: string;
   name: string;
   note?: string;
-  enabled: boolean;
+  enabled: boolean;             // 启用模型 - 模型层面统计（参与模型覆盖度计算）
+  includeInStats?: boolean;     // 参与统计 - 账号层面统计（参与账号总览合计）
   regions: LocalRegion[];
   tier?: AccountTier;
   quota?: AccountQuota;
@@ -43,6 +44,7 @@ export interface AccountCardProps {
   onUpdateName: (name: string) => void;
   onUpdateNote: (note: string) => void;
   onUpdateEnabled: (enabled: boolean) => void;
+  onUpdateIncludeInStats?: (includeInStats: boolean) => void;
   onUpdateTier?: (tier: AccountTier) => void;
   onUpdateQuota?: (quota: AccountQuota, customQuota?: number) => void;
   onUpdatePurchase?: (amount: number, currency: CurrencyType) => void;
@@ -81,6 +83,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateName,
   onUpdateNote,
   onUpdateEnabled,
+  onUpdateIncludeInStats,
   onUpdateTier,
   onUpdateQuota,
   onUpdatePurchase,
@@ -184,6 +187,17 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               <span className="text-sm font-medium">{displayName}</span>
             </div>
             <div className="flex items-center gap-2">
+              {/* 参与统计 - 账号层面统计 */}
+              <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={account.includeInStats !== false}
+                  onChange={(e) => onUpdateIncludeInStats?.(e.target.checked)}
+                  className="cursor-pointer"
+                />
+                <span>{t('accounts.includeInStats')}</span>
+              </label>
+              {/* 启用模型 - 模型层面统计 */}
               <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                 <input
                   type="checkbox"
@@ -191,7 +205,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   onChange={(e) => onUpdateEnabled(e.target.checked)}
                   className="cursor-pointer"
                 />
-                <span>{t('accounts.enableAccount')}</span>
+                <span>{t('accounts.enableModels')}</span>
               </label>
               {!account.enabled && (
                 <button

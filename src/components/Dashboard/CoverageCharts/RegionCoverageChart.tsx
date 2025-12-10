@@ -69,7 +69,7 @@ export const RegionCoverageChart: React.FC<RegionCoverageChartProps> = ({
           {t('coverage.noRegionsOrEmptyMaster')}
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto">
+        <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto overflow-x-hidden">
           {regionCoverage.slice(0, maxItems).map((r) => (
             <div
               key={r.key}

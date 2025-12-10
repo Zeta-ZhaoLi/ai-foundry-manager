@@ -32,6 +32,7 @@ export interface AccountsSectionProps {
   onUpdateAccountName: (accountId: string, name: string) => void;
   onUpdateAccountNote: (accountId: string, note: string) => void;
   onUpdateAccountEnabled: (accountId: string, enabled: boolean) => void;
+  onUpdateAccountIncludeInStats?: (accountId: string, includeInStats: boolean) => void;
   onUpdateAccountTier: (accountId: string, tier: AccountTier) => void;
   onUpdateAccountQuota: (accountId: string, quota: AccountQuota, customQuota?: number) => void;
   onUpdateAccountPurchase?: (accountId: string, amount: number, currency: CurrencyType) => void;
@@ -62,6 +63,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateAccountName,
   onUpdateAccountNote,
   onUpdateAccountEnabled,
+  onUpdateAccountIncludeInStats,
   onUpdateAccountTier,
   onUpdateAccountQuota,
   onUpdateAccountPurchase,
@@ -123,7 +125,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
 
   return (
     <>
-      <section className="p-4 rounded-xl border border-gray-800 bg-background">
+      <section className="p-4 rounded-xl border border-gray-800 bg-background section-glow">
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div>
@@ -209,6 +211,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                   onUpdateName={(name) => onUpdateAccountName(account.id, name)}
                   onUpdateNote={(note) => onUpdateAccountNote(account.id, note)}
                   onUpdateEnabled={(enabled) => onUpdateAccountEnabled(account.id, enabled)}
+                  onUpdateIncludeInStats={onUpdateAccountIncludeInStats ? (includeInStats) => onUpdateAccountIncludeInStats(account.id, includeInStats) : undefined}
                   onUpdateTier={(tier) => onUpdateAccountTier(account.id, tier)}
                   onUpdateQuota={(quota, customQuota) => onUpdateAccountQuota(account.id, quota, customQuota)}
                   onUpdatePurchase={onUpdateAccountPurchase ? (amount, currency) => onUpdateAccountPurchase(account.id, amount, currency) : undefined}

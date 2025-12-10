@@ -93,6 +93,116 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   // 计算启用的账号数量
   const enabledAccounts = useMemo(() => accounts.filter(a => a.enabled), [accounts]);
 
+  // 计算参与统计的账号（用于合计行）
+  const statsAccounts = useMemo(() => accounts.filter(a => a.includeInStats !== false), [accounts]);
+
+  // 合计行数据
+  const summaryData = useMemo(() => {
+    const accs = statsAccounts;
+    if (accs.length === 0) return null;
+
+    // 统计类别数量
+    const premiumCount = accs.filter(a => a.tier === 'premium').length;
+    const standardCount = accs.length - premiumCount;
+
+    // 统计额度总值
+    let totalQuota = 0;
+    accs.forEach(acc => {
+      const quota = acc.quota === 'custom'
+        ? (acc.customQuota || 0)
+        : Number(acc.quota || 200);
+      totalQuota += quota;
+    });
+
+    // 统计购买金额总值（分币种）
+    let totalPurchaseUSD = 0;
+    let totalPurchaseCNY = 0;
+    accs.forEach(acc => {
+      if (acc.purchaseAmount) {
+        if (acc.purchaseCurrency === 'CNY') {
+          totalPurchaseCNY += acc.purchaseAmount;
+        } else {
+          totalPurchaseUSD += acc.purchaseAmount;
+        }
+      }
+    });
+
+    // 统计已使用总值
+    let totalUsed = 0;
+    accs.forEach(acc => {
+      if (acc.usedAmount !== undefined && acc.usedAmount !== null) {
+        totalUsed += acc.usedAmount;
+      }
+    });
+
+    // 统计区域数总值和模型数
+    let totalRegions = 0;
+    let totalModels = 0;
+    const allModelSet = new Set<string>();
+    accs.forEach(acc => {
+      const enabledRegions = acc.regions.filter(r => r.enabled !== false);
+      totalRegions += enabledRegions.length;
+      enabledRegions.forEach(r => {
+        if (r.modelsText) {
+          r.modelsText.split(/[\s,]+/).filter(Boolean).forEach(m => allModelSet.add(m));
+        }
+      });
+    });
+    totalModels = allModelSet.size;
+
+    // 统计状态
+    const enabledCount = accs.filter(a => a.enabled).length;
+    const disabledCount = accs.length - enabledCount;
+
+    // 计算账号成本平均值（只计算有购买金额的账号）
+    let avgAccountCost: number | null = null;
+    const accountsWithCost = accs.filter(acc => acc.purchaseAmount && acc.purchaseAmount > 0);
+    if (accountsWithCost.length > 0) {
+      let totalCost = 0;
+      accountsWithCost.forEach(acc => {
+        const quota = acc.quota === 'custom'
+          ? (acc.customQuota || 0)
+          : Number(acc.quota || 200);
+        if (quota > 0 && acc.purchaseAmount) {
+          totalCost += acc.purchaseAmount / quota;
+        }
+      });
+      avgAccountCost = totalCost / accountsWithCost.length;
+    }
+
+    // 计算实际成本平均值（只计算有已使用数据的账号）
+    let avgActualCost: number | null = null;
+    const accountsWithUsed = accs.filter(acc => acc.usedAmount && acc.usedAmount > 0 && acc.purchaseAmount && acc.purchaseAmount > 0);
+    if (accountsWithUsed.length > 0) {
+      let totalActualCost = 0;
+      accountsWithUsed.forEach(acc => {
+        if (acc.usedAmount && acc.purchaseAmount) {
+          totalActualCost += acc.purchaseAmount / acc.usedAmount;
+        }
+      });
+      avgActualCost = totalActualCost / accountsWithUsed.length;
+    }
+
+    // 计算平均模型数（每个账号）
+    const avgModelsPerAccount = accs.length > 0 ? Math.round((totalModels / accs.length) * 10) / 10 : 0;
+
+    return {
+      accountCount: accs.length,
+      premiumCount,
+      standardCount,
+      totalQuota,
+      totalPurchaseUSD,
+      totalPurchaseCNY,
+      totalUsed,
+      avgAccountCost,
+      avgActualCost,
+      totalRegions,
+      avgModelsPerAccount,
+      enabledCount,
+      disabledCount,
+    };
+  }, [statsAccounts]);
+
   const virtualizer = useVirtualizer({
     count: filteredAccounts.length,
     getScrollElement: () => parentRef.current,
@@ -226,7 +336,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   };
 
   return (
-    <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background">
+    <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background section-glow">
       <h2 className="text-base sm:text-lg font-semibold mb-1">{t('statistics.accountOverview')}</h2>
       <div className="text-xs text-muted-foreground mb-3">
         {t('statistics.accountSummary', {
@@ -438,6 +548,57 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                 })}
               </div>
             </div>
+
+            {/* 合计行 - 冻结在底部 */}
+            {summaryData && (
+              <div
+                className={clsx(
+                  'grid gap-2 px-2.5 py-2 items-center',
+                  'border-t-2 border-cyan-800 bg-slate-900/80',
+                  'text-xs text-foreground font-medium sticky bottom-0'
+                )}
+                style={{ gridTemplateColumns: '40px minmax(0, 2fr) 80px 80px 90px 80px 90px 90px 60px 60px 70px' }}
+              >
+                <div className="text-cyan-400">{t('statistics.total')}</div>
+                <div className="text-cyan-400">
+                  {summaryData.accountCount} {t('statistics.accountsLabel')}
+                </div>
+                <div className="text-muted-foreground">
+                  <span className="text-amber-300">{summaryData.premiumCount}</span>
+                  <span className="mx-0.5">/</span>
+                  <span className="text-gray-400">{summaryData.standardCount}</span>
+                </div>
+                <div className="text-cyan-400">
+                  ${summaryData.totalQuota.toLocaleString()}
+                </div>
+                <div className="text-muted-foreground">
+                  {privacyMode ? '***' : (
+                    <>
+                      {summaryData.totalPurchaseUSD > 0 && <span>${summaryData.totalPurchaseUSD.toLocaleString()}</span>}
+                      {summaryData.totalPurchaseUSD > 0 && summaryData.totalPurchaseCNY > 0 && <span className="mx-0.5">+</span>}
+                      {summaryData.totalPurchaseCNY > 0 && <span>¥{summaryData.totalPurchaseCNY.toLocaleString()}</span>}
+                      {summaryData.totalPurchaseUSD === 0 && summaryData.totalPurchaseCNY === 0 && '-'}
+                    </>
+                  )}
+                </div>
+                <div className="text-muted-foreground">
+                  {privacyMode ? '***' : (summaryData.totalUsed > 0 ? `$${summaryData.totalUsed.toLocaleString()}` : '-')}
+                </div>
+                <div className="text-muted-foreground">
+                  {privacyMode ? '***' : (summaryData.avgAccountCost !== null ? `~${summaryData.avgAccountCost.toFixed(2)}` : '-')}
+                </div>
+                <div className="text-muted-foreground">
+                  {privacyMode ? '***' : (summaryData.avgActualCost !== null ? `~${summaryData.avgActualCost.toFixed(2)}` : '-')}
+                </div>
+                <div className="text-cyan-400">{summaryData.totalRegions}</div>
+                <div className="text-muted-foreground">~{summaryData.avgModelsPerAccount}</div>
+                <div className="text-muted-foreground">
+                  <span className="text-green-300">{summaryData.enabledCount}</span>
+                  <span className="mx-0.5">/</span>
+                  <span className="text-red-300">{summaryData.disabledCount}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
