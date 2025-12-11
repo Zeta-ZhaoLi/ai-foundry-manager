@@ -25,6 +25,8 @@ export interface ModelOverviewTableProps {
   totalRegions: number;
   accounts: LocalAccount[];
   privacyMode?: boolean;
+  isDetailView?: boolean;
+  onOpenDetail?: () => void;
   onUpdateAccountPurchase?: (id: string, amount: number, currency: CurrencyType) => void;
   onUpdateAccountUsedAmount?: (id: string, usedAmount: number) => void;
 }
@@ -58,6 +60,8 @@ const getCostPerDollar = (account: LocalAccount): { value: number; currency: Cur
 export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   accounts,
   privacyMode = false,
+  isDetailView = false,
+  onOpenDetail,
   onUpdateAccountPurchase,
   onUpdateAccountUsedAmount,
 }) => {
@@ -95,12 +99,10 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   // 计算启用的账号数量
   const enabledAccounts = useMemo(() => accounts.filter(a => a.enabled), [accounts]);
 
-  // 计算参与统计的账号（用于合计行）
-  const statsAccounts = useMemo(() => accounts.filter(a => a.includeInStats !== false), [accounts]);
-
-  // 合计行数据
+  // 合计行数据 - 基于筛选后的账号
   const summaryData = useMemo(() => {
-    const accs = statsAccounts;
+    // 筛选后的数据中，只统计 includeInStats 为 true 的账号
+    const accs = filteredAccounts.filter(a => a.includeInStats !== false);
     if (accs.length === 0) return null;
 
     // 统计类别数量
@@ -203,7 +205,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
       enabledCount,
       disabledCount,
     };
-  }, [statsAccounts]);
+  }, [filteredAccounts]);
 
   const virtualizer = useVirtualizer({
     count: filteredAccounts.length,
@@ -338,8 +340,22 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   };
 
   return (
-    <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background section-glow">
-      <h2 className="text-base sm:text-lg font-semibold mb-1">{t('statistics.accountOverview')}</h2>
+    <section className={clsx(
+      'p-3 sm:p-4 rounded-xl border border-gray-800 bg-background',
+      !isDetailView && 'section-glow'
+    )}>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-base sm:text-lg font-semibold">{t('statistics.accountOverview')}</h2>
+        {!isDetailView && onOpenDetail && (
+          <button
+            type="button"
+            onClick={onOpenDetail}
+            className="px-2 py-1 text-xs rounded-md border border-gray-700 text-muted-foreground hover:text-foreground hover:bg-gray-800 transition-colors"
+          >
+            {t('common.detail', '详情')}
+          </button>
+        )}
+      </div>
       <div className="text-xs text-muted-foreground mb-3">
         {t('statistics.accountSummary', {
           total: accounts.length,
@@ -480,7 +496,10 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
             {/* Virtual Scrolling Rows */}
             <div
               ref={parentRef}
-              className="max-h-64 overflow-y-auto"
+              className={clsx(
+                'overflow-y-auto',
+                isDetailView ? 'max-h-[60vh]' : 'max-h-64'
+              )}
             >
               <div
                 style={{

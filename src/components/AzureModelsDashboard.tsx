@@ -12,6 +12,7 @@ import { ModelOverviewTable, ModelState } from './Dashboard/ModelOverviewTable';
 import { ModelStatisticsTable } from './Dashboard/ModelStatisticsTable';
 import { AccountsSection } from './Dashboard/AccountConfiguration/AccountsSection';
 import { GlobalSummary } from './Dashboard/Summary/GlobalSummary';
+import { TableDetailDialog } from './ui/TableDetailDialog';
 
 const MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
 
@@ -80,6 +81,10 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
   const [modelFilterInput, setModelFilterInput] = useState('');
   const [modelFilter, setModelFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  // 详情弹窗状态
+  const [accountDetailOpen, setAccountDetailOpen] = useState(false);
+  const [modelDetailOpen, setModelDetailOpen] = useState(false);
 
   const debouncedSetFilter = useMemo(
     () => debounce((value: string) => setModelFilter(value), 300),
@@ -339,6 +344,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
         totalRegions={totalRegions}
         accounts={accounts}
         privacyMode={privacyMode}
+        onOpenDetail={() => setAccountDetailOpen(true)}
       />
 
       {/* Model Statistics */}
@@ -350,6 +356,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
         onStatusFilterChange={setStatusFilter}
         onCopy={handleCopy}
         modelAccountsMap={modelAccountsMap}
+        onOpenDetail={() => setModelDetailOpen(true)}
       />
 
       {/* Account Configuration */}
@@ -389,6 +396,49 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
         allModels={globalSeriesSummary.allModels}
         onCopy={handleCopy}
       />
+
+      {/* Account Detail Dialog */}
+      <TableDetailDialog
+        open={accountDetailOpen}
+        onOpenChange={setAccountDetailOpen}
+        title={t('statistics.accountOverview')}
+        subtitle={t('statistics.accountSummary', {
+          total: accounts.length,
+          enabled: accounts.filter(a => a.enabled).length,
+        })}
+      >
+        <ModelOverviewTable
+          filteredModelStates={filteredModelStates}
+          modelStates={modelStates}
+          totalRegions={totalRegions}
+          accounts={accounts}
+          privacyMode={privacyMode}
+          isDetailView
+        />
+      </TableDetailDialog>
+
+      {/* Model Detail Dialog */}
+      <TableDetailDialog
+        open={modelDetailOpen}
+        onOpenChange={setModelDetailOpen}
+        title={t('modelStatistics.title')}
+        subtitle={t('modelStatistics.summary', {
+          total: modelStates.length,
+          deployed: modelStates.filter(m => m.status !== 'unused').length,
+          unused: modelStates.filter(m => m.status === 'unused').length,
+        })}
+      >
+        <ModelStatisticsTable
+          modelStates={modelStates}
+          filteredModelStates={filteredModelStates}
+          totalRegions={totalRegions}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          onCopy={handleCopy}
+          modelAccountsMap={modelAccountsMap}
+          isDetailView
+        />
+      </TableDetailDialog>
     </div>
   );
 };

@@ -14,6 +14,8 @@ export interface ModelStatisticsTableProps {
   onStatusFilterChange: (filter: StatusFilter) => void;
   onCopy?: (text: string, label: string) => void;
   modelAccountsMap?: Map<string, number[]>;
+  isDetailView?: boolean;
+  onOpenDetail?: () => void;
 }
 
 // Model category classification
@@ -34,6 +36,8 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
   onStatusFilterChange,
   onCopy,
   modelAccountsMap,
+  isDetailView = false,
+  onOpenDetail,
 }) => {
   const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -57,24 +61,31 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
     multi: modelStates.filter(m => m.status === 'multi').length,
   }), [modelStates]);
 
-  // 计算各分类数量
-  const categoryCounts = useMemo(() => {
+  // 计算各分类数量 - 基于筛选后数据
+  const filteredCategoryCounts = useMemo(() => {
     const counts = { standard: 0, sora: 0, claude: 0 };
-    modelStates.forEach(m => {
+    filteredModelStates.forEach(m => {
       const cat = categorizeModel(m.model);
       counts[cat]++;
     });
     return counts;
-  }, [modelStates]);
+  }, [filteredModelStates]);
 
-  // 合计行数据
+  // 计算筛选后的状态数量
+  const filteredStatusCounts = useMemo(() => ({
+    unused: filteredModelStates.filter(m => m.status === 'unused').length,
+    single: filteredModelStates.filter(m => m.status === 'single').length,
+    multi: filteredModelStates.filter(m => m.status === 'multi').length,
+  }), [filteredModelStates]);
+
+  // 合计行数据 - 基于筛选后数据
   const modelSummaryData = useMemo(() => {
-    if (modelStates.length === 0) return null;
+    if (filteredModelStates.length === 0) return null;
 
     // 计算平均部署账号数
     let totalAccountCount = 0;
     let modelsWithAccounts = 0;
-    modelStates.forEach(m => {
+    filteredModelStates.forEach(m => {
       const accounts = modelAccountsMap?.get(m.model);
       if (accounts && accounts.length > 0) {
         totalAccountCount += accounts.length;
@@ -84,22 +95,22 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
     const avgAccounts = modelsWithAccounts > 0 ? totalAccountCount / modelsWithAccounts : 0;
 
     // 计算平均覆盖区域数
-    const totalRegionCount = modelStates.reduce((sum, m) => sum + m.count, 0);
-    const avgRegions = modelStates.length > 0 ? totalRegionCount / modelStates.length : 0;
+    const totalRegionCount = filteredModelStates.reduce((sum, m) => sum + m.count, 0);
+    const avgRegions = filteredModelStates.length > 0 ? totalRegionCount / filteredModelStates.length : 0;
 
     // 计算平均覆盖率
-    const totalPct = modelStates.reduce((sum, m) => sum + m.pct, 0);
-    const avgPct = modelStates.length > 0 ? totalPct / modelStates.length : 0;
+    const totalPct = filteredModelStates.reduce((sum, m) => sum + m.pct, 0);
+    const avgPct = filteredModelStates.length > 0 ? totalPct / filteredModelStates.length : 0;
 
     return {
-      totalModels: modelStates.length,
-      categoryCounts,
-      statusCounts,
+      totalModels: filteredModelStates.length,
+      categoryCounts: filteredCategoryCounts,
+      statusCounts: filteredStatusCounts,
       avgAccounts: Math.round(avgAccounts * 10) / 10,
       avgRegions: Math.round(avgRegions * 10) / 10,
       avgPct: Math.round(avgPct * 10) / 10,
     };
-  }, [modelStates, modelAccountsMap, categoryCounts, statusCounts]);
+  }, [filteredModelStates, modelAccountsMap, filteredCategoryCounts, filteredStatusCounts]);
 
   // 处理模型名点击复制
   const handleCopyModel = (modelName: string) => {
@@ -228,10 +239,24 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
   };
 
   return (
-    <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background section-glow">
-      <h2 className="text-base sm:text-lg font-semibold mb-1">
-        {t('modelStatistics.title')}
-      </h2>
+    <section className={clsx(
+      'p-3 sm:p-4 rounded-xl border border-gray-800 bg-background',
+      !isDetailView && 'section-glow'
+    )}>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-base sm:text-lg font-semibold">
+          {t('modelStatistics.title')}
+        </h2>
+        {!isDetailView && onOpenDetail && (
+          <button
+            type="button"
+            onClick={onOpenDetail}
+            className="px-2 py-1 text-xs rounded-md border border-gray-700 text-muted-foreground hover:text-foreground hover:bg-gray-800 transition-colors"
+          >
+            {t('common.detail', '详情')}
+          </button>
+        )}
+      </div>
       <div className="text-xs text-muted-foreground mb-3">
         {t('modelStatistics.summary', {
           total: totalModels,
@@ -320,7 +345,10 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
             </div>
 
             {/* Virtual Scrolling Rows */}
-            <div ref={parentRef} className="max-h-64 overflow-y-auto">
+            <div ref={parentRef} className={clsx(
+              'overflow-y-auto',
+              isDetailView ? 'max-h-[60vh]' : 'max-h-64'
+            )}>
               <div
                 style={{
                   height: `${virtualizer.getTotalSize()}px`,
@@ -405,18 +433,18 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                   {modelSummaryData.totalModels} {t('modelStatistics.modelsLabel')}
                 </div>
                 <div className="text-muted-foreground text-[10px] text-center">
-                  <span className="text-cyan-300">{categoryCounts.standard}</span>
+                  <span className="text-cyan-300">{modelSummaryData.categoryCounts.standard}</span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-violet-300">{categoryCounts.sora}</span>
+                  <span className="text-violet-300">{modelSummaryData.categoryCounts.sora}</span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-orange-300">{categoryCounts.claude}</span>
+                  <span className="text-orange-300">{modelSummaryData.categoryCounts.claude}</span>
                 </div>
                 <div className="text-muted-foreground text-[10px] text-center">
-                  <span className="text-red-300">{statusCounts.unused}</span>
+                  <span className="text-red-300">{modelSummaryData.statusCounts.unused}</span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-amber-300">{statusCounts.single}</span>
+                  <span className="text-amber-300">{modelSummaryData.statusCounts.single}</span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-green-300">{statusCounts.multi}</span>
+                  <span className="text-green-300">{modelSummaryData.statusCounts.multi}</span>
                 </div>
                 <div className="text-muted-foreground text-center">~{modelSummaryData.avgAccounts}</div>
                 <div className="text-muted-foreground text-center">~{modelSummaryData.avgRegions}</div>

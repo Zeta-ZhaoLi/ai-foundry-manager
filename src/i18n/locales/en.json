@@ -182,7 +182,9 @@
     "show": "Show",
     "hide": "Hide",
     "noData": "No data",
-    "clickToCopy": "Click to copy"
+    "clickToCopy": "Click to copy",
+    "detail": "Details",
+    "filteredTotal": "Filtered Total"
   },
   "emptyState": {
     "noAccounts": "No Accounts",

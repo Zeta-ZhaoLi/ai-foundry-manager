@@ -7,8 +7,11 @@ interface DialogProps {
   children: React.ReactNode;
 }
 
+export type DialogSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
+
 interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
   onClose?: () => void;
+  size?: DialogSize;
 }
 
 const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
@@ -26,15 +29,25 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
   );
 };
 
+const sizeClasses: Record<DialogSize, string> = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-5xl',
+  full: 'max-w-[90vw] max-h-[90vh]',
+};
+
 const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
-  ({ className, children, onClose, ...props }, ref) => {
+  ({ className, children, onClose, size = 'lg', ...props }, ref) => {
     return (
       <div
         ref={ref}
         className={clsx(
-          'fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4',
+          'fixed left-1/2 top-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4',
           'border border-gray-800 bg-background p-6 shadow-lg rounded-xl',
           'animate-in fade-in-0 zoom-in-95',
+          sizeClasses[size],
+          size === 'full' && 'overflow-auto',
           className
         )}
         role="dialog"

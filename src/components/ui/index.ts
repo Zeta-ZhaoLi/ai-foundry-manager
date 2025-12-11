@@ -12,3 +12,4 @@ export * from './CopyButton';
 export * from './SortIndicator';
 export * from './FilterBar';
 export * from './ModelStatusBadge';
+export * from './TableDetailDialog';

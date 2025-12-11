@@ -182,7 +182,9 @@
     "show": "显示",
     "hide": "隐藏",
     "noData": "暂无数据",
-    "clickToCopy": "点击复制"
+    "clickToCopy": "点击复制",
+    "detail": "详情",
+    "filteredTotal": "筛选结果合计"
   },
   "emptyState": {
     "noAccounts": "暂无账号",
