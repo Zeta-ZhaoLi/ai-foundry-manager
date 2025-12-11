@@ -18,6 +18,7 @@ import {
 import { LocalAccount } from './AccountCard';
 import { SortableAccountCard } from './SortableAccountCard';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
+import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
 import { AccountTier, AccountQuota, CurrencyType } from '../../../hooks/useLocalAzureAccounts';
 
 export interface AccountsSectionProps {
@@ -190,48 +191,57 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         </div>
 
         {/* Accounts list with drag and drop */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={sortedAccounts.map((item) => item.account.id)}
-            strategy={verticalListSortingStrategy}
+        {accounts.length === 0 ? (
+          <EmptyState
+            icon={<NoAccountIcon className="w-full h-full" />}
+            title={t('emptyState.noAccounts')}
+            description={t('emptyState.noAccountsDesc')}
+            size="md"
+          />
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
           >
-            <div className="flex flex-col gap-3">
-              {sortedAccounts.map(({ account, originalIndex }) => (
-                <SortableAccountCard
-                  key={account.id}
-                  account={account}
-                  index={originalIndex}
-                  privacyMode={privacyMode}
-                  masterModels={masterModels}
-                  filteredModels={filteredModels}
-                  onUpdateName={(name) => onUpdateAccountName(account.id, name)}
-                  onUpdateNote={(note) => onUpdateAccountNote(account.id, note)}
-                  onUpdateEnabled={(enabled) => onUpdateAccountEnabled(account.id, enabled)}
-                  onUpdateIncludeInStats={onUpdateAccountIncludeInStats ? (includeInStats) => onUpdateAccountIncludeInStats(account.id, includeInStats) : undefined}
-                  onUpdateTier={(tier) => onUpdateAccountTier(account.id, tier)}
-                  onUpdateQuota={(quota, customQuota) => onUpdateAccountQuota(account.id, quota, customQuota)}
-                  onUpdatePurchase={onUpdateAccountPurchase ? (amount, currency) => onUpdateAccountPurchase(account.id, amount, currency) : undefined}
-                  onUpdateUsedAmount={onUpdateAccountUsedAmount ? (usedAmount) => onUpdateAccountUsedAmount(account.id, usedAmount) : undefined}
-                  onDelete={() => onDeleteAccount(account.id)}
-                  onAddRegion={() => onAddRegion(account.id)}
-                  onDeleteRegion={(regionId) => onDeleteRegion(account.id, regionId)}
-                  onUpdateRegionName={(regionId, name) => onUpdateRegionName(account.id, regionId, name)}
-                  onUpdateRegionModelsText={(regionId, text) => onUpdateRegionModelsText(account.id, regionId, text)}
-                  onUpdateRegionOpenaiEndpoint={(regionId, endpoint) => onUpdateRegionOpenaiEndpoint(account.id, regionId, endpoint)}
-                  onUpdateRegionAnthropicEndpoint={(regionId, endpoint) => onUpdateRegionAnthropicEndpoint(account.id, regionId, endpoint)}
-                  onUpdateRegionApiKey={(regionId, apiKey) => onUpdateRegionApiKey(account.id, regionId, apiKey)}
-                  onUpdateRegionEnabled={(regionId, enabled) => onUpdateRegionEnabled(account.id, regionId, enabled)}
-                  onReorderRegions={onReorderRegions ? (oldIndex, newIndex) => onReorderRegions(account.id, oldIndex, newIndex) : undefined}
-                  onCopy={onCopy}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+            <SortableContext
+              items={sortedAccounts.map((item) => item.account.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="flex flex-col gap-3">
+                {sortedAccounts.map(({ account, originalIndex }) => (
+                  <SortableAccountCard
+                    key={account.id}
+                    account={account}
+                    index={originalIndex}
+                    privacyMode={privacyMode}
+                    masterModels={masterModels}
+                    filteredModels={filteredModels}
+                    onUpdateName={(name) => onUpdateAccountName(account.id, name)}
+                    onUpdateNote={(note) => onUpdateAccountNote(account.id, note)}
+                    onUpdateEnabled={(enabled) => onUpdateAccountEnabled(account.id, enabled)}
+                    onUpdateIncludeInStats={onUpdateAccountIncludeInStats ? (includeInStats) => onUpdateAccountIncludeInStats(account.id, includeInStats) : undefined}
+                    onUpdateTier={(tier) => onUpdateAccountTier(account.id, tier)}
+                    onUpdateQuota={(quota, customQuota) => onUpdateAccountQuota(account.id, quota, customQuota)}
+                    onUpdatePurchase={onUpdateAccountPurchase ? (amount, currency) => onUpdateAccountPurchase(account.id, amount, currency) : undefined}
+                    onUpdateUsedAmount={onUpdateAccountUsedAmount ? (usedAmount) => onUpdateAccountUsedAmount(account.id, usedAmount) : undefined}
+                    onDelete={() => onDeleteAccount(account.id)}
+                    onAddRegion={() => onAddRegion(account.id)}
+                    onDeleteRegion={(regionId) => onDeleteRegion(account.id, regionId)}
+                    onUpdateRegionName={(regionId, name) => onUpdateRegionName(account.id, regionId, name)}
+                    onUpdateRegionModelsText={(regionId, text) => onUpdateRegionModelsText(account.id, regionId, text)}
+                    onUpdateRegionOpenaiEndpoint={(regionId, endpoint) => onUpdateRegionOpenaiEndpoint(account.id, regionId, endpoint)}
+                    onUpdateRegionAnthropicEndpoint={(regionId, endpoint) => onUpdateRegionAnthropicEndpoint(account.id, regionId, endpoint)}
+                    onUpdateRegionApiKey={(regionId, apiKey) => onUpdateRegionApiKey(account.id, regionId, apiKey)}
+                    onUpdateRegionEnabled={(regionId, enabled) => onUpdateRegionEnabled(account.id, regionId, enabled)}
+                    onReorderRegions={onReorderRegions ? (oldIndex, newIndex) => onReorderRegions(account.id, oldIndex, newIndex) : undefined}
+                    onCopy={onCopy}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
       </section>
 
       {/* Export security warning */}

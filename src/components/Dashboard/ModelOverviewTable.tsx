@@ -5,6 +5,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { DonutChart, DonutChartData } from './Charts';
 import { LocalAccount } from './AccountConfiguration/AccountCard';
 import { CurrencyType } from '../../hooks/useLocalAzureAccounts';
+import { EmptyState, NoAccountIcon, SearchEmptyIcon } from '../ui/EmptyState';
+import { Button } from '../ui/Button';
 
 export interface ModelState {
   model: string;
@@ -425,13 +427,31 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
 
       {/* Account Table */}
       {accounts.length === 0 ? (
-        <div className="text-xs text-gray-500">
-          {t('statistics.noAccounts')}
-        </div>
+        <EmptyState
+          icon={<NoAccountIcon className="w-full h-full" />}
+          title={t('emptyState.noAccounts')}
+          description={t('emptyState.noAccountsDesc')}
+          size="md"
+        />
       ) : filteredAccounts.length === 0 ? (
-        <div className="text-xs text-gray-500">
-          {t('coverage.noModelsOrNoMatch')}
-        </div>
+        <EmptyState
+          icon={<SearchEmptyIcon className="w-full h-full" />}
+          title={t('emptyState.noMatchingModels')}
+          description={t('emptyState.noMatchingModelsDesc')}
+          size="sm"
+          action={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setStatusFilter('all');
+                setTierFilter('all');
+              }}
+            >
+              {t('emptyState.clearFilters')}
+            </Button>
+          }
+        />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-800 bg-background">
           <div className="min-w-[900px]">
