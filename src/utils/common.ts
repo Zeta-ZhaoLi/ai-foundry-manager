@@ -81,3 +81,26 @@ export function isValidApiKey(key: string): boolean {
   // Azure OpenAI API Key 通常是 32 位十六进制字符串
   return key.length >= 32 && /^[a-zA-Z0-9]+$/.test(key);
 }
+
+/**
+ * 规范化 OpenAI Endpoint
+ * 去除末尾斜杠
+ */
+export function normalizeOpenAIEndpoint(url: string): string {
+  if (!url) return url;
+  // 去除末尾的斜杠
+  return url.replace(/\/+$/, '');
+}
+
+/**
+ * 规范化 Anthropic Endpoint
+ * 去除末尾的 /v1/messages 路径和斜杠
+ */
+export function normalizeAnthropicEndpoint(url: string): string {
+  if (!url) return url;
+  // 去除末尾的 /v1/messages（不区分大小写）
+  let normalized = url.replace(/\/v1\/messages\/?$/i, '');
+  // 去除末尾的斜杠
+  normalized = normalized.replace(/\/+$/, '');
+  return normalized;
+}

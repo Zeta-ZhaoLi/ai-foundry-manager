@@ -6,7 +6,9 @@
       "Bash(npm run build:*)",
       "Bash(npx openspec:*)",
       "Bash(lsof:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

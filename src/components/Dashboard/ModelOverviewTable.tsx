@@ -158,34 +158,51 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
     const enabledCount = accs.filter(a => a.enabled).length;
     const disabledCount = accs.length - enabledCount;
 
-    // 计算账号成本平均值（只计算有购买金额的账号）
-    let avgAccountCost: number | null = null;
-    const accountsWithCost = accs.filter(acc => acc.purchaseAmount && acc.purchaseAmount > 0);
-    if (accountsWithCost.length > 0) {
-      let totalCost = 0;
-      accountsWithCost.forEach(acc => {
-        const quota = acc.quota === 'custom'
-          ? (acc.customQuota || 0)
-          : Number(acc.quota || 200);
-        if (quota > 0 && acc.purchaseAmount) {
-          totalCost += acc.purchaseAmount / quota;
-        }
-      });
-      avgAccountCost = totalCost / accountsWithCost.length;
-    }
+    // 计算账号成本 = 总购买金额 / 总额度（分币种计算）
+    // USD 账号成本：totalPurchaseUSD / totalQuotaUSD
+    // CNY 账号成本：totalPurchaseCNY / totalQuotaCNY（使用对应 CNY 账号的额度）
+    let totalQuotaUSD = 0;
+    let totalQuotaCNY = 0;
+    accs.forEach(acc => {
+      const quota = acc.quota === 'custom'
+        ? (acc.customQuota || 0)
+        : Number(acc.quota || 200);
+      if (acc.purchaseCurrency === 'CNY') {
+        totalQuotaCNY += quota;
+      } else {
+        totalQuotaUSD += quota;
+      }
+    });
 
-    // 计算实际成本平均值（只计算有已使用数据的账号）
-    let avgActualCost: number | null = null;
-    const accountsWithUsed = accs.filter(acc => acc.usedAmount && acc.usedAmount > 0 && acc.purchaseAmount && acc.purchaseAmount > 0);
-    if (accountsWithUsed.length > 0) {
-      let totalActualCost = 0;
-      accountsWithUsed.forEach(acc => {
-        if (acc.usedAmount && acc.purchaseAmount) {
-          totalActualCost += acc.purchaseAmount / acc.usedAmount;
+    // 账号成本: 购买金额 / 额度
+    const accountCostUSD = totalQuotaUSD > 0 && totalPurchaseUSD > 0
+      ? totalPurchaseUSD / totalQuotaUSD
+      : null;
+    const accountCostCNY = totalQuotaCNY > 0 && totalPurchaseCNY > 0
+      ? totalPurchaseCNY / totalQuotaCNY
+      : null;
+
+    // 计算实际成本 = 总购买金额 / 总已使用（分币种计算）
+    // 已使用额度都是以 USD 计，所以需要分别计算每个币种的实际成本
+    let totalUsedUSD = 0;
+    let totalUsedCNY = 0;
+    accs.forEach(acc => {
+      if (acc.usedAmount !== undefined && acc.usedAmount !== null && acc.usedAmount > 0) {
+        if (acc.purchaseCurrency === 'CNY') {
+          totalUsedCNY += acc.usedAmount;
+        } else {
+          totalUsedUSD += acc.usedAmount;
         }
-      });
-      avgActualCost = totalActualCost / accountsWithUsed.length;
-    }
+      }
+    });
+
+    // 实际成本: 购买金额 / 已使用
+    const actualCostUSD = totalUsedUSD > 0 && totalPurchaseUSD > 0
+      ? totalPurchaseUSD / totalUsedUSD
+      : null;
+    const actualCostCNY = totalUsedCNY > 0 && totalPurchaseCNY > 0
+      ? totalPurchaseCNY / totalUsedCNY
+      : null;
 
     // 计算平均模型数（每个账号）
     const avgModelsPerAccount = accs.length > 0 ? Math.round((totalModels / accs.length) * 10) / 10 : 0;
@@ -198,8 +215,10 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
       totalPurchaseUSD,
       totalPurchaseCNY,
       totalUsed,
-      avgAccountCost,
-      avgActualCost,
+      accountCostUSD,
+      accountCostCNY,
+      actualCostUSD,
+      actualCostCNY,
       totalRegions,
       avgModelsPerAccount,
       enabledCount,
@@ -624,10 +643,24 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                   {privacyMode ? '***' : (summaryData.totalUsed > 0 ? `$${summaryData.totalUsed.toLocaleString()}` : '-')}
                 </div>
                 <div className="text-muted-foreground text-center">
-                  {privacyMode ? '***' : (summaryData.avgAccountCost !== null ? `~${summaryData.avgAccountCost.toFixed(2)}` : '-')}
+                  {privacyMode ? '***' : (
+                    <>
+                      {summaryData.accountCostUSD !== null && <span>${summaryData.accountCostUSD.toFixed(2)}</span>}
+                      {summaryData.accountCostUSD !== null && summaryData.accountCostCNY !== null && <span className="mx-0.5">|</span>}
+                      {summaryData.accountCostCNY !== null && <span>¥{summaryData.accountCostCNY.toFixed(2)}</span>}
+                      {summaryData.accountCostUSD === null && summaryData.accountCostCNY === null && '-'}
+                    </>
+                  )}
                 </div>
                 <div className="text-muted-foreground text-center">
-                  {privacyMode ? '***' : (summaryData.avgActualCost !== null ? `~${summaryData.avgActualCost.toFixed(2)}` : '-')}
+                  {privacyMode ? '***' : (
+                    <>
+                      {summaryData.actualCostUSD !== null && <span>${summaryData.actualCostUSD.toFixed(2)}</span>}
+                      {summaryData.actualCostUSD !== null && summaryData.actualCostCNY !== null && <span className="mx-0.5">|</span>}
+                      {summaryData.actualCostCNY !== null && <span>¥{summaryData.actualCostCNY.toFixed(2)}</span>}
+                      {summaryData.actualCostUSD === null && summaryData.actualCostCNY === null && '-'}
+                    </>
+                  )}
                 </div>
                 <div className="text-cyan-400 text-center">{summaryData.totalRegions}</div>
                 <div className="text-muted-foreground text-center">~{summaryData.avgModelsPerAccount}</div>

@@ -194,13 +194,16 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
   const unusedModelsCount = totalMasterModels > 0 ? totalMasterModels - totalUsedModels : 0;
   const singleRegionModelsCount = modelCoverage.filter((m) => m.count === 1).length;
 
-  // 计算每个模型部署在哪些账号上 (编号从1开始)
+  // 计算每个模型部署在哪些账号上 (编号从1开始，使用原始账号列表的索引)
   const modelAccountsMap = useMemo(() => {
     const map = new Map<string, number[]>();
-    // 创建账号ID到编号的映射 (只统计启用的账号)
+    // 创建账号ID到原始列表编号的映射（使用原始 accounts 数组的索引）
     const accountIndexMap = new Map<string, number>();
-    activeAccounts.forEach((acc, idx) => {
-      accountIndexMap.set(acc.id, idx + 1);
+    accounts.forEach((acc, idx) => {
+      // 只为启用的账号创建映射，但使用原始索引
+      if (acc.enabled !== false) {
+        accountIndexMap.set(acc.id, idx + 1);
+      }
     });
     // 遍历所有区域，记录每个模型所属的账号编号
     for (const r of allRegions) {
@@ -219,7 +222,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
     // 对每个模型的账号编号排序
     map.forEach((indices) => indices.sort((a, b) => a - b));
     return map;
-  }, [allRegions, activeAccounts]);
+  }, [allRegions, accounts]);
 
   const modelStates: ModelState[] = useMemo(
     () =>

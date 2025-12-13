@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { getSeries } from '../utils/modelSeries';
-import { parseModels, debounce, generateId } from '../utils/common';
+import { parseModels, debounce, generateId, normalizeOpenAIEndpoint, normalizeAnthropicEndpoint } from '../utils/common';
 import { encryptData, decryptData } from '../utils/encryption';
 
 export interface LocalRegion {
@@ -316,13 +316,15 @@ export function useLocalAzureAccounts() {
 
   const updateRegionOpenaiEndpoint = useCallback(
     (accountId: string, regionId: string, openaiEndpoint: string) => {
+      // 规范化 OpenAI Endpoint（去除末尾斜杠）
+      const normalized = normalizeOpenAIEndpoint(openaiEndpoint);
       saveAccounts((prev) =>
         prev.map((acct) =>
           acct.id === accountId
             ? {
                 ...acct,
                 regions: acct.regions.map((reg) =>
-                  reg.id === regionId ? { ...reg, openaiEndpoint } : reg,
+                  reg.id === regionId ? { ...reg, openaiEndpoint: normalized } : reg,
                 ),
               }
             : acct,
@@ -334,13 +336,15 @@ export function useLocalAzureAccounts() {
 
   const updateRegionAnthropicEndpoint = useCallback(
     (accountId: string, regionId: string, anthropicEndpoint: string) => {
+      // 规范化 Anthropic Endpoint（去除末尾的 /v1/messages 和斜杠）
+      const normalized = normalizeAnthropicEndpoint(anthropicEndpoint);
       saveAccounts((prev) =>
         prev.map((acct) =>
           acct.id === accountId
             ? {
                 ...acct,
                 regions: acct.regions.map((reg) =>
-                  reg.id === regionId ? { ...reg, anthropicEndpoint } : reg,
+                  reg.id === regionId ? { ...reg, anthropicEndpoint: normalized } : reg,
                 ),
               }
             : acct,
