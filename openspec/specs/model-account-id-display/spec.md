@@ -1,11 +1,8 @@
-# Model Account ID Display
+# model-account-id-display Specification
 
-## Overview
-
-模型总览表格中"部署账号"列应显示实际账号 ID（原始列表索引），而非基于过滤状态的动态索引。
-
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change 2025-12-14-fix-summary-calculation-and-endpoint-normalization. Update Purpose after archive.
+## Requirements
 ### Requirement: Display Original Account IDs
 
 模型总览表格的"部署账号"列 **MUST** 始终显示账号在原始列表中的位置，无论账号是否被禁用。
@@ -77,3 +74,4 @@
 **When** 用户查看模型 A 的部署账号
 
 **Then** 部署账号列显示 `-` 或为空
+

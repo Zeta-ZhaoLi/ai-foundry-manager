@@ -1,11 +1,8 @@
-# Account Summary Calculation
+# account-summary-calculation Specification
 
-## Overview
-
-账号总览表格合计行的成本计算逻辑规范。
-
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change 2025-12-14-fix-summary-calculation-and-endpoint-normalization. Update Purpose after archive.
+## Requirements
 ### Requirement: Account Cost Summary Calculation
 
 账号总览合计行的"账号成本/$"**MUST** 显示总购买金额除以总额度，而非平均值。
@@ -75,3 +72,4 @@
 **When** 显示账号成本和实际成本
 
 **Then** 显示格式为 `¥X.XX` 或 `$X.XX`，不带 `~` 前缀
+
