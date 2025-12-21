@@ -50,6 +50,10 @@
     "addAccount": "新增账号",
     "exportConfig": "导出配置（JSON）",
     "importConfig": "导入配置",
+    "renumberAccounts": "重新编号",
+    "renumberTooltip": "根据当前排序重新分配账号 ID",
+    "renumberConfirmTitle": "确认重新编号",
+    "renumberConfirmDesc": "确定要重新编号所有账号吗？这将根据当前排序重新分配账号 ID。此操作无法撤销。",
     "accountName": "账号名称",
     "accountNamePlaceholder": "例如：Prod-Subscription-AzureOpenAI",
     "note": "备注（可选）",
@@ -186,6 +190,7 @@
     "configExported": "配置已导出为 JSON 文件",
     "configImported": "配置导入成功",
     "configImportFailed": "配置导入失败",
+    "accountsRenumbered": "账号已重新编号",
     "exportFailed": "导出失败，请重试",
     "invalidConfig": "无效的配置文件"
   },

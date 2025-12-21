@@ -50,6 +50,10 @@
     "addAccount": "Add Account",
     "exportConfig": "Export Config (JSON)",
     "importConfig": "Import Config",
+    "renumberAccounts": "Re-number",
+    "renumberTooltip": "Reassign account IDs based on current sort order",
+    "renumberConfirmTitle": "Confirm Re-numbering",
+    "renumberConfirmDesc": "Are you sure you want to re-number all accounts? This will reassign account IDs based on current sort order. This action cannot be undone.",
     "accountName": "Account Name:",
     "accountNamePlaceholder": "e.g.: Prod-Subscription-AzureOpenAI",
     "note": "Note (optional):",
@@ -186,6 +190,7 @@
     "configExported": "Config exported as JSON file",
     "configImported": "Config imported successfully",
     "configImportFailed": "Config import failed",
+    "accountsRenumbered": "Accounts renumbered successfully",
     "exportFailed": "Export failed, please try again",
     "invalidConfig": "Invalid configuration file"
   },

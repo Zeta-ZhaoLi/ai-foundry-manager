@@ -59,3 +59,54 @@ export function regenerateAccountId(
   const otherAccounts = accounts.filter(a => a.accountId !== currentAccountId);
   return generateAccountId(otherAccounts, newTier);
 }
+
+/**
+ * 根据账号在数组中的位置生成 ID（用于重新编号）
+ * 不考虑空缺，直接按顺序分配 ID
+ * Premium 账号: A001, A002, A003, ...
+ * Standard 账号: B001, B002, B003, ...
+ *
+ * @param accounts 所有账号列表（已排序）
+ * @returns 重新编号后的账号列表
+ */
+export function renumberAccountsByPosition(
+  accounts: AccountWithIdAndTier[]
+): AccountWithIdAndTier[] {
+  // 分离高级和普通账号
+  const premiumAccounts: AccountWithIdAndTier[] = [];
+  const standardAccounts: AccountWithIdAndTier[] = [];
+
+  accounts.forEach(acct => {
+    if (acct.tier === 'premium') {
+      premiumAccounts.push(acct);
+    } else {
+      standardAccounts.push(acct);
+    }
+  });
+
+  // 按位置重新编号
+  const renumberedPremium = premiumAccounts.map((acct, idx) => ({
+    ...acct,
+    accountId: `A${String(idx + 1).padStart(3, '0')}`
+  }));
+
+  const renumberedStandard = standardAccounts.map((acct, idx) => ({
+    ...acct,
+    accountId: `B${String(idx + 1).padStart(3, '0')}`
+  }));
+
+  // 合并并保持原始顺序
+  const result: AccountWithIdAndTier[] = [];
+  let premiumIdx = 0;
+  let standardIdx = 0;
+
+  accounts.forEach(acct => {
+    if (acct.tier === 'premium') {
+      result.push(renumberedPremium[premiumIdx++]);
+    } else {
+      result.push(renumberedStandard[standardIdx++]);
+    }
+  });
+
+  return result;
+}

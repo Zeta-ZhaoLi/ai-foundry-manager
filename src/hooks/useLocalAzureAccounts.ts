@@ -120,15 +120,24 @@ export function useLocalAzureAccounts() {
   );
 
   // 迁移函数：为没有 accountId 的账号自动分配 ID
+  // 使用累加器模式确保每个账号都能看到之前分配的 ID，避免重复
   const migrateAccountsToV2 = useCallback((accounts: LocalAccount[]): LocalAccount[] => {
-    return accounts.map((acct) => {
+    const migrated: LocalAccount[] = [];
+
+    for (const acct of accounts) {
       if (!acct.accountId) {
         // 为没有 accountId 的账号生成 ID
         const tier = acct.tier || 'standard';
-        acct.accountId = generateAccountId(accounts, tier);
+        // 传入 migrated 数组，包含之前已分配的 ID，确保生成唯一的序号
+        const accountId = generateAccountId(migrated, tier);
+        migrated.push({ ...acct, accountId });
+      } else {
+        // 保留已有 ID 的账号不变
+        migrated.push(acct);
       }
-      return acct;
-    });
+    }
+
+    return migrated;
   }, []);
 
   useEffect(() => {
@@ -548,6 +557,43 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
+  // 重新编号所有账号（根据当前排序）
+  const renumberAllAccounts = useCallback(() => {
+    saveAccounts((prev) => {
+      const { renumberAccountsByPosition } = require('../utils/accountIdGenerator');
+      return renumberAccountsByPosition(prev) as LocalAccount[];
+    });
+  }, [saveAccounts]);
+
+  // 导入配置
+  const importConfig = useCallback((jsonString: string): { success: boolean; error?: string } => {
+    try {
+      const parsed = JSON.parse(jsonString);
+
+      // 验证配置结构
+      if (!Array.isArray(parsed)) {
+        return { success: false, error: 'Invalid config format: must be an array' };
+      }
+
+      // 验证每个账号的基本结构
+      for (const item of parsed) {
+        if (!item.id || !Array.isArray(item.regions)) {
+          return { success: false, error: 'Invalid account structure' };
+        }
+      }
+
+      // 解密敏感字段
+      const decrypted = decryptAccounts(parsed);
+
+      // 保存到 localStorage
+      saveAccounts(() => decrypted);
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }, [saveAccounts, decryptAccounts]);
+
   // 仅统计 enabled 的账号
   const enabledAccounts = useMemo(
     () => accounts.filter((a) => a.enabled !== false),
@@ -633,5 +679,7 @@ export function useLocalAzureAccounts() {
     updateRegionAnthropicEndpointManualOverride,
     reorderAccounts,
     reorderRegions,
+    renumberAllAccounts,
+    importConfig,
   };
 }

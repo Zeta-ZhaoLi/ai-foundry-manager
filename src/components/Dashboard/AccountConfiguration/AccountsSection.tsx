@@ -20,6 +20,7 @@ import { SortableAccountCard } from './SortableAccountCard';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
 import { AccountTier, AccountQuota, CurrencyType, ServerCredentials } from '../../../hooks/useLocalAzureAccounts';
+import { useToast } from '../../../hooks/useToast';
 
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
@@ -30,6 +31,8 @@ export interface AccountsSectionProps {
   onFilterChange: (value: string) => void;
   onAddAccount: () => void;
   onExportConfig: () => void;
+  onImportConfig?: (jsonString: string) => { success: boolean; error?: string };
+  onRenumberAccounts?: () => void;
   onUpdateAccountName: (accountId: string, name: string) => void;
   onUpdateAccountNote: (accountId: string, note: string) => void;
   onUpdateAccountEnabled: (accountId: string, enabled: boolean) => void;
@@ -63,6 +66,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onFilterChange,
   onAddAccount,
   onExportConfig,
+  onImportConfig,
+  onRenumberAccounts,
   onUpdateAccountName,
   onUpdateAccountNote,
   onUpdateAccountEnabled,
@@ -87,7 +92,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onCopy,
 }) => {
   const { t } = useTranslation();
+  const toast = useToast();
   const [showExportWarning, setShowExportWarning] = useState(false);
+  const [showRenumberConfirm, setShowRenumberConfirm] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -103,6 +110,42 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   const handleExport = () => {
     setShowExportWarning(false);
     onExportConfig();
+  };
+
+  const handleRenumber = () => {
+    setShowRenumberConfirm(false);
+    if (onRenumberAccounts) {
+      onRenumberAccounts();
+      toast.success(t('toast.accountsRenumbered'));
+    }
+  };
+
+  const handleImportClick = () => {
+    if (!onImportConfig) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const jsonString = event.target?.result as string;
+          const result = onImportConfig(jsonString);
+          if (result.success) {
+            toast.success(t('toast.configImported'));
+          } else {
+            toast.error(t('toast.configImportFailed') + (result.error ? `: ${result.error}` : ''));
+          }
+        };
+        reader.onerror = () => {
+          toast.error(t('toast.configImportFailed'));
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
   };
 
   // Sort accounts: premium accounts first, then maintain original order
@@ -152,6 +195,33 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
             >
               + {t('accounts.addAccount')}
             </button>
+            {onRenumberAccounts && accounts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowRenumberConfirm(true)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full',
+                  'border border-gray-600 bg-background text-foreground',
+                  'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                )}
+                title={t('accounts.renumberTooltip')}
+              >
+                🔢 {t('accounts.renumberAccounts')}
+              </button>
+            )}
+            {onImportConfig && (
+              <button
+                type="button"
+                onClick={handleImportClick}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full',
+                  'border border-gray-600 bg-background text-foreground',
+                  'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                )}
+              >
+                {t('accounts.importConfig')}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowExportWarning(true)}
@@ -260,6 +330,18 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         cancelText={t('common.cancel')}
         variant="warning"
         onConfirm={handleExport}
+      />
+
+      {/* Renumber confirmation */}
+      <ConfirmDialog
+        open={showRenumberConfirm}
+        onOpenChange={setShowRenumberConfirm}
+        title={t('accounts.renumberConfirmTitle')}
+        description={t('accounts.renumberConfirmDesc')}
+        confirmText={t('common.confirm')}
+        cancelText={t('common.cancel')}
+        variant="warning"
+        onConfirm={handleRenumber}
       />
     </>
   );

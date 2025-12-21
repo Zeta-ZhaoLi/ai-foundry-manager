@@ -59,6 +59,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
     updateRegionEnabled,
     reorderAccounts,
     reorderRegions,
+    renumberAllAccounts,
+    importConfig,
   } = useLocalAzureAccounts();
 
   // Master models state
@@ -303,6 +305,42 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
     }
   }, [accounts, masterText, toast, t]);
 
+  const handleImportConfig = useCallback((jsonString: string): { success: boolean; error?: string } => {
+    try {
+      const parsed = JSON.parse(jsonString);
+
+      // 检查是对象格式 { accounts, masterText } 还是旧的数组格式
+      let accountsData: any[];
+      let masterTextData: string | undefined;
+
+      if (Array.isArray(parsed)) {
+        // 旧格式：直接是数组（向后兼容）
+        accountsData = parsed;
+      } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.accounts)) {
+        // 新格式：对象包含 accounts 和 masterText
+        accountsData = parsed.accounts;
+        masterTextData = parsed.masterText;
+      } else {
+        return { success: false, error: 'Invalid config format' };
+      }
+
+      // 调用 hook 的 importConfig 处理账号数据
+      const result = importConfig(JSON.stringify(accountsData));
+      if (!result.success) {
+        return result;
+      }
+
+      // 如果有 masterText，更新它
+      if (masterTextData !== undefined) {
+        setMasterText(masterTextData);
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }, [importConfig]);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Global Model Directory */}
@@ -374,6 +412,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
         onFilterChange={handleFilterChange}
         onAddAccount={addAccount}
         onExportConfig={handleExportConfig}
+        onImportConfig={handleImportConfig}
+        onRenumberAccounts={renumberAllAccounts}
         onUpdateAccountName={updateAccountName}
         onUpdateAccountNote={updateAccountNote}
         onUpdateAccountEnabled={updateAccountEnabled}
