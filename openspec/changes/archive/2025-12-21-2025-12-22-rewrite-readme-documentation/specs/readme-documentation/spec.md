@@ -1,6 +1,6 @@
 # README Documentation
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Project Description Accuracy
 
