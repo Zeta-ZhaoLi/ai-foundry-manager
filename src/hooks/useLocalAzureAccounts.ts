@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { getSeries } from '../utils/modelSeries';
 import { parseModels, debounce, generateId, normalizeOpenAIEndpoint, normalizeAnthropicEndpoint } from '../utils/common';
 import { encryptData, decryptData } from '../utils/encryption';
+import { generateAccountId, regenerateAccountId } from '../utils/accountIdGenerator';
 
 export interface LocalRegion {
   id: string;
@@ -11,14 +12,27 @@ export interface LocalRegion {
   anthropicEndpoint?: string;
   apiKey?: string;
   enabled?: boolean;  // 默认 true，控制是否参与统计
+  openaiEndpointManualOverride?: boolean;  // OpenAI Endpoint 是否手动覆盖
+  anthropicEndpointManualOverride?: boolean;  // Anthropic Endpoint 是否手动覆盖
 }
 
 export type AccountTier = 'premium' | 'standard';
 export type AccountQuota = '200' | '1000' | '2000' | '5000' | '20000' | '25000' | '45000' | 'custom';
 export type CurrencyType = 'USD' | 'CNY';
 
+// 服务器凭据
+export interface ServerCredentials {
+  host: string;
+  username: string;
+  password?: string;
+  sshKey?: string;
+  port?: number;
+  note?: string;
+}
+
 export interface LocalAccount {
   id: string;
+  accountId?: string;       // 账号 ID 前缀 (A001, B001 等)
   name: string;
   note?: string;
   enabled: boolean;             // 启用模型 - 模型层面统计（参与模型覆盖度计算）
@@ -30,6 +44,8 @@ export interface LocalAccount {
   purchaseAmount?: number;      // 购买金额
   purchaseCurrency?: CurrencyType;  // 货币类型 (默认 USD)
   usedAmount?: number;          // 已使用额度
+  windowsServer?: ServerCredentials;  // Windows 服务器登录信息
+  linuxServer?: ServerCredentials;    // Linux 服务器登录信息
 }
 
 export interface AccountSummary {
@@ -59,6 +75,15 @@ export function useLocalAzureAccounts() {
         ...reg,
         apiKey: reg.apiKey ? decryptData(reg.apiKey) : reg.apiKey,
       })),
+      windowsServer: acct.windowsServer ? {
+        ...acct.windowsServer,
+        password: acct.windowsServer.password ? decryptData(acct.windowsServer.password) : undefined,
+      } : undefined,
+      linuxServer: acct.linuxServer ? {
+        ...acct.linuxServer,
+        password: acct.linuxServer.password ? decryptData(acct.linuxServer.password) : undefined,
+        sshKey: acct.linuxServer.sshKey ? decryptData(acct.linuxServer.sshKey) : undefined,
+      } : undefined,
     }));
   }, []);
 
@@ -70,6 +95,15 @@ export function useLocalAzureAccounts() {
         ...reg,
         apiKey: reg.apiKey ? encryptData(reg.apiKey) : reg.apiKey,
       })),
+      windowsServer: acct.windowsServer ? {
+        ...acct.windowsServer,
+        password: acct.windowsServer.password ? encryptData(acct.windowsServer.password) : undefined,
+      } : undefined,
+      linuxServer: acct.linuxServer ? {
+        ...acct.linuxServer,
+        password: acct.linuxServer.password ? encryptData(acct.linuxServer.password) : undefined,
+        sshKey: acct.linuxServer.sshKey ? encryptData(acct.linuxServer.sshKey) : undefined,
+      } : undefined,
     }));
   }, []);
 
@@ -85,6 +119,18 @@ export function useLocalAzureAccounts() {
     }, 500)
   );
 
+  // 迁移函数：为没有 accountId 的账号自动分配 ID
+  const migrateAccountsToV2 = useCallback((accounts: LocalAccount[]): LocalAccount[] => {
+    return accounts.map((acct) => {
+      if (!acct.accountId) {
+        // 为没有 accountId 的账号生成 ID
+        const tier = acct.tier || 'standard';
+        acct.accountId = generateAccountId(accounts, tier);
+      }
+      return acct;
+    });
+  }, []);
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -96,8 +142,14 @@ export function useLocalAzureAccounts() {
             enabled: acct.enabled !== false,
             ...acct,
           }));
-          const decrypted = decryptAccounts(normalized);
+          // 迁移：为没有 accountId 的账号分配 ID
+          const migrated = migrateAccountsToV2(normalized);
+          const decrypted = decryptAccounts(migrated);
           setAccounts(decrypted);
+          // 如果发生了迁移，保存更新后的数据
+          if (migrated.some(a => !parsed.find(p => p.id === a.id)?.accountId)) {
+            debouncedSaveRef.current(decrypted);
+          }
           return;
         }
       }
@@ -108,9 +160,11 @@ export function useLocalAzureAccounts() {
     const initial: LocalAccount[] = [
       {
         id: 'sample-account',
+        accountId: 'B001',  // 示例账号默认为 standard
         name: '示例账号',
         note: '你可以删除这个示例并添加自己的账号',
         enabled: true,
+        tier: 'standard',
         regions: [
           {
             id: 'sample-region',
@@ -122,7 +176,7 @@ export function useLocalAzureAccounts() {
     ];
     setAccounts(initial);
     debouncedSaveRef.current(initial);
-  }, [decryptAccounts]);
+  }, [decryptAccounts, migrateAccountsToV2]);
 
   const saveAccounts = useCallback(
     (updater: (prev: LocalAccount[]) => LocalAccount[]) => {
@@ -136,27 +190,33 @@ export function useLocalAzureAccounts() {
   );
 
   const addAccount = useCallback(() => {
-    const newAccount: LocalAccount = {
-      id: generateId('acct'),
-      name: '新账号',
-      note: '',
-      enabled: true,
-      includeInStats: true,  // 默认参与统计
-      regions: [
-        {
-          id: generateId('region'),
-          name: 'eastus2',
-          openaiEndpoint: '',
-          anthropicEndpoint: '',
-          apiKey: '',
-          modelsText: '',
-          enabled: true,
-        },
-      ],
-      quota: '2000',  // 默认额度 $2,000
-      purchaseCurrency: 'CNY',  // 默认货币为人民币
-    };
-    saveAccounts((prev) => [...prev, newAccount]);
+    saveAccounts((prev) => {
+      const newTier: AccountTier = 'standard';  // 默认为普通账号
+      const accountId = generateAccountId(prev, newTier);
+      const newAccount: LocalAccount = {
+        id: generateId('acct'),
+        accountId,
+        name: '新账号',
+        note: '',
+        enabled: true,
+        includeInStats: true,  // 默认参与统计
+        tier: newTier,
+        regions: [
+          {
+            id: generateId('region'),
+            name: 'eastus2',
+            openaiEndpoint: '',
+            anthropicEndpoint: '',
+            apiKey: '',
+            modelsText: '',
+            enabled: true,
+          },
+        ],
+        quota: '2000',  // 默认额度 $2,000
+        purchaseCurrency: 'CNY',  // 默认货币为人民币
+      };
+      return [...prev, newAccount];
+    });
   }, [saveAccounts]);
 
   const updateAccountName = useCallback(
@@ -198,7 +258,15 @@ export function useLocalAzureAccounts() {
   const updateAccountTier = useCallback(
     (id: string, tier: AccountTier) => {
       saveAccounts((prev) =>
-        prev.map((acct) => (acct.id === id ? { ...acct, tier } : acct)),
+        prev.map((acct) => {
+          if (acct.id === id) {
+            // 如果类别改变，重新生成 accountId
+            const currentAccountId = acct.accountId || '';
+            const newAccountId = regenerateAccountId(prev, currentAccountId, tier);
+            return { ...acct, tier, accountId: newAccountId };
+          }
+          return acct;
+        }),
       );
     },
     [saveAccounts],
@@ -231,6 +299,28 @@ export function useLocalAzureAccounts() {
       saveAccounts((prev) =>
         prev.map((acct) =>
           acct.id === id ? { ...acct, usedAmount } : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateAccountWindowsServer = useCallback(
+    (id: string, windowsServer: ServerCredentials | undefined) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, windowsServer } : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  const updateAccountLinuxServer = useCallback(
+    (id: string, linuxServer: ServerCredentials | undefined) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, linuxServer } : acct,
         ),
       );
     },
@@ -420,6 +510,44 @@ export function useLocalAzureAccounts() {
     [saveAccounts],
   );
 
+  // 更新 OpenAI Endpoint 手动覆盖标志
+  const updateRegionOpenaiEndpointManualOverride = useCallback(
+    (accountId: string, regionId: string, override: boolean) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId ? { ...reg, openaiEndpointManualOverride: override } : reg,
+                ),
+              }
+            : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
+  // 更新 Anthropic Endpoint 手动覆盖标志
+  const updateRegionAnthropicEndpointManualOverride = useCallback(
+    (accountId: string, regionId: string, override: boolean) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId ? { ...reg, anthropicEndpointManualOverride: override } : reg,
+                ),
+              }
+            : acct,
+        ),
+      );
+    },
+    [saveAccounts],
+  );
+
   // 仅统计 enabled 的账号
   const enabledAccounts = useMemo(
     () => accounts.filter((a) => a.enabled !== false),
@@ -490,6 +618,8 @@ export function useLocalAzureAccounts() {
     updateAccountQuota,
     updateAccountPurchase,
     updateAccountUsedAmount,
+    updateAccountWindowsServer,
+    updateAccountLinuxServer,
     deleteAccount,
     addRegion,
     updateRegionName,
@@ -499,6 +629,8 @@ export function useLocalAzureAccounts() {
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
     updateRegionEnabled,
+    updateRegionOpenaiEndpointManualOverride,
+    updateRegionAnthropicEndpointManualOverride,
     reorderAccounts,
     reorderRegions,
   };

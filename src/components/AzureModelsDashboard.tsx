@@ -46,6 +46,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
     updateAccountQuota,
     updateAccountPurchase,
     updateAccountUsedAmount,
+    updateAccountWindowsServer,
+    updateAccountLinuxServer,
     deleteAccount,
     addRegion,
     updateRegionName,
@@ -380,6 +382,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
         onUpdateAccountQuota={updateAccountQuota}
         onUpdateAccountPurchase={updateAccountPurchase}
         onUpdateAccountUsedAmount={updateAccountUsedAmount}
+        onUpdateAccountWindowsServer={updateAccountWindowsServer}
+        onUpdateAccountLinuxServer={updateAccountLinuxServer}
         onDeleteAccount={deleteAccount}
         onAddRegion={addRegion}
         onDeleteRegion={deleteRegion}

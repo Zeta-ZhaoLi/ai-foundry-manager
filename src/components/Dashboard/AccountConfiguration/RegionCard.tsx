@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { buildCopyString, groupModelsByCategory, ModelCategory } from '../../../utils/modelSeries';
 import { useToast } from '../../../hooks/useToast';
+import { convertOpenAIToAnthropicEndpoint, convertAnthropicToOpenAIEndpoint } from '../../../utils/common';
 
 export interface LocalRegion {
   id: string;
@@ -13,6 +14,8 @@ export interface LocalRegion {
   anthropicEndpoint?: string;
   apiKey?: string;
   enabled?: boolean;  // 默认 true
+  openaiEndpointManualOverride?: boolean;
+  anthropicEndpointManualOverride?: boolean;
 }
 
 export interface RegionCardProps {
@@ -134,6 +137,32 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const getRegionLabel = (value: string) => {
     const found = PRESET_REGIONS.find(r => r.value === value);
     return found ? found.label : value;
+  };
+
+  // Handle OpenAI endpoint change with auto-sync
+  const handleOpenAIEndpointChange = (newValue: string) => {
+    onUpdateOpenaiEndpoint(newValue);
+
+    // If not manually overridden for Anthropic, auto-generate it
+    if (!region.anthropicEndpointManualOverride && newValue) {
+      const generated = convertOpenAIToAnthropicEndpoint(newValue);
+      if (generated) {
+        onUpdateAnthropicEndpoint(generated);
+      }
+    }
+  };
+
+  // Handle Anthropic endpoint change with auto-sync
+  const handleAnthropicEndpointChange = (newValue: string) => {
+    onUpdateAnthropicEndpoint(newValue);
+
+    // If not manually overridden for OpenAI, auto-generate it
+    if (!region.openaiEndpointManualOverride && newValue) {
+      const generated = convertAnthropicToOpenAIEndpoint(newValue);
+      if (generated) {
+        onUpdateOpenaiEndpoint(generated);
+      }
+    }
   };
 
   const selectedSet = new Set(parseModels(region.modelsText));
@@ -395,8 +424,24 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         <div className="flex flex-col md:flex-row md:items-start gap-3 mb-2 pl-7">
           {/* OpenAI Endpoint */}
           <div className="flex-1 min-w-0">
-            <label className="text-xs text-muted-foreground block mb-1">
-              {t('regions.openaiEndpoint')}
+            <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
+              <span>{t('regions.openaiEndpoint')}</span>
+              {region.openaiEndpoint && region.anthropicEndpoint && !region.openaiEndpointManualOverride && (
+                <span
+                  className="text-cyan-400"
+                  title={t('regions.endpointAutoSynced', { type: 'Anthropic' })}
+                >
+                  🔄
+                </span>
+              )}
+              {region.openaiEndpointManualOverride && (
+                <span
+                  className="text-yellow-400"
+                  title={t('regions.endpointManualOverride')}
+                >
+                  ✏️
+                </span>
+              )}
             </label>
             <div className="flex items-center gap-1">
               <input
@@ -406,7 +451,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
                 value={privacyMode ? maskEndpoint(region.openaiEndpoint || '') : (region.openaiEndpoint || '')}
-                onChange={(e) => onUpdateOpenaiEndpoint(e.target.value)}
+                onChange={(e) => handleOpenAIEndpointChange(e.target.value)}
                 placeholder="https://xxx.openai.azure.com"
                 disabled={privacyMode}
               />
@@ -429,8 +474,24 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
           {/* Anthropic Endpoint */}
           <div className="flex-1 min-w-0">
-            <label className="text-xs text-muted-foreground block mb-1">
-              {t('regions.anthropicEndpoint')}
+            <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
+              <span>{t('regions.anthropicEndpoint')}</span>
+              {region.anthropicEndpoint && region.openaiEndpoint && !region.anthropicEndpointManualOverride && (
+                <span
+                  className="text-cyan-400"
+                  title={t('regions.endpointAutoSynced', { type: 'OpenAI' })}
+                >
+                  🔄
+                </span>
+              )}
+              {region.anthropicEndpointManualOverride && (
+                <span
+                  className="text-yellow-400"
+                  title={t('regions.endpointManualOverride')}
+                >
+                  ✏️
+                </span>
+              )}
             </label>
             <div className="flex items-center gap-1">
               <input
@@ -440,7 +501,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
                 value={privacyMode ? maskEndpoint(region.anthropicEndpoint || '') : (region.anthropicEndpoint || '')}
-                onChange={(e) => onUpdateAnthropicEndpoint(e.target.value)}
+                onChange={(e) => handleAnthropicEndpointChange(e.target.value)}
                 placeholder="https://xxx.services.ai.azure.com"
                 disabled={privacyMode}
               />

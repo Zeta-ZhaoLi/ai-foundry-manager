@@ -19,7 +19,7 @@ import { LocalAccount } from './AccountCard';
 import { SortableAccountCard } from './SortableAccountCard';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
-import { AccountTier, AccountQuota, CurrencyType } from '../../../hooks/useLocalAzureAccounts';
+import { AccountTier, AccountQuota, CurrencyType, ServerCredentials } from '../../../hooks/useLocalAzureAccounts';
 
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
@@ -38,6 +38,8 @@ export interface AccountsSectionProps {
   onUpdateAccountQuota: (accountId: string, quota: AccountQuota, customQuota?: number) => void;
   onUpdateAccountPurchase?: (accountId: string, amount: number, currency: CurrencyType) => void;
   onUpdateAccountUsedAmount?: (accountId: string, usedAmount: number) => void;
+  onUpdateAccountWindowsServer?: (accountId: string, credentials: ServerCredentials) => void;
+  onUpdateAccountLinuxServer?: (accountId: string, credentials: ServerCredentials) => void;
   onDeleteAccount: (accountId: string) => void;
   onAddRegion: (accountId: string) => void;
   onDeleteRegion: (accountId: string, regionId: string) => void;
@@ -69,6 +71,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateAccountQuota,
   onUpdateAccountPurchase,
   onUpdateAccountUsedAmount,
+  onUpdateAccountWindowsServer,
+  onUpdateAccountLinuxServer,
   onDeleteAccount,
   onAddRegion,
   onDeleteRegion,
@@ -225,6 +229,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     onUpdateQuota={(quota, customQuota) => onUpdateAccountQuota(account.id, quota, customQuota)}
                     onUpdatePurchase={onUpdateAccountPurchase ? (amount, currency) => onUpdateAccountPurchase(account.id, amount, currency) : undefined}
                     onUpdateUsedAmount={onUpdateAccountUsedAmount ? (usedAmount) => onUpdateAccountUsedAmount(account.id, usedAmount) : undefined}
+                    onUpdateWindowsServer={onUpdateAccountWindowsServer ? (credentials) => onUpdateAccountWindowsServer(account.id, credentials) : undefined}
+                    onUpdateLinuxServer={onUpdateAccountLinuxServer ? (credentials) => onUpdateAccountLinuxServer(account.id, credentials) : undefined}
                     onDelete={() => onDeleteAccount(account.id)}
                     onAddRegion={() => onAddRegion(account.id)}
                     onDeleteRegion={(regionId) => onDeleteRegion(account.id, regionId)}

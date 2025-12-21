@@ -104,3 +104,48 @@ export function normalizeAnthropicEndpoint(url: string): string {
   normalized = normalized.replace(/\/+$/, '');
   return normalized;
 }
+
+/**
+ * 从 Azure Endpoint 提取资源名称
+ * 支持 OpenAI 和 Anthropic 两种格式
+ */
+export function extractAzureResourceName(endpoint: string): string | null {
+  if (!endpoint) return null;
+
+  try {
+    const url = new URL(endpoint);
+    const hostname = url.hostname;
+
+    // Pattern 1: xxx.openai.azure.com
+    const openaiMatch = hostname.match(/^([^.]+)\.openai\.azure\.com$/);
+    if (openaiMatch) return openaiMatch[1];
+
+    // Pattern 2: xxx.services.ai.azure.com
+    const anthropicMatch = hostname.match(/^([^.]+)\.services\.ai\.azure\.com$/);
+    if (anthropicMatch) return anthropicMatch[1];
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 将 OpenAI Endpoint 转换为 Anthropic Endpoint
+ */
+export function convertOpenAIToAnthropicEndpoint(openaiEndpoint: string): string | null {
+  const resourceName = extractAzureResourceName(openaiEndpoint);
+  if (!resourceName) return null;
+
+  return `https://${resourceName}.services.ai.azure.com/anthropic`;
+}
+
+/**
+ * 将 Anthropic Endpoint 转换为 OpenAI Endpoint
+ */
+export function convertAnthropicToOpenAIEndpoint(anthropicEndpoint: string): string | null {
+  const resourceName = extractAzureResourceName(anthropicEndpoint);
+  if (!resourceName) return null;
+
+  return `https://${resourceName}.openai.azure.com`;
+}
