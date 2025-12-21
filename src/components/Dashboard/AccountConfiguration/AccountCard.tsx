@@ -130,6 +130,117 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
   const displayNote = privacyMode ? '***' : account.note;
 
+  // 渲染服务器徽章
+  const renderServerBadges = () => {
+    const badges = [];
+
+    if (account.windowsServer?.serverId) {
+      badges.push(
+        <span
+          key="windows"
+          className={clsx(
+            'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
+            'bg-blue-900/30 text-blue-300 border border-blue-700'
+          )}
+        >
+          {privacyMode ? 'Win#XXX' : `Win#${account.windowsServer.serverId}`}
+        </span>
+      );
+    }
+
+    if (account.linuxServer?.serverId) {
+      badges.push(
+        <span
+          key="linux"
+          className={clsx(
+            'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
+            'bg-green-900/30 text-green-300 border border-green-700'
+          )}
+        >
+          {privacyMode ? 'Linux#XXX' : `Linux#${account.linuxServer.serverId}`}
+        </span>
+      );
+    }
+
+    return badges;
+  };
+
+  // Windows Server ID handlers
+  const handleWindowsServerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^\d{1,5}$/.test(value)) {
+      const padded = value ? value.padStart(3, '0') : '001';
+      onUpdateWindowsServer?.({
+        ...account.windowsServer,
+        host: account.windowsServer?.host || '',
+        username: account.windowsServer?.username || '',
+        serverId: padded,
+      });
+    }
+  };
+
+  const incrementWindowsServerId = () => {
+    const current = account.windowsServer?.serverId || '001';
+    const num = parseInt(current, 10);
+    const next = String(num + 1).padStart(3, '0');
+    onUpdateWindowsServer?.({
+      ...account.windowsServer,
+      host: account.windowsServer?.host || '',
+      username: account.windowsServer?.username || '',
+      serverId: next,
+    });
+  };
+
+  const decrementWindowsServerId = () => {
+    const current = account.windowsServer?.serverId || '001';
+    const num = parseInt(current, 10);
+    const next = String(Math.max(1, num - 1)).padStart(3, '0');
+    onUpdateWindowsServer?.({
+      ...account.windowsServer,
+      host: account.windowsServer?.host || '',
+      username: account.windowsServer?.username || '',
+      serverId: next,
+    });
+  };
+
+  // Linux Server ID handlers
+  const handleLinuxServerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^\d{1,5}$/.test(value)) {
+      const padded = value ? value.padStart(3, '0') : '001';
+      onUpdateLinuxServer?.({
+        ...account.linuxServer,
+        host: account.linuxServer?.host || '',
+        username: account.linuxServer?.username || '',
+        serverId: padded,
+      });
+    }
+  };
+
+  const incrementLinuxServerId = () => {
+    const current = account.linuxServer?.serverId || '001';
+    const num = parseInt(current, 10);
+    const next = String(num + 1).padStart(3, '0');
+    onUpdateLinuxServer?.({
+      ...account.linuxServer,
+      host: account.linuxServer?.host || '',
+      username: account.linuxServer?.username || '',
+      serverId: next,
+    });
+  };
+
+  const decrementLinuxServerId = () => {
+    const current = account.linuxServer?.serverId || '001';
+    const num = parseInt(current, 10);
+    const next = String(Math.max(1, num - 1)).padStart(3, '0');
+    onUpdateLinuxServer?.({
+      ...account.linuxServer,
+      host: account.linuxServer?.host || '',
+      username: account.linuxServer?.username || '',
+      serverId: next,
+    });
+  };
+
   // 未启用账号收起时的简化视图
   if (!account.enabled && !isExpanded) {
     return (
@@ -140,22 +251,33 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           'shadow-lg opacity-50'
         )}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground font-medium">{index + 1}.</span>
-            {account.tier === 'premium' && <span title={t('accounts.tierPremium')}>⭐</span>}
-            <span className="text-sm font-medium">{displayName}</span>
-            {account.quota && (
-              <span className="text-xs text-muted-foreground">
-                ({account.quota === 'custom' ? `$${account.customQuota?.toLocaleString() || 0}` : QUOTA_OPTIONS.find(o => o.value === account.quota)?.label})
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {/* 账号 ID 徽章 - 最左侧 */}
+            {account.accountId && (
+              <span
+                title={t('accounts.accountId')}
+                className={clsx(
+                  'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
+                  account.tier === 'premium'
+                    ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
+                    : 'bg-gray-700/50 text-gray-300 border border-gray-600'
+                )}
+              >
+                {privacyMode ? account.accountId.replace(/\d/g, 'X') : account.accountId}
               </span>
             )}
+            {/* 服务器徽章 */}
+            {renderServerBadges()}
+            {/* 账号名称 */}
+            <span className="text-sm font-medium truncate">{displayName}</span>
             <span className="text-xs text-gray-500">({t('regions.disabled')})</span>
           </div>
+          {/* 展开按钮 - 固定在最右侧 */}
           <button
             type="button"
             onClick={() => setIsExpanded(true)}
-            className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
+            className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800 whitespace-nowrap shrink-0"
           >
             {t('accounts.expand')}
           </button>
@@ -176,14 +298,29 @@ export const AccountCard: React.FC<AccountCardProps> = ({
       >
         {/* Account header - 使用 Grid 统一对齐 */}
         <div className="mb-2">
-          {/* 第一行：编号 + 操作按钮 */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground font-medium">{index + 1}.</span>
-              {account.tier === 'premium' && <span title={t('accounts.tierPremium')}>⭐</span>}
-              <span className="text-sm font-medium">{displayName}</span>
+          {/* 第一行：账号 ID + 服务器徽章 + 名称 + 操作按钮 */}
+          <div className="flex items-center justify-between mb-2 gap-3">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              {/* 账号 ID 徽章 - 最左侧 */}
+              {account.accountId && (
+                <span
+                  title={t('accounts.accountId')}
+                  className={clsx(
+                    'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
+                    account.tier === 'premium'
+                      ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
+                      : 'bg-gray-700/50 text-gray-300 border border-gray-600'
+                  )}
+                >
+                  {privacyMode ? account.accountId.replace(/\d/g, 'X') : account.accountId}
+                </span>
+              )}
+              {/* 服务器徽章 */}
+              {renderServerBadges()}
+              {/* 账号名称 */}
+              <span className="text-sm font-medium truncate">{displayName}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {/* 参与统计 - 账号层面统计 */}
               <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                 <input
@@ -204,11 +341,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 />
                 <span>{t('accounts.enableModels')}</span>
               </label>
+              {/* 收起按钮 - 与展开按钮位置相同 */}
               {!account.enabled && (
                 <button
                   type="button"
                   onClick={() => setIsExpanded(false)}
-                  className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
+                  className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800 whitespace-nowrap"
                 >
                   {t('accounts.collapse')}
                 </button>
@@ -493,6 +631,40 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">
+                        {t('accounts.serverId')}
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={account.windowsServer?.serverId || '001'}
+                          onChange={handleWindowsServerIdChange}
+                          pattern="[0-9]{3,}"
+                          maxLength={5}
+                          className="w-20 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="001"
+                        />
+                        <div className="flex flex-col">
+                          <button
+                            type="button"
+                            onClick={incrementWindowsServerId}
+                            className="px-1.5 py-0 rounded-t border border-gray-700 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
+                            title="Increment"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={decrementWindowsServerId}
+                            className="px-1.5 py-0 rounded-b border border-gray-700 border-t-0 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
+                            title="Decrement"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">
                         {t('accounts.host')}
                       </label>
                       <input
@@ -574,6 +746,40 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     {t('accounts.linuxServer')}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">
+                        {t('accounts.serverId')}
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={account.linuxServer?.serverId || '001'}
+                          onChange={handleLinuxServerIdChange}
+                          pattern="[0-9]{3,}"
+                          maxLength={5}
+                          className="w-20 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="001"
+                        />
+                        <div className="flex flex-col">
+                          <button
+                            type="button"
+                            onClick={incrementLinuxServerId}
+                            className="px-1.5 py-0 rounded-t border border-gray-700 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
+                            title="Increment"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={decrementLinuxServerId}
+                            className="px-1.5 py-0 rounded-b border border-gray-700 border-t-0 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
+                            title="Decrement"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">
                         {t('accounts.host')}

@@ -28,6 +28,7 @@ export interface ServerCredentials {
   sshKey?: string;
   port?: number;
   note?: string;
+  serverId?: string;  // 服务器编号 (001, 002, 等)
 }
 
 export interface LocalAccount {
@@ -140,6 +141,33 @@ export function useLocalAzureAccounts() {
     return migrated;
   }, []);
 
+  // 迁移函数：将 serverName 转换为 serverId
+  const migrateServerNamesToIds = useCallback((accounts: LocalAccount[]): LocalAccount[] => {
+    return accounts.map(acct => {
+      let windowsServer = acct.windowsServer;
+      let linuxServer = acct.linuxServer;
+
+      // 迁移 Windows 服务器
+      if (windowsServer?.serverName && !windowsServer.serverId) {
+        // 提取末尾数字 (例如: "Server-01" → "01")
+        const match = windowsServer.serverName.match(/(\d+)$/);
+        const serverId = match ? match[1].padStart(3, '0') : '001';
+        windowsServer = { ...windowsServer, serverId };
+        delete (windowsServer as any).serverName;
+      }
+
+      // 迁移 Linux 服务器
+      if (linuxServer?.serverName && !linuxServer.serverId) {
+        const match = linuxServer.serverName.match(/(\d+)$/);
+        const serverId = match ? match[1].padStart(3, '0') : '001';
+        linuxServer = { ...linuxServer, serverId };
+        delete (linuxServer as any).serverName;
+      }
+
+      return { ...acct, windowsServer, linuxServer };
+    });
+  }, []);
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -152,7 +180,9 @@ export function useLocalAzureAccounts() {
             ...acct,
           }));
           // 迁移：为没有 accountId 的账号分配 ID
-          const migrated = migrateAccountsToV2(normalized);
+          const migratedAccounts = migrateAccountsToV2(normalized);
+          // 迁移：将 serverName 转换为 serverId
+          const migrated = migrateServerNamesToIds(migratedAccounts);
           const decrypted = decryptAccounts(migrated);
           setAccounts(decrypted);
           // 如果发生了迁移，保存更新后的数据
@@ -185,7 +215,7 @@ export function useLocalAzureAccounts() {
     ];
     setAccounts(initial);
     debouncedSaveRef.current(initial);
-  }, [decryptAccounts, migrateAccountsToV2]);
+  }, [decryptAccounts, migrateAccountsToV2, migrateServerNamesToIds]);
 
   const saveAccounts = useCallback(
     (updater: (prev: LocalAccount[]) => LocalAccount[]) => {

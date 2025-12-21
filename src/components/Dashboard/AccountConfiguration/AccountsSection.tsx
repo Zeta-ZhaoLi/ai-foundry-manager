@@ -21,6 +21,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
 import { AccountTier, AccountQuota, CurrencyType, ServerCredentials } from '../../../hooks/useLocalAzureAccounts';
 import { useToast } from '../../../hooks/useToast';
+import { parseModels } from '../../../utils/common';
 
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
@@ -160,6 +161,20 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
       });
   }, [accounts]);
 
+  // Filter accounts based on model search
+  const filteredAccounts = useMemo(() => {
+    if (!modelFilterInput.trim()) return sortedAccounts;
+
+    return sortedAccounts.filter(({ account }) => {
+      return account.regions.some(region => {
+        const models = parseModels(region.modelsText);
+        return models.some(model =>
+          model.toLowerCase().includes(modelFilterInput.toLowerCase())
+        );
+      });
+    });
+  }, [sortedAccounts, modelFilterInput]);
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id && onReorderAccounts) {
@@ -279,11 +294,11 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={sortedAccounts.map((item) => item.account.id)}
+              items={filteredAccounts.map((item) => item.account.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="flex flex-col gap-3">
-                {sortedAccounts.map(({ account, originalIndex }) => (
+                {filteredAccounts.map(({ account, originalIndex }) => (
                   <SortableAccountCard
                     key={account.id}
                     account={account}
