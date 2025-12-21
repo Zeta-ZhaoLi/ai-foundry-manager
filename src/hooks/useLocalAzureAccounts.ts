@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { getSeries } from '../utils/modelSeries';
 import { parseModels, debounce, generateId, normalizeOpenAIEndpoint, normalizeAnthropicEndpoint } from '../utils/common';
 import { encryptData, decryptData } from '../utils/encryption';
-import { generateAccountId, regenerateAccountId } from '../utils/accountIdGenerator';
+import { generateAccountId, regenerateAccountId, renumberAccountsByPosition } from '../utils/accountIdGenerator';
 
 export interface LocalRegion {
   id: string;
@@ -560,7 +560,6 @@ export function useLocalAzureAccounts() {
   // 重新编号所有账号（根据当前排序）
   const renumberAllAccounts = useCallback(() => {
     saveAccounts((prev) => {
-      const { renumberAccountsByPosition } = require('../utils/accountIdGenerator');
       return renumberAccountsByPosition(prev) as LocalAccount[];
     });
   }, [saveAccounts]);
