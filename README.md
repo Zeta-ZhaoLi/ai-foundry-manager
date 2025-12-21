@@ -248,9 +248,9 @@ All data is stored in your browser's `localStorage`:
 
 ```javascript
 // Storage Keys
-'azure-openai-manager:accounts'       // Account configurations
-'azure-openai-manager:master-models'  // Global model directory
-'azure-openai-manager:config-history' // Configuration versions
+'ai-foundry-manager:accounts'       // Account configurations
+'ai-foundry-manager:master-models'  // Global model directory
+'ai-foundry-manager:config-history' // Configuration versions
 ```
 
 ### Encryption

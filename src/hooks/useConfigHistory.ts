@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 
-const STORAGE_KEY = 'azure-openai-manager:config-history';
+const STORAGE_KEY = 'ai-foundry-manager:config-history';
+const LEGACY_STORAGE_KEY = 'azure-openai-manager:config-history';
 const MAX_VERSIONS = 20;
 
 export interface ConfigVersion {
@@ -69,7 +70,20 @@ const simpleHash = (str: string): string => {
 /** 从 localStorage 加载历史 */
 const loadHistory = (): ConfigHistoryState => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    // 尝试从新 key 读取数据
+    let stored = localStorage.getItem(STORAGE_KEY);
+
+    // 如果新 key 没有数据，尝试从旧 key 迁移
+    if (!stored) {
+      const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyStored) {
+        console.log('[Migration] Migrating config history from legacy key to new key');
+        localStorage.setItem(STORAGE_KEY, legacyStored);
+        stored = legacyStored;
+        console.log('[Migration] Config history migration completed successfully');
+      }
+    }
+
     if (stored) {
       const parsed = JSON.parse(stored);
       return {

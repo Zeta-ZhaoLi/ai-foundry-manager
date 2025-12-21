@@ -78,7 +78,8 @@ export interface UseAuditLogReturn {
 
 // ================== Storage Key ==================
 
-const DEFAULT_STORAGE_KEY = 'azure-openai-manager:audit-log';
+const DEFAULT_STORAGE_KEY = 'ai-foundry-manager:audit-log';
+const LEGACY_STORAGE_KEY = 'azure-openai-manager:audit-log';
 const DEFAULT_MAX_ENTRIES = 100;
 const DEFAULT_MAX_UNDO_STACK = 20;
 
@@ -90,7 +91,20 @@ const generateId = (): string => {
 
 const loadState = (storageKey: string): AuditLogState => {
   try {
-    const stored = localStorage.getItem(storageKey);
+    // 尝试从指定 key 读取数据
+    let stored = localStorage.getItem(storageKey);
+
+    // 如果当前 key 没有数据且是新 key，尝试从旧 key 迁移
+    if (!stored && storageKey === DEFAULT_STORAGE_KEY) {
+      const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyStored) {
+        console.log('[Migration] Migrating audit log from legacy key to new key');
+        localStorage.setItem(DEFAULT_STORAGE_KEY, legacyStored);
+        stored = legacyStored;
+        console.log('[Migration] Audit log migration completed successfully');
+      }
+    }
+
     if (stored) {
       return JSON.parse(stored);
     }

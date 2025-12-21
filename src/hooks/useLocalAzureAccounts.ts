@@ -63,7 +63,8 @@ export interface SeriesSummary {
   [seriesName: string]: string[];
 }
 
-const STORAGE_KEY = 'azure-openai-manager:accounts';
+const STORAGE_KEY = 'ai-foundry-manager:accounts';
+const LEGACY_STORAGE_KEY = 'azure-openai-manager:accounts';
 
 export function useLocalAzureAccounts() {
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
@@ -170,7 +171,21 @@ export function useLocalAzureAccounts() {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      // 尝试从新 key 读取数据
+      let raw = window.localStorage.getItem(STORAGE_KEY);
+
+      // 如果新 key 没有数据，尝试从旧 key 迁移
+      if (!raw) {
+        const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacyRaw) {
+          console.log('[Migration] Migrating accounts from legacy key to new key');
+          // 将旧数据复制到新 key
+          window.localStorage.setItem(STORAGE_KEY, legacyRaw);
+          raw = legacyRaw;
+          console.log('[Migration] Accounts migration completed successfully');
+        }
+      }
+
       if (raw) {
         const parsed = JSON.parse(raw) as LocalAccount[];
         if (Array.isArray(parsed) && parsed.length > 0) {

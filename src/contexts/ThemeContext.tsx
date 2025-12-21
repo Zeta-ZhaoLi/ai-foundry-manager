@@ -10,13 +10,27 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const THEME_STORAGE_KEY = 'azure-openai-manager:theme';
+const THEME_STORAGE_KEY = 'ai-foundry-manager:theme';
+const LEGACY_THEME_STORAGE_KEY = 'azure-openai-manager:theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window === 'undefined') return 'dark';
     try {
-      const stored = localStorage.getItem(THEME_STORAGE_KEY);
+      // 尝试从新 key 读取数据
+      let stored = localStorage.getItem(THEME_STORAGE_KEY);
+
+      // 如果新 key 没有数据，尝试从旧 key 迁移
+      if (!stored) {
+        const legacyStored = localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
+        if (legacyStored) {
+          console.log('[Migration] Migrating theme preference from legacy key to new key');
+          localStorage.setItem(THEME_STORAGE_KEY, legacyStored);
+          stored = legacyStored;
+          console.log('[Migration] Theme preference migration completed successfully');
+        }
+      }
+
       if (stored === 'dark' || stored === 'light' || stored === 'system') {
         return stored;
       }

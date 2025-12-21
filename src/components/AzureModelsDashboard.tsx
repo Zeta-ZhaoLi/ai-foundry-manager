@@ -14,7 +14,8 @@ import { AccountsSection } from './Dashboard/AccountConfiguration/AccountsSectio
 import { GlobalSummary } from './Dashboard/Summary/GlobalSummary';
 import { TableDetailDialog } from './ui/TableDetailDialog';
 
-const MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
+const MASTER_STORAGE_KEY = 'ai-foundry-manager:master-models';
+const LEGACY_MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
 
 const parseModels = (text: string): string[] => {
   if (!text) return [];
@@ -67,7 +68,21 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
   const [masterText, setMasterText] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     try {
-      return window.localStorage.getItem(MASTER_STORAGE_KEY) || '';
+      // 尝试从新 key 读取数据
+      let data = window.localStorage.getItem(MASTER_STORAGE_KEY);
+
+      // 如果新 key 没有数据，尝试从旧 key 迁移
+      if (!data) {
+        const legacyData = window.localStorage.getItem(LEGACY_MASTER_STORAGE_KEY);
+        if (legacyData) {
+          console.log('[Migration] Migrating master models from legacy key to new key');
+          window.localStorage.setItem(MASTER_STORAGE_KEY, legacyData);
+          data = legacyData;
+          console.log('[Migration] Master models migration completed successfully');
+        }
+      }
+
+      return data || '';
     } catch {
       return '';
     }
@@ -294,7 +309,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({ priv
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'azure-openai-manager-config.json';
+      link.download = 'ai-foundry-manager-config.json';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
