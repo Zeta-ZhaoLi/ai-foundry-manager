@@ -1,0 +1,154 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "resourceName": {
+            "defaultValue": "assd655566",
+            "type": "String"
+        },
+        "location": {
+            "defaultValue": "eastus2",
+            "type": "String"
+        }
+    },
+    "variables": {
+        "modelDeployments": [
+            {
+                "deploymentName": "gpt-4o-mini",
+                "modelName": "gpt-4o-mini",
+                "version": "2024-07-18",
+                "capacity": 20000
+            },
+            {
+                "deploymentName": "gpt-image-1",
+                "modelName": "gpt-image-1",
+                "version": "2025-04-15",
+                "capacity": 60
+            },
+            {
+                "deploymentName": "o3",
+                "modelName": "o3",
+                "version": "2025-04-16",
+                "capacity": 10000
+            },
+            {
+                "deploymentName": "gpt-4.1",
+                "modelName": "gpt-4.1",
+                "version": "2025-04-14",
+                "capacity": 5000
+            },
+            {
+                "deploymentName": "gpt-4o-2024-05-13",
+                "modelName": "gpt-4o",
+                "version": "2024-05-13",
+                "capacity": 20000
+            },
+            {
+                "deploymentName": "gpt-5-chat",
+                "modelName": "gpt-5-chat",
+                "version": "2025-08-07",
+                "capacity": 5000
+            },
+            {
+                "deploymentName": "gpt-5-mini",
+                "modelName": "gpt-5-mini",
+                "version": "2025-08-07",
+                "capacity": 10000
+            },
+
+            {
+                "deploymentName": "gpt-5-nano",
+                "modelName": "gpt-5-nano",
+                "version": "2025-08-07",
+                "capacity": 1000
+            },
+            {
+                "deploymentName": "gpt-5-chat",
+                "modelName": "gpt-5-chat",
+                "version": "2025-08-07",
+                "capacity": 5000
+            },
+            {
+                "deploymentName": "gpt-5-mini",
+                "modelName": "gpt-5-mini",
+                "version": "2025-08-07",
+                "capacity": 10000
+            },
+            {
+                "deploymentName": "gpt-5-nano",
+                "modelName": "gpt-5-nano",
+                "version": "2025-08-07",
+                "capacity": 1000
+            },
+            {
+                "deploymentName": "gpt-5",
+                "modelName": "gpt-5",
+                "version": "2025-08-07",
+                "capacity": 10000
+            }
+        ]
+    },
+    "resources": [
+
+        {
+            "type": "Microsoft.CognitiveServices/accounts",
+            "apiVersion": "2024-10-01",
+            "name": "[parameters('resourceName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "S0"
+            },
+            "kind": "OpenAI",
+            "properties": {
+                "customSubDomainName": "[parameters('resourceName')]",
+                "networkAcls": {
+                    "defaultAction": "Allow",
+                    "virtualNetworkRules": [],
+                    "ipRules": []
+                },
+                "publicNetworkAccess": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "[concat('deploy_', variables('modelDeployments')[copyIndex()].deploymentName)]",
+            "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('resourceName'))]"
+            ],
+            "copy": {
+                "name": "modelDeploymentLoop",
+                "count": "[length(variables('modelDeployments'))]",
+                "mode": "serial"
+            },
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.CognitiveServices/accounts/deployments",
+                            "apiVersion": "2024-10-01",
+                            "name": "[concat(parameters('resourceName'), '/', variables('modelDeployments')[copyIndex()].deploymentName)]",
+                            "sku": {
+                                "name": "GlobalStandard",
+                                "capacity": "[variables('modelDeployments')[copyIndex()].capacity]"
+                            },
+                            "properties": {
+                                "model": {
+                                    "format": "OpenAI",
+                                    "name": "[variables('modelDeployments')[copyIndex()].modelName]",
+                                    "version": "[variables('modelDeployments')[copyIndex()].version]"
+                                },
+                                "versionUpgradeOption": "OnceNewDefaultVersionAvailable",
+                                "currentCapacity": "[variables('modelDeployments')[copyIndex()].capacity]",
+                                "raiPolicyName": "Microsoft.Nil"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

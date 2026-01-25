@@ -19,7 +19,15 @@ import { LocalAccount } from './AccountCard';
 import { SortableAccountCard } from './SortableAccountCard';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
-import { AccountTier, AccountQuota, CurrencyType, ServerCredentials } from '../../../hooks/useLocalAzureAccounts';
+import {
+  AccountTier,
+  AccountQuota,
+  CurrencyType,
+  ServerCredentials,
+  AccountDeploymentConfig,
+  RegionDeploymentConfig,
+  RegionDeploymentModelConfig,
+} from '../../../hooks/useLocalAzureAccounts';
 import { useToast } from '../../../hooks/useToast';
 import { parseModels } from '../../../utils/common';
 
@@ -37,24 +45,84 @@ export interface AccountsSectionProps {
   onUpdateAccountName: (accountId: string, name: string) => void;
   onUpdateAccountNote: (accountId: string, note: string) => void;
   onUpdateAccountEnabled: (accountId: string, enabled: boolean) => void;
-  onUpdateAccountIncludeInStats?: (accountId: string, includeInStats: boolean) => void;
+  onUpdateAccountIncludeInStats?: (
+    accountId: string,
+    includeInStats: boolean
+  ) => void;
   onUpdateAccountTier: (accountId: string, tier: AccountTier) => void;
-  onUpdateAccountQuota: (accountId: string, quota: AccountQuota, customQuota?: number) => void;
-  onUpdateAccountPurchase?: (accountId: string, amount: number, currency: CurrencyType) => void;
+  onUpdateAccountQuota: (
+    accountId: string,
+    quota: AccountQuota,
+    customQuota?: number
+  ) => void;
+  onUpdateAccountPurchase?: (
+    accountId: string,
+    amount: number,
+    currency: CurrencyType
+  ) => void;
   onUpdateAccountUsedAmount?: (accountId: string, usedAmount: number) => void;
-  onUpdateAccountWindowsServer?: (accountId: string, credentials: ServerCredentials) => void;
-  onUpdateAccountLinuxServer?: (accountId: string, credentials: ServerCredentials) => void;
+  onUpdateAccountWindowsServer?: (
+    accountId: string,
+    credentials: ServerCredentials
+  ) => void;
+  onUpdateAccountLinuxServer?: (
+    accountId: string,
+    credentials: ServerCredentials
+  ) => void;
+  onUpdateAccountDeployment?: (
+    accountId: string,
+    patch: Partial<AccountDeploymentConfig>
+  ) => void;
   onDeleteAccount: (accountId: string) => void;
   onAddRegion: (accountId: string) => void;
   onDeleteRegion: (accountId: string, regionId: string) => void;
-  onUpdateRegionName: (accountId: string, regionId: string, name: string) => void;
-  onUpdateRegionModelsText: (accountId: string, regionId: string, text: string) => void;
-  onUpdateRegionOpenaiEndpoint: (accountId: string, regionId: string, endpoint: string) => void;
-  onUpdateRegionAnthropicEndpoint: (accountId: string, regionId: string, endpoint: string) => void;
-  onUpdateRegionApiKey: (accountId: string, regionId: string, apiKey: string) => void;
-  onUpdateRegionEnabled: (accountId: string, regionId: string, enabled: boolean) => void;
+  onUpdateRegionName: (
+    accountId: string,
+    regionId: string,
+    name: string
+  ) => void;
+  onUpdateRegionModelsText: (
+    accountId: string,
+    regionId: string,
+    text: string
+  ) => void;
+  onUpdateRegionOpenaiEndpoint: (
+    accountId: string,
+    regionId: string,
+    endpoint: string
+  ) => void;
+  onUpdateRegionAnthropicEndpoint: (
+    accountId: string,
+    regionId: string,
+    endpoint: string
+  ) => void;
+  onUpdateRegionApiKey: (
+    accountId: string,
+    regionId: string,
+    apiKey: string
+  ) => void;
+  onUpdateRegionDeployment?: (
+    accountId: string,
+    regionId: string,
+    patch: Partial<RegionDeploymentConfig>
+  ) => void;
+  onUpdateRegionDeploymentModel?: (
+    accountId: string,
+    regionId: string,
+    modelName: string,
+    patch: Partial<RegionDeploymentModelConfig>
+  ) => void;
+  onUpdateRegionEnabled: (
+    accountId: string,
+    regionId: string,
+    enabled: boolean
+  ) => void;
   onReorderAccounts?: (oldIndex: number, newIndex: number) => void;
-  onReorderRegions?: (accountId: string, oldIndex: number, newIndex: number) => void;
+  onReorderRegions?: (
+    accountId: string,
+    oldIndex: number,
+    newIndex: number
+  ) => void;
   onCopy: (text: string, label: string) => void;
 }
 
@@ -79,6 +147,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateAccountUsedAmount,
   onUpdateAccountWindowsServer,
   onUpdateAccountLinuxServer,
+  onUpdateAccountDeployment,
   onDeleteAccount,
   onAddRegion,
   onDeleteRegion,
@@ -87,6 +156,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateRegionOpenaiEndpoint,
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
+  onUpdateRegionDeployment,
+  onUpdateRegionDeploymentModel,
   onUpdateRegionEnabled,
   onReorderAccounts,
   onReorderRegions,
@@ -137,7 +208,10 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
           if (result.success) {
             toast.success(t('toast.configImported'));
           } else {
-            toast.error(t('toast.configImportFailed') + (result.error ? `: ${result.error}` : ''));
+            toast.error(
+              t('toast.configImportFailed') +
+                (result.error ? `: ${result.error}` : '')
+            );
           }
         };
         reader.onerror = () => {
@@ -166,9 +240,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
     if (!modelFilterInput.trim()) return sortedAccounts;
 
     return sortedAccounts.filter(({ account }) => {
-      return account.regions.some(region => {
+      return account.regions.some((region) => {
         const models = parseModels(region.modelsText);
-        return models.some(model =>
+        return models.some((model) =>
           model.toLowerCase().includes(modelFilterInput.toLowerCase())
         );
       });
@@ -192,7 +266,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h2 className="text-lg font-semibold mb-1">{t('accounts.title')}</h2>
+            <h2 className="text-lg font-semibold mb-1">
+              {t('accounts.title')}
+            </h2>
             <div className="text-sm text-muted-foreground">
               {t('accounts.description')}
             </div>
@@ -306,26 +382,132 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     privacyMode={privacyMode}
                     masterModels={masterModels}
                     filteredModels={filteredModels}
-                    onUpdateName={(name) => onUpdateAccountName(account.id, name)}
-                    onUpdateNote={(note) => onUpdateAccountNote(account.id, note)}
-                    onUpdateEnabled={(enabled) => onUpdateAccountEnabled(account.id, enabled)}
-                    onUpdateIncludeInStats={onUpdateAccountIncludeInStats ? (includeInStats) => onUpdateAccountIncludeInStats(account.id, includeInStats) : undefined}
-                    onUpdateTier={(tier) => onUpdateAccountTier(account.id, tier)}
-                    onUpdateQuota={(quota, customQuota) => onUpdateAccountQuota(account.id, quota, customQuota)}
-                    onUpdatePurchase={onUpdateAccountPurchase ? (amount, currency) => onUpdateAccountPurchase(account.id, amount, currency) : undefined}
-                    onUpdateUsedAmount={onUpdateAccountUsedAmount ? (usedAmount) => onUpdateAccountUsedAmount(account.id, usedAmount) : undefined}
-                    onUpdateWindowsServer={onUpdateAccountWindowsServer ? (credentials) => onUpdateAccountWindowsServer(account.id, credentials) : undefined}
-                    onUpdateLinuxServer={onUpdateAccountLinuxServer ? (credentials) => onUpdateAccountLinuxServer(account.id, credentials) : undefined}
+                    onUpdateName={(name) =>
+                      onUpdateAccountName(account.id, name)
+                    }
+                    onUpdateNote={(note) =>
+                      onUpdateAccountNote(account.id, note)
+                    }
+                    onUpdateEnabled={(enabled) =>
+                      onUpdateAccountEnabled(account.id, enabled)
+                    }
+                    onUpdateIncludeInStats={
+                      onUpdateAccountIncludeInStats
+                        ? (includeInStats) =>
+                            onUpdateAccountIncludeInStats(
+                              account.id,
+                              includeInStats
+                            )
+                        : undefined
+                    }
+                    onUpdateTier={(tier) =>
+                      onUpdateAccountTier(account.id, tier)
+                    }
+                    onUpdateQuota={(quota, customQuota) =>
+                      onUpdateAccountQuota(account.id, quota, customQuota)
+                    }
+                    onUpdatePurchase={
+                      onUpdateAccountPurchase
+                        ? (amount, currency) =>
+                            onUpdateAccountPurchase(
+                              account.id,
+                              amount,
+                              currency
+                            )
+                        : undefined
+                    }
+                    onUpdateUsedAmount={
+                      onUpdateAccountUsedAmount
+                        ? (usedAmount) =>
+                            onUpdateAccountUsedAmount(account.id, usedAmount)
+                        : undefined
+                    }
+                    onUpdateWindowsServer={
+                      onUpdateAccountWindowsServer
+                        ? (credentials) =>
+                            onUpdateAccountWindowsServer(
+                              account.id,
+                              credentials
+                            )
+                        : undefined
+                    }
+                    onUpdateLinuxServer={
+                      onUpdateAccountLinuxServer
+                        ? (credentials) =>
+                            onUpdateAccountLinuxServer(account.id, credentials)
+                        : undefined
+                    }
+                    onUpdateDeployment={
+                      onUpdateAccountDeployment
+                        ? (patch: Partial<AccountDeploymentConfig>) =>
+                            onUpdateAccountDeployment(account.id, patch)
+                        : undefined
+                    }
                     onDelete={() => onDeleteAccount(account.id)}
                     onAddRegion={() => onAddRegion(account.id)}
-                    onDeleteRegion={(regionId) => onDeleteRegion(account.id, regionId)}
-                    onUpdateRegionName={(regionId, name) => onUpdateRegionName(account.id, regionId, name)}
-                    onUpdateRegionModelsText={(regionId, text) => onUpdateRegionModelsText(account.id, regionId, text)}
-                    onUpdateRegionOpenaiEndpoint={(regionId, endpoint) => onUpdateRegionOpenaiEndpoint(account.id, regionId, endpoint)}
-                    onUpdateRegionAnthropicEndpoint={(regionId, endpoint) => onUpdateRegionAnthropicEndpoint(account.id, regionId, endpoint)}
-                    onUpdateRegionApiKey={(regionId, apiKey) => onUpdateRegionApiKey(account.id, regionId, apiKey)}
-                    onUpdateRegionEnabled={(regionId, enabled) => onUpdateRegionEnabled(account.id, regionId, enabled)}
-                    onReorderRegions={onReorderRegions ? (oldIndex, newIndex) => onReorderRegions(account.id, oldIndex, newIndex) : undefined}
+                    onDeleteRegion={(regionId) =>
+                      onDeleteRegion(account.id, regionId)
+                    }
+                    onUpdateRegionName={(regionId, name) =>
+                      onUpdateRegionName(account.id, regionId, name)
+                    }
+                    onUpdateRegionModelsText={(regionId, text) =>
+                      onUpdateRegionModelsText(account.id, regionId, text)
+                    }
+                    onUpdateRegionOpenaiEndpoint={(regionId, endpoint) =>
+                      onUpdateRegionOpenaiEndpoint(
+                        account.id,
+                        regionId,
+                        endpoint
+                      )
+                    }
+                    onUpdateRegionAnthropicEndpoint={(regionId, endpoint) =>
+                      onUpdateRegionAnthropicEndpoint(
+                        account.id,
+                        regionId,
+                        endpoint
+                      )
+                    }
+                    onUpdateRegionApiKey={(regionId, apiKey) =>
+                      onUpdateRegionApiKey(account.id, regionId, apiKey)
+                    }
+                    onUpdateRegionDeployment={
+                      onUpdateRegionDeployment
+                        ? (
+                            regionId: string,
+                            patch: Partial<RegionDeploymentConfig>
+                          ) =>
+                            onUpdateRegionDeployment(
+                              account.id,
+                              regionId,
+                              patch
+                            )
+                        : undefined
+                    }
+                    onUpdateRegionDeploymentModel={
+                      onUpdateRegionDeploymentModel
+                        ? (
+                            regionId: string,
+                            modelName: string,
+                            patch: Partial<RegionDeploymentModelConfig>
+                          ) =>
+                            onUpdateRegionDeploymentModel(
+                              account.id,
+                              regionId,
+                              modelName,
+                              patch
+                            )
+                        : undefined
+                    }
+                    onUpdateRegionEnabled={(regionId, enabled) =>
+                      onUpdateRegionEnabled(account.id, regionId, enabled)
+                    }
+                    onReorderRegions={
+                      onReorderRegions
+                        ? (oldIndex, newIndex) =>
+                            onReorderRegions(account.id, oldIndex, newIndex)
+                        : undefined
+                    }
                     onCopy={onCopy}
                   />
                 ))}

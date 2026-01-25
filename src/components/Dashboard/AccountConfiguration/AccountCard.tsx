@@ -18,7 +18,15 @@ import {
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { LocalRegion } from './RegionCard';
 import { SortableRegionCard } from './SortableRegionCard';
-import { AccountTier, AccountQuota, CurrencyType, ServerCredentials } from '../../../hooks/useLocalAzureAccounts';
+import {
+  AccountTier,
+  AccountQuota,
+  CurrencyType,
+  ServerCredentials,
+  AccountDeploymentConfig,
+  RegionDeploymentConfig,
+  RegionDeploymentModelConfig,
+} from '../../../hooks/useLocalAzureAccounts';
 import type { LocalAccount as ImportedLocalAccount } from '../../../hooks/useLocalAzureAccounts';
 
 // 使用从 hook 导入的类型
@@ -40,6 +48,7 @@ export interface AccountCardProps {
   onUpdateUsedAmount?: (usedAmount: number) => void;
   onUpdateWindowsServer?: (credentials: ServerCredentials) => void;
   onUpdateLinuxServer?: (credentials: ServerCredentials) => void;
+  onUpdateDeployment?: (patch: Partial<AccountDeploymentConfig>) => void;
   onDelete: () => void;
   onAddRegion: () => void;
   onDeleteRegion: (regionId: string) => void;
@@ -48,6 +57,15 @@ export interface AccountCardProps {
   onUpdateRegionOpenaiEndpoint: (regionId: string, endpoint: string) => void;
   onUpdateRegionAnthropicEndpoint: (regionId: string, endpoint: string) => void;
   onUpdateRegionApiKey: (regionId: string, apiKey: string) => void;
+  onUpdateRegionDeployment?: (
+    regionId: string,
+    patch: Partial<RegionDeploymentConfig>
+  ) => void;
+  onUpdateRegionDeploymentModel?: (
+    regionId: string,
+    modelName: string,
+    patch: Partial<RegionDeploymentModelConfig>
+  ) => void;
   onUpdateRegionEnabled: (regionId: string, enabled: boolean) => void;
   onReorderRegions?: (oldIndex: number, newIndex: number) => void;
   onCopy: (text: string, label: string) => void;
@@ -81,6 +99,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateUsedAmount,
   onUpdateWindowsServer,
   onUpdateLinuxServer,
+  onUpdateDeployment,
   onDelete,
   onAddRegion,
   onDeleteRegion,
@@ -89,6 +108,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateRegionOpenaiEndpoint,
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
+  onUpdateRegionDeployment,
+  onUpdateRegionDeploymentModel,
   onUpdateRegionEnabled,
   onReorderRegions,
   onCopy,
@@ -100,6 +121,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   const [showPasswordLinux, setShowPasswordLinux] = useState(false);
   const [linuxAuthUseSSH, setLinuxAuthUseSSH] = useState(false);
   const [showServerInfo, setShowServerInfo] = useState(false);
+  const [showAzureDeployConfig, setShowAzureDeployConfig] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -166,7 +188,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   };
 
   // Windows Server ID handlers
-  const handleWindowsServerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWindowsServerIdChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const value = e.target.value;
     if (value === '' || /^\d{1,5}$/.test(value)) {
       const padded = value ? value.padStart(3, '0') : '001';
@@ -204,7 +228,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   };
 
   // Linux Server ID handlers
-  const handleLinuxServerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLinuxServerIdChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const value = e.target.value;
     if (value === '' || /^\d{1,5}$/.test(value)) {
       const padded = value ? value.padStart(3, '0') : '001';
@@ -264,14 +290,18 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     : 'bg-gray-700/50 text-gray-300 border border-gray-600'
                 )}
               >
-                {privacyMode ? account.accountId.replace(/\d/g, 'X') : account.accountId}
+                {privacyMode
+                  ? account.accountId.replace(/\d/g, 'X')
+                  : account.accountId}
               </span>
             )}
             {/* 服务器徽章 */}
             {renderServerBadges()}
             {/* 账号名称 */}
             <span className="text-sm font-medium truncate">{displayName}</span>
-            <span className="text-xs text-gray-500">({t('regions.disabled')})</span>
+            <span className="text-xs text-gray-500">
+              ({t('regions.disabled')})
+            </span>
           </div>
           {/* 展开按钮 - 固定在最右侧 */}
           <button
@@ -312,13 +342,17 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       : 'bg-gray-700/50 text-gray-300 border border-gray-600'
                   )}
                 >
-                  {privacyMode ? account.accountId.replace(/\d/g, 'X') : account.accountId}
+                  {privacyMode
+                    ? account.accountId.replace(/\d/g, 'X')
+                    : account.accountId}
                 </span>
               )}
               {/* 服务器徽章 */}
               {renderServerBadges()}
               {/* 账号名称 */}
-              <span className="text-sm font-medium truncate">{displayName}</span>
+              <span className="text-sm font-medium truncate">
+                {displayName}
+              </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {/* 参与统计 - 账号层面统计 */}
@@ -375,7 +409,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               <div className="flex items-center gap-2">
                 <select
                   value={account.tier || 'standard'}
-                  onChange={(e) => onUpdateTier?.(e.target.value as AccountTier)}
+                  onChange={(e) =>
+                    onUpdateTier?.(e.target.value as AccountTier)
+                  }
                   className={clsx(
                     'flex-1 px-2 py-1.5 rounded-lg',
                     'border border-gray-700 bg-background text-foreground text-sm',
@@ -383,7 +419,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     'cursor-pointer'
                   )}
                 >
-                  <option value="premium">⭐ {t('accounts.tierPremium')}</option>
+                  <option value="premium">
+                    ⭐ {t('accounts.tierPremium')}
+                  </option>
                   <option value="standard">{t('accounts.tierStandard')}</option>
                 </select>
                 {/* 账号 ID 徽章 */}
@@ -397,7 +435,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         : 'bg-gray-700/50 text-gray-300 border border-gray-600'
                     )}
                   >
-                    {privacyMode ? account.accountId.replace(/\d/g, 'X') : account.accountId}
+                    {privacyMode
+                      ? account.accountId.replace(/\d/g, 'X')
+                      : account.accountId}
                   </span>
                 )}
               </div>
@@ -429,7 +469,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               <div className="flex items-center gap-1">
                 <select
                   value={account.quota || '200'}
-                  onChange={(e) => onUpdateQuota?.(e.target.value as AccountQuota)}
+                  onChange={(e) =>
+                    onUpdateQuota?.(e.target.value as AccountQuota)
+                  }
                   className={clsx(
                     'flex-1 px-2 py-1.5 rounded-lg',
                     'border border-gray-700 bg-background text-foreground text-sm',
@@ -439,7 +481,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 >
                   {QUOTA_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
-                      {opt.value === 'custom' ? t('accounts.quotaCustom') : opt.label}
+                      {opt.value === 'custom'
+                        ? t('accounts.quotaCustom')
+                        : opt.label}
                     </option>
                   ))}
                 </select>
@@ -449,11 +493,15 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             {/* 自定义额度输入 - 仅在选择自定义时显示 */}
             {account.quota === 'custom' && (
               <div className="md:col-span-1">
-                <label className="text-xs text-muted-foreground block mb-1">$</label>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  $
+                </label>
                 <input
                   type="number"
                   value={account.customQuota || ''}
-                  onChange={(e) => onUpdateQuota?.('custom', Number(e.target.value))}
+                  onChange={(e) =>
+                    onUpdateQuota?.('custom', Number(e.target.value))
+                  }
                   placeholder="0"
                   className={clsx(
                     'w-full p-1.5 rounded-lg',
@@ -465,7 +513,11 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             )}
 
             {/* 备注 - 剩余列 */}
-            <div className={account.quota === 'custom' ? 'md:col-span-3' : 'md:col-span-4'}>
+            <div
+              className={
+                account.quota === 'custom' ? 'md:col-span-3' : 'md:col-span-4'
+              }
+            >
               <label className="text-xs text-muted-foreground block mb-1">
                 {t('accounts.note')}
               </label>
@@ -494,7 +546,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 <div className="flex items-center gap-1">
                   <select
                     value={account.purchaseCurrency || 'USD'}
-                    onChange={(e) => onUpdatePurchase?.(account.purchaseAmount || 0, e.target.value as CurrencyType)}
+                    onChange={(e) =>
+                      onUpdatePurchase?.(
+                        account.purchaseAmount || 0,
+                        e.target.value as CurrencyType
+                      )
+                    }
                     className={clsx(
                       'px-2 py-1.5 rounded-lg',
                       'border border-gray-700 bg-background text-foreground text-sm',
@@ -508,7 +565,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   <input
                     type="number"
                     value={account.purchaseAmount || ''}
-                    onChange={(e) => onUpdatePurchase?.(Number(e.target.value), account.purchaseCurrency || 'USD')}
+                    onChange={(e) =>
+                      onUpdatePurchase?.(
+                        Number(e.target.value),
+                        account.purchaseCurrency || 'USD'
+                      )
+                    }
                     placeholder="0"
                     className={clsx(
                       'flex-1 p-1.5 rounded-lg',
@@ -529,7 +591,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   <input
                     type="number"
                     value={account.usedAmount ?? ''}
-                    onChange={(e) => onUpdateUsedAmount?.(Number(e.target.value))}
+                    onChange={(e) =>
+                      onUpdateUsedAmount?.(Number(e.target.value))
+                    }
                     placeholder="0"
                     className={clsx(
                       'flex-1 p-1.5 rounded-lg',
@@ -547,12 +611,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 </label>
                 <div className="p-1.5 rounded-lg border border-gray-700 bg-gray-800/50 text-sm text-muted-foreground">
                   {(() => {
-                    const quota = account.quota === 'custom'
-                      ? (account.customQuota || 0)
-                      : Number(account.quota || 200);
+                    const quota =
+                      account.quota === 'custom'
+                        ? account.customQuota || 0
+                        : Number(account.quota || 200);
                     if (quota === 0 || !account.purchaseAmount) return '-';
                     const cost = account.purchaseAmount / quota;
-                    const symbol = account.purchaseCurrency === 'CNY' ? '¥' : '$';
+                    const symbol =
+                      account.purchaseCurrency === 'CNY' ? '¥' : '$';
                     return `${symbol}${cost.toFixed(2)}`;
                   })()}
                 </div>
@@ -568,7 +634,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     const used = account.usedAmount || 0;
                     if (used === 0 || !account.purchaseAmount) return '-';
                     const cost = account.purchaseAmount / used;
-                    const symbol = account.purchaseCurrency === 'CNY' ? '¥' : '$';
+                    const symbol =
+                      account.purchaseCurrency === 'CNY' ? '¥' : '$';
                     return `${symbol}${cost.toFixed(2)}`;
                   })()}
                 </div>
@@ -580,11 +647,13 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   {t('accounts.usageRate')}
                 </label>
                 {(() => {
-                  const quota = account.quota === 'custom'
-                    ? (account.customQuota || 0)
-                    : Number(account.quota || 200);
+                  const quota =
+                    account.quota === 'custom'
+                      ? account.customQuota || 0
+                      : Number(account.quota || 200);
                   const used = account.usedAmount || 0;
-                  if (quota === 0) return <div className="text-xs text-gray-500">-</div>;
+                  if (quota === 0)
+                    return <div className="text-xs text-gray-500">-</div>;
                   const pct = Math.round((used / quota) * 100);
                   const displayPct = Math.min(pct, 100);
                   return (
@@ -605,6 +674,67 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             </div>
           )}
         </div>
+
+        {/* Azure Deployment (Real ARM Deploy) */}
+        {!privacyMode && (
+          <div className="mb-3 border-t border-gray-800 pt-3">
+            <button
+              type="button"
+              onClick={() => setShowAzureDeployConfig((prev) => !prev)}
+              className="flex items-center gap-2 text-sm font-medium mb-2 hover:text-cyan-400 transition-colors"
+            >
+              <span className="text-lg">☁️</span>
+              <span>{t('accounts.azureDeployConfig', 'Azure 部署配置')}</span>
+              <span className="text-xs text-muted-foreground">
+                {showAzureDeployConfig ? '▼' : '▶'}
+              </span>
+            </button>
+
+            {showAzureDeployConfig && (
+              <div className="border border-gray-800 rounded-lg p-3 bg-slate-950/50">
+                <div className="text-xs text-muted-foreground mb-2">
+                  {t(
+                    'accounts.azureDeployHint',
+                    '用于跳转 Azure Portal 自定义部署（建议提前登录 Portal）。'
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">
+                      {t('accounts.subscriptionId', 'Subscription ID')}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={account.deployment?.subscriptionId || ''}
+                      onChange={(e) =>
+                        onUpdateDeployment?.({ subscriptionId: e.target.value })
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      disabled={!onUpdateDeployment}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">
+                      {t('accounts.resourceGroup', 'Resource Group')}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={account.deployment?.resourceGroup || ''}
+                      onChange={(e) =>
+                        onUpdateDeployment?.({ resourceGroup: e.target.value })
+                      }
+                      placeholder="rg-aoai-prod"
+                      disabled={!onUpdateDeployment}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Server Login Information */}
         {!privacyMode && (
@@ -671,11 +801,13 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         type="text"
                         className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         value={account.windowsServer?.host || ''}
-                        onChange={(e) => onUpdateWindowsServer?.({
-                          ...account.windowsServer,
-                          host: e.target.value,
-                          username: account.windowsServer?.username || '',
-                        })}
+                        onChange={(e) =>
+                          onUpdateWindowsServer?.({
+                            ...account.windowsServer,
+                            host: e.target.value,
+                            username: account.windowsServer?.username || '',
+                          })
+                        }
                         placeholder={t('accounts.hostPlaceholder')}
                       />
                     </div>
@@ -687,12 +819,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         type="number"
                         className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         value={account.windowsServer?.port || 3389}
-                        onChange={(e) => onUpdateWindowsServer?.({
-                          ...account.windowsServer,
-                          host: account.windowsServer?.host || '',
-                          username: account.windowsServer?.username || '',
-                          port: Number(e.target.value),
-                        })}
+                        onChange={(e) =>
+                          onUpdateWindowsServer?.({
+                            ...account.windowsServer,
+                            host: account.windowsServer?.host || '',
+                            username: account.windowsServer?.username || '',
+                            port: Number(e.target.value),
+                          })
+                        }
                         placeholder="3389"
                       />
                     </div>
@@ -704,11 +838,13 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         type="text"
                         className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         value={account.windowsServer?.username || ''}
-                        onChange={(e) => onUpdateWindowsServer?.({
-                          ...account.windowsServer,
-                          host: account.windowsServer?.host || '',
-                          username: e.target.value,
-                        })}
+                        onChange={(e) =>
+                          onUpdateWindowsServer?.({
+                            ...account.windowsServer,
+                            host: account.windowsServer?.host || '',
+                            username: e.target.value,
+                          })
+                        }
                       />
                     </div>
                     <div>
@@ -720,18 +856,26 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                           type={showPasswordWindows ? 'text' : 'password'}
                           className="flex-1 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                           value={account.windowsServer?.password || ''}
-                          onChange={(e) => onUpdateWindowsServer?.({
-                            ...account.windowsServer,
-                            host: account.windowsServer?.host || '',
-                            username: account.windowsServer?.username || '',
-                            password: e.target.value,
-                          })}
+                          onChange={(e) =>
+                            onUpdateWindowsServer?.({
+                              ...account.windowsServer,
+                              host: account.windowsServer?.host || '',
+                              username: account.windowsServer?.username || '',
+                              password: e.target.value,
+                            })
+                          }
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPasswordWindows(!showPasswordWindows)}
+                          onClick={() =>
+                            setShowPasswordWindows(!showPasswordWindows)
+                          }
                           className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors"
-                          title={showPasswordWindows ? t('common.hide') : t('common.show')}
+                          title={
+                            showPasswordWindows
+                              ? t('common.hide')
+                              : t('common.show')
+                          }
                         >
                           {showPasswordWindows ? '👁️' : '🙈'}
                         </button>
@@ -788,11 +932,13 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         type="text"
                         className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         value={account.linuxServer?.host || ''}
-                        onChange={(e) => onUpdateLinuxServer?.({
-                          ...account.linuxServer,
-                          host: e.target.value,
-                          username: account.linuxServer?.username || '',
-                        })}
+                        onChange={(e) =>
+                          onUpdateLinuxServer?.({
+                            ...account.linuxServer,
+                            host: e.target.value,
+                            username: account.linuxServer?.username || '',
+                          })
+                        }
                         placeholder={t('accounts.hostPlaceholder')}
                       />
                     </div>
@@ -804,12 +950,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         type="number"
                         className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         value={account.linuxServer?.port || 22}
-                        onChange={(e) => onUpdateLinuxServer?.({
-                          ...account.linuxServer,
-                          host: account.linuxServer?.host || '',
-                          username: account.linuxServer?.username || '',
-                          port: Number(e.target.value),
-                        })}
+                        onChange={(e) =>
+                          onUpdateLinuxServer?.({
+                            ...account.linuxServer,
+                            host: account.linuxServer?.host || '',
+                            username: account.linuxServer?.username || '',
+                            port: Number(e.target.value),
+                          })
+                        }
                         placeholder="22"
                       />
                     </div>
@@ -821,11 +969,13 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         type="text"
                         className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         value={account.linuxServer?.username || ''}
-                        onChange={(e) => onUpdateLinuxServer?.({
-                          ...account.linuxServer,
-                          host: account.linuxServer?.host || '',
-                          username: e.target.value,
-                        })}
+                        onChange={(e) =>
+                          onUpdateLinuxServer?.({
+                            ...account.linuxServer,
+                            host: account.linuxServer?.host || '',
+                            username: e.target.value,
+                          })
+                        }
                       />
                     </div>
                     <div>
@@ -835,7 +985,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                           <input
                             type="checkbox"
                             checked={linuxAuthUseSSH}
-                            onChange={(e) => setLinuxAuthUseSSH(e.target.checked)}
+                            onChange={(e) =>
+                              setLinuxAuthUseSSH(e.target.checked)
+                            }
                           />
                           <span>{t('accounts.authSSHKey')}</span>
                         </label>
@@ -846,13 +998,15 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                             className="flex-1 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                             rows={2}
                             value={account.linuxServer?.sshKey || ''}
-                            onChange={(e) => onUpdateLinuxServer?.({
-                              ...account.linuxServer,
-                              host: account.linuxServer?.host || '',
-                              username: account.linuxServer?.username || '',
-                              sshKey: e.target.value,
-                              password: undefined,
-                            })}
+                            onChange={(e) =>
+                              onUpdateLinuxServer?.({
+                                ...account.linuxServer,
+                                host: account.linuxServer?.host || '',
+                                username: account.linuxServer?.username || '',
+                                sshKey: e.target.value,
+                                password: undefined,
+                              })
+                            }
                             placeholder="-----BEGIN RSA PRIVATE KEY-----"
                           />
                         ) : (
@@ -860,20 +1014,28 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                             type={showPasswordLinux ? 'text' : 'password'}
                             className="flex-1 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             value={account.linuxServer?.password || ''}
-                            onChange={(e) => onUpdateLinuxServer?.({
-                              ...account.linuxServer,
-                              host: account.linuxServer?.host || '',
-                              username: account.linuxServer?.username || '',
-                              password: e.target.value,
-                              sshKey: undefined,
-                            })}
+                            onChange={(e) =>
+                              onUpdateLinuxServer?.({
+                                ...account.linuxServer,
+                                host: account.linuxServer?.host || '',
+                                username: account.linuxServer?.username || '',
+                                password: e.target.value,
+                                sshKey: undefined,
+                              })
+                            }
                           />
                         )}
                         <button
                           type="button"
-                          onClick={() => setShowPasswordLinux(!showPasswordLinux)}
+                          onClick={() =>
+                            setShowPasswordLinux(!showPasswordLinux)
+                          }
                           className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors"
-                          title={showPasswordLinux ? t('common.hide') : t('common.show')}
+                          title={
+                            showPasswordLinux
+                              ? t('common.hide')
+                              : t('common.show')
+                          }
                         >
                           {showPasswordLinux ? '👁️' : '🙈'}
                         </button>
@@ -928,12 +1090,41 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       accountName={displayName}
                       masterModels={masterModels}
                       filteredModels={filteredModels}
-                      onUpdateName={(name) => onUpdateRegionName(region.id, name)}
-                      onUpdateModelsText={(text) => onUpdateRegionModelsText(region.id, text)}
-                      onUpdateOpenaiEndpoint={(endpoint) => onUpdateRegionOpenaiEndpoint(region.id, endpoint)}
-                      onUpdateAnthropicEndpoint={(endpoint) => onUpdateRegionAnthropicEndpoint(region.id, endpoint)}
-                      onUpdateApiKey={(apiKey) => onUpdateRegionApiKey(region.id, apiKey)}
-                      onUpdateEnabled={(enabled) => onUpdateRegionEnabled(region.id, enabled)}
+                      onUpdateName={(name) =>
+                        onUpdateRegionName(region.id, name)
+                      }
+                      onUpdateModelsText={(text) =>
+                        onUpdateRegionModelsText(region.id, text)
+                      }
+                      onUpdateOpenaiEndpoint={(endpoint) =>
+                        onUpdateRegionOpenaiEndpoint(region.id, endpoint)
+                      }
+                      onUpdateAnthropicEndpoint={(endpoint) =>
+                        onUpdateRegionAnthropicEndpoint(region.id, endpoint)
+                      }
+                      onUpdateApiKey={(apiKey) =>
+                        onUpdateRegionApiKey(region.id, apiKey)
+                      }
+                      accountDeployment={account.deployment}
+                      onUpdateDeployment={
+                        onUpdateRegionDeployment
+                          ? (patch) =>
+                              onUpdateRegionDeployment(region.id, patch)
+                          : undefined
+                      }
+                      onUpdateDeploymentModel={
+                        onUpdateRegionDeploymentModel
+                          ? (modelName, patch) =>
+                              onUpdateRegionDeploymentModel(
+                                region.id,
+                                modelName,
+                                patch
+                              )
+                          : undefined
+                      }
+                      onUpdateEnabled={(enabled) =>
+                        onUpdateRegionEnabled(region.id, enabled)
+                      }
                       onDelete={() => onDeleteRegion(region.id)}
                       onCopy={onCopy}
                     />

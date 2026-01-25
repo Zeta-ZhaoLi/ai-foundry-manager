@@ -1,22 +1,29 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
-import { buildCopyString, groupModelsByCategory, ModelCategory } from '../../../utils/modelSeries';
+import {
+  buildCopyString,
+  groupModelsByCategory,
+  ModelCategory,
+} from '../../../utils/modelSeries';
 import { useToast } from '../../../hooks/useToast';
-import { convertOpenAIToAnthropicEndpoint, convertAnthropicToOpenAIEndpoint } from '../../../utils/common';
+import {
+  convertOpenAIToAnthropicEndpoint,
+  convertAnthropicToOpenAIEndpoint,
+  extractAzureResourceName,
+} from '../../../utils/common';
+import type {
+  LocalRegion as ImportedLocalRegion,
+  AccountDeploymentConfig,
+  RegionDeploymentConfig,
+  RegionDeploymentModelConfig,
+} from '../../../hooks/useLocalAzureAccounts';
 
-export interface LocalRegion {
-  id: string;
-  name: string;
-  modelsText: string;
-  openaiEndpoint?: string;
-  anthropicEndpoint?: string;
-  apiKey?: string;
-  enabled?: boolean;  // 默认 true
-  openaiEndpointManualOverride?: boolean;
-  anthropicEndpointManualOverride?: boolean;
-}
+import { stringifyAzureOpenAiArmTemplate } from '../../../utils/armTemplate';
+import { buildAzurePortalResourceGroupOverviewUrl } from '../../../utils/azurePortal';
+
+export type LocalRegion = ImportedLocalRegion;
 
 export interface RegionCardProps {
   region: LocalRegion;
@@ -31,6 +38,12 @@ export interface RegionCardProps {
   onUpdateOpenaiEndpoint: (endpoint: string) => void;
   onUpdateAnthropicEndpoint: (endpoint: string) => void;
   onUpdateApiKey: (apiKey: string) => void;
+  accountDeployment?: AccountDeploymentConfig;
+  onUpdateDeployment?: (patch: Partial<RegionDeploymentConfig>) => void;
+  onUpdateDeploymentModel?: (
+    modelName: string,
+    patch: Partial<RegionDeploymentModelConfig>
+  ) => void;
   onUpdateEnabled: (enabled: boolean) => void;
   onDelete: () => void;
   onCopy: (text: string, label: string) => void;
@@ -52,7 +65,7 @@ const maskEndpoint = (url: string): string => {
     const parsed = new URL(url);
     const parts = parsed.hostname.split('.');
     if (parts.length >= 2) {
-      parts[0] = '***';  // 打码第一段
+      parts[0] = '***'; // 打码第一段
     }
     return `${parsed.protocol}//${parts.join('.')}`;
   } catch {
@@ -61,7 +74,10 @@ const maskEndpoint = (url: string): string => {
 };
 
 // 分类标签配置
-const CATEGORY_CONFIG: Record<ModelCategory, { labelKey: string; color: string }> = {
+const CATEGORY_CONFIG: Record<
+  ModelCategory,
+  { labelKey: string; color: string }
+> = {
   standard: { labelKey: 'modelCategory.standard', color: 'text-cyan-400' },
   sora: { labelKey: 'modelCategory.sora', color: 'text-purple-400' },
   claude: { labelKey: 'modelCategory.claude', color: 'text-orange-400' },
@@ -118,6 +134,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   onUpdateOpenaiEndpoint,
   onUpdateAnthropicEndpoint,
   onUpdateApiKey,
+  accountDeployment,
+  onUpdateDeployment,
+  onUpdateDeploymentModel,
   onUpdateEnabled,
   onDelete,
   onCopy,
@@ -125,17 +144,26 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const { t } = useTranslation();
   const toast = useToast();
   const [collapsed, setCollapsed] = useState(true);
+  const [deployCollapsed, setDeployCollapsed] = useState(true);
+  const [showDeployConfirm, setShowDeployConfirm] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [lastDeploymentName, setLastDeploymentName] = useState<string | null>(
+    null
+  );
+  const [lastDeploymentState, setLastDeploymentState] = useState<string | null>(
+    null
+  );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isExpanded, setIsExpanded] = useState(region.enabled !== false);
 
   // 判断当前区域名是否为自定义（不在预设列表中）
-  const isCustomRegion = !PRESET_REGIONS.some(r => r.value === region.name);
+  const isCustomRegion = !PRESET_REGIONS.some((r) => r.value === region.name);
   const [showCustomInput, setShowCustomInput] = useState(isCustomRegion);
 
   // 获取当前区域的显示标签
   const getRegionLabel = (value: string) => {
-    const found = PRESET_REGIONS.find(r => r.value === value);
+    const found = PRESET_REGIONS.find((r) => r.value === value);
     return found ? found.label : value;
   };
 
@@ -168,11 +196,210 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const selectedSet = new Set(parseModels(region.modelsText));
   const regionModels = Array.from(selectedSet).sort();
 
+  // 隐私模式下显示的区域名称
+  const displayRegionName = privacyMode
+    ? t('regions.region') + ` ${regionIndex + 1}`
+    : region.name || t('regions.region') + ` ${regionIndex + 1}`;
+
   // 按分类分组 master 模型和已选模型
   const groupedFilteredModels = useMemo(
     () => groupModelsByCategory(filteredModels),
     [filteredModels]
   );
+
+  // =============== 模型部署（Azure Portal） ===============
+  const deploymentResourceName = region.deployment?.resourceName || '';
+  const deploymentLocation = region.deployment?.location || region.name || '';
+
+  const selectedDeploymentRows = useMemo(() => {
+    const modelMap = region.deployment?.models || {};
+    return regionModels.map((modelName) => {
+      const cfg = modelMap[modelName] || {};
+      return {
+        modelName,
+        deploymentName: cfg.deploymentName ?? modelName,
+        version: cfg.version ?? '',
+        capacity: cfg.capacity ?? 1000,
+      };
+    });
+  }, [region.deployment?.models, regionModels]);
+
+  const validateDeployInputs = useCallback((): string | null => {
+    const a = accountDeployment;
+    if (!a?.subscriptionId?.trim())
+      return t(
+        'regions.deployMissingSubscriptionId',
+        '请先在账号里填写 Subscription ID'
+      );
+    if (!a?.resourceGroup?.trim())
+      return t(
+        'regions.deployMissingResourceGroup',
+        '请先在账号里填写 Resource Group'
+      );
+
+    const derived = extractAzureResourceName(region.openaiEndpoint || '');
+    const resourceName =
+      deploymentResourceName.trim() || (derived || '').trim();
+    if (!resourceName)
+      return t(
+        'regions.deployMissingResourceName',
+        '请先填写 AOAI 资源名称（resourceName）'
+      );
+    if (!deploymentLocation.trim())
+      return t(
+        'regions.deployMissingLocation',
+        '请先填写 Azure 区域（location）'
+      );
+    if (regionModels.length === 0)
+      return t('regions.deployNoModels', '当前区域没有已选模型');
+
+    const seen = new Set<string>();
+    for (const row of selectedDeploymentRows) {
+      if (!row.deploymentName.trim()) {
+        return t(
+          'regions.deployMissingDeploymentName',
+          'deploymentName 不能为空'
+        );
+      }
+      if (seen.has(row.deploymentName.trim())) {
+        return t(
+          'regions.deployDuplicateDeploymentName',
+          'deploymentName 不能重复'
+        );
+      }
+      seen.add(row.deploymentName.trim());
+
+      if (!row.version.trim()) {
+        return t('regions.deployMissingVersion', '请为所有模型填写 version');
+      }
+      if (!Number.isInteger(row.capacity) || row.capacity <= 0) {
+        return t('regions.deployInvalidCapacity', 'capacity 必须是正整数');
+      }
+    }
+
+    return null;
+  }, [
+    accountDeployment,
+    deploymentLocation,
+    deploymentResourceName,
+    region.openaiEndpoint,
+    regionModels.length,
+    selectedDeploymentRows,
+    t,
+  ]);
+
+  const handleAutoFillDeployInfo = useCallback(() => {
+    const derived = extractAzureResourceName(region.openaiEndpoint || '');
+    const patch: Partial<RegionDeploymentConfig> = {};
+    if (!deploymentResourceName.trim() && derived) patch.resourceName = derived;
+    if (!deploymentLocation.trim() && region.name) patch.location = region.name;
+    if (Object.keys(patch).length > 0) {
+      onUpdateDeployment?.(patch);
+      toast.success(t('regions.deployAutoFilled', '已自动填充部署信息'));
+    } else {
+      toast.success(t('regions.deployNothingToFill', '暂无可自动填充的字段'));
+    }
+  }, [
+    deploymentLocation,
+    deploymentResourceName,
+    onUpdateDeployment,
+    region.name,
+    region.openaiEndpoint,
+    toast,
+    t,
+  ]);
+
+  const handleDeploy = useCallback(async () => {
+    const err = validateDeployInputs();
+    if (err) {
+      toast.error(err);
+      return;
+    }
+
+    const a = accountDeployment as AccountDeploymentConfig;
+    const derived = extractAzureResourceName(region.openaiEndpoint || '');
+    const resourceName =
+      deploymentResourceName.trim() || (derived || '').trim();
+    const location = deploymentLocation.trim();
+
+    const templateInput = {
+      resourceName,
+      location,
+      modelDeployments: selectedDeploymentRows.map((row) => ({
+        deploymentName: row.deploymentName.trim(),
+        modelName: row.modelName,
+        version: row.version.trim(),
+        capacity: row.capacity,
+      })),
+    };
+
+    const json = stringifyAzureOpenAiArmTemplate(templateInput);
+
+    const safeName = `arm-openai-${resourceName}-${region.name}-${new Date()
+      .toISOString()
+      .slice(0, 10)}`
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 80);
+
+    setDeploying(true);
+    setLastDeploymentName(safeName);
+    setLastDeploymentState('Portal');
+    try {
+      // copy template
+      onCopy(json, `${displayRegionName} ARM Template`);
+
+      // download template
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeName}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      const subId = a.subscriptionId!.trim();
+      const rg = a.resourceGroup!.trim();
+      window.open(
+        buildAzurePortalResourceGroupOverviewUrl({
+          subscriptionId: subId,
+          resourceGroup: rg,
+        }),
+        '_blank',
+        'noopener,noreferrer'
+      );
+
+      toast.success(
+        t(
+          'regions.deployStarted',
+          '已打开 Azure Portal，并导出模板（已复制+已下载）'
+        )
+      );
+    } catch (e: any) {
+      toast.error(
+        t('regions.deployFailed', '操作失败：{{msg}}', {
+          msg: e?.message || String(e),
+        })
+      );
+    } finally {
+      setDeploying(false);
+    }
+  }, [
+    accountDeployment,
+    deploymentLocation,
+    deploymentResourceName,
+    displayRegionName,
+    onCopy,
+    region.name,
+    region.openaiEndpoint,
+    selectedDeploymentRows,
+    toast,
+    t,
+    validateDeployInputs,
+  ]);
 
   const toggleModel = (modelId: string) => {
     const set = new Set(parseModels(region.modelsText));
@@ -228,7 +455,11 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
   // 计算各分类已选数量
   const selectedByCategory = useMemo(() => {
-    const result: Record<ModelCategory, number> = { standard: 0, sora: 0, claude: 0 };
+    const result: Record<ModelCategory, number> = {
+      standard: 0,
+      sora: 0,
+      claude: 0,
+    };
     for (const model of regionModels) {
       const grouped = groupModelsByCategory([model]);
       if (grouped.standard.length > 0) result.standard++;
@@ -240,20 +471,19 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
   const isDisabled = region.enabled === false;
 
-  // 隐私模式下显示的区域名称
-  const displayRegionName = privacyMode
-    ? t('regions.region') + ` ${regionIndex + 1}`
-    : region.name || t('regions.region') + ` ${regionIndex + 1}`;
-
   // 未启用区域收起时的简化视图
   if (isDisabled && !isExpanded) {
     return (
       <div className="rounded-lg border border-gray-800 p-2.5 bg-background opacity-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium">{regionIndex + 1}.</span>
+            <span className="text-xs text-muted-foreground font-medium">
+              {regionIndex + 1}.
+            </span>
             <span className="text-sm">{displayRegionName}</span>
-            <span className="text-xs text-gray-500">({t('regions.disabled')})</span>
+            <span className="text-xs text-gray-500">
+              ({t('regions.disabled')})
+            </span>
           </div>
           <button
             type="button"
@@ -269,10 +499,12 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
   return (
     <>
-      <div className={clsx(
-        'rounded-lg border border-gray-800 p-2.5 bg-background relative',
-        isDisabled && 'opacity-50'
-      )}>
+      <div
+        className={clsx(
+          'rounded-lg border border-gray-800 p-2.5 bg-background relative',
+          isDisabled && 'opacity-50'
+        )}
+      >
         {/* 删除按钮 - 绝对定位在右上角 */}
         <button
           type="button"
@@ -287,7 +519,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           {/* 启用开关 + 编号 + 区域名称 */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="pt-6 shrink-0">
-              <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title={t('regions.enableRegion')}>
+              <label
+                className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                title={t('regions.enableRegion')}
+              >
                 <input
                   type="checkbox"
                   checked={region.enabled !== false}
@@ -300,7 +535,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             {/* 区域编号 + 区域名称 */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-muted-foreground font-medium">{regionIndex + 1}.</span>
+                <span className="text-xs text-muted-foreground font-medium">
+                  {regionIndex + 1}.
+                </span>
                 <label className="text-xs text-muted-foreground">
                   {t('regions.regionName')}
                 </label>
@@ -358,9 +595,13 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   }}
                 >
                   {PRESET_REGIONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
                   ))}
-                  <option value="__custom__">{t('regions.customRegion')}</option>
+                  <option value="__custom__">
+                    {t('regions.customRegion')}
+                  </option>
                 </select>
               )}
             </div>
@@ -391,14 +632,34 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 title={showApiKey ? t('common.hide') : t('common.show')}
               >
                 {showApiKey ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
                   </svg>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
                 )}
               </button>
@@ -406,13 +667,25 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               {region.apiKey && (
                 <button
                   type="button"
-                  onClick={() => onCopy(region.apiKey || '', `${region.name} API Key`)}
+                  onClick={() =>
+                    onCopy(region.apiKey || '', `${region.name} API Key`)
+                  }
                   className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
                   title={t('common.copy')}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                 </button>
               )}
@@ -426,14 +699,18 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           <div className="flex-1 min-w-0">
             <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
               <span>{t('regions.openaiEndpoint')}</span>
-              {region.openaiEndpoint && region.anthropicEndpoint && !region.openaiEndpointManualOverride && (
-                <span
-                  className="text-cyan-400"
-                  title={t('regions.endpointAutoSynced', { type: 'Anthropic' })}
-                >
-                  🔄
-                </span>
-              )}
+              {region.openaiEndpoint &&
+                region.anthropicEndpoint &&
+                !region.openaiEndpointManualOverride && (
+                  <span
+                    className="text-cyan-400"
+                    title={t('regions.endpointAutoSynced', {
+                      type: 'Anthropic',
+                    })}
+                  >
+                    🔄
+                  </span>
+                )}
               {region.openaiEndpointManualOverride && (
                 <span
                   className="text-yellow-400"
@@ -450,7 +727,11 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   'border border-gray-700 bg-background text-foreground text-sm',
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
-                value={privacyMode ? maskEndpoint(region.openaiEndpoint || '') : (region.openaiEndpoint || '')}
+                value={
+                  privacyMode
+                    ? maskEndpoint(region.openaiEndpoint || '')
+                    : region.openaiEndpoint || ''
+                }
                 onChange={(e) => handleOpenAIEndpointChange(e.target.value)}
                 placeholder="https://xxx.openai.azure.com"
                 disabled={privacyMode}
@@ -459,13 +740,25 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               {region.openaiEndpoint && (
                 <button
                   type="button"
-                  onClick={() => onCopy(region.openaiEndpoint || '', 'OpenAI Endpoint')}
+                  onClick={() =>
+                    onCopy(region.openaiEndpoint || '', 'OpenAI Endpoint')
+                  }
                   className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
                   title={t('common.copy')}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                 </button>
               )}
@@ -476,14 +769,16 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           <div className="flex-1 min-w-0">
             <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
               <span>{t('regions.anthropicEndpoint')}</span>
-              {region.anthropicEndpoint && region.openaiEndpoint && !region.anthropicEndpointManualOverride && (
-                <span
-                  className="text-cyan-400"
-                  title={t('regions.endpointAutoSynced', { type: 'OpenAI' })}
-                >
-                  🔄
-                </span>
-              )}
+              {region.anthropicEndpoint &&
+                region.openaiEndpoint &&
+                !region.anthropicEndpointManualOverride && (
+                  <span
+                    className="text-cyan-400"
+                    title={t('regions.endpointAutoSynced', { type: 'OpenAI' })}
+                  >
+                    🔄
+                  </span>
+                )}
               {region.anthropicEndpointManualOverride && (
                 <span
                   className="text-yellow-400"
@@ -500,7 +795,11 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   'border border-gray-700 bg-background text-foreground text-sm',
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
-                value={privacyMode ? maskEndpoint(region.anthropicEndpoint || '') : (region.anthropicEndpoint || '')}
+                value={
+                  privacyMode
+                    ? maskEndpoint(region.anthropicEndpoint || '')
+                    : region.anthropicEndpoint || ''
+                }
                 onChange={(e) => handleAnthropicEndpointChange(e.target.value)}
                 placeholder="https://xxx.services.ai.azure.com"
                 disabled={privacyMode}
@@ -509,13 +808,25 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               {region.anthropicEndpoint && (
                 <button
                   type="button"
-                  onClick={() => onCopy(region.anthropicEndpoint || '', 'Anthropic Endpoint')}
+                  onClick={() =>
+                    onCopy(region.anthropicEndpoint || '', 'Anthropic Endpoint')
+                  }
                   className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
                   title={t('common.copy')}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                 </button>
               )}
@@ -596,69 +907,83 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               ) : (
                 <div className="space-y-2 mt-1.5">
                   {/* 按分类渲染 */}
-                  {(['standard', 'sora', 'claude'] as ModelCategory[]).map((category) => {
-                    const models = groupedFilteredModels[category];
-                    if (models.length === 0) return null;
-                    const config = CATEGORY_CONFIG[category];
-                    const selectedCount = selectedByCategory[category];
-                    const selectedModels = models.filter((m) => selectedSet.has(m));
+                  {(['standard', 'sora', 'claude'] as ModelCategory[]).map(
+                    (category) => {
+                      const models = groupedFilteredModels[category];
+                      if (models.length === 0) return null;
+                      const config = CATEGORY_CONFIG[category];
+                      const selectedCount = selectedByCategory[category];
+                      const selectedModels = models.filter((m) =>
+                        selectedSet.has(m)
+                      );
 
-                    return (
-                      <div key={category} className="border border-gray-800 rounded-lg p-2">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className={clsx('text-xs font-medium', config.color)}>
-                            {t(config.labelKey)}
-                            <span className="text-muted-foreground ml-1">
-                              ({selectedCount}/{models.length})
+                      return (
+                        <div
+                          key={category}
+                          className="border border-gray-800 rounded-lg p-2"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span
+                              className={clsx(
+                                'text-xs font-medium',
+                                config.color
+                              )}
+                            >
+                              {t(config.labelKey)}
+                              <span className="text-muted-foreground ml-1">
+                                ({selectedCount}/{models.length})
+                              </span>
                             </span>
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {/* 复制此分类已选模型 */}
-                            {selectedModels.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              {/* 复制此分类已选模型 */}
+                              {selectedModels.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onCopy(
+                                      buildCopyString(selectedModels),
+                                      `${displayRegionName} - ${t(config.labelKey)}`
+                                    )
+                                  }
+                                  className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
+                                  title={t('regions.copyCategoryModels')}
+                                >
+                                  📋
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => onCopy(
-                                  buildCopyString(selectedModels),
-                                  `${displayRegionName} - ${t(config.labelKey)}`
-                                )}
+                                onClick={() => selectCategory(category)}
                                 className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
-                                title={t('regions.copyCategoryModels')}
                               >
-                                📋
+                                {t('regions.selectCategory')}
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => selectCategory(category)}
-                              className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
-                            >
-                              {t('regions.selectCategory')}
-                            </button>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {models.map((model) => {
+                              const selected = selectedSet.has(model);
+                              return (
+                                <button
+                                  key={model}
+                                  type="button"
+                                  onClick={() => toggleModel(model)}
+                                  className={clsx(
+                                    'px-2 py-1 rounded-full text-xs cursor-pointer transition-all',
+                                    selected
+                                      ? 'border border-cyan-500 bg-gradient-to-r from-cyan-500 to-green-500 text-white'
+                                      : 'border border-gray-600 bg-background text-foreground hover:border-gray-500'
+                                  )}
+                                >
+                                  {model}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {models.map((model) => {
-                            const selected = selectedSet.has(model);
-                            return (
-                              <button
-                                key={model}
-                                type="button"
-                                onClick={() => toggleModel(model)}
-                                className={clsx(
-                                  'px-2 py-1 rounded-full text-xs cursor-pointer transition-all',
-                                  selected
-                                    ? 'border border-cyan-500 bg-gradient-to-r from-cyan-500 to-green-500 text-white'
-                                    : 'border border-gray-600 bg-background text-foreground hover:border-gray-500'
-                                )}
-                              >
-                                {model}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    }
+                  )}
                 </div>
               )}
             </>
@@ -667,7 +992,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           {/* 复制区域模型 */}
           {regionModels.length > 0 && (
             <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground border-t border-gray-800 pt-2">
-              <span>{t('regions.selectedCount', { count: regionModels.length })}</span>
+              <span>
+                {t('regions.selectedCount', { count: regionModels.length })}
+              </span>
               <button
                 type="button"
                 onClick={() =>
@@ -683,6 +1010,173 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             </div>
           )}
         </div>
+
+        {/* 模型部署 */}
+        <div className="border-t border-gray-800 pt-2 mt-2">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setDeployCollapsed((prev) => !prev)}
+              className="flex items-center gap-1.5 bg-transparent text-foreground text-xs cursor-pointer border-none p-0"
+            >
+              <span className="inline-block w-3.5 text-center text-muted-foreground">
+                {deployCollapsed ? '▶' : '▼'}
+              </span>
+              <span>{t('regions.deployTitle', '模型部署')}</span>
+              {regionModels.length > 0 && (
+                <span className="text-muted-foreground ml-1">
+                  ({regionModels.length})
+                </span>
+              )}
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleAutoFillDeployInfo}
+                className="px-2 py-0.5 rounded-full border border-gray-700 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
+                disabled={privacyMode}
+              >
+                {t('regions.deployAutoFill', '自动填充')}
+              </button>
+              <button
+                type="button"
+                disabled={privacyMode || deploying || regionModels.length === 0}
+                onClick={() => setShowDeployConfirm(true)}
+                className={clsx(
+                  'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
+                  privacyMode || deploying || regionModels.length === 0
+                    ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
+                    : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
+                )}
+              >
+                {deploying
+                  ? t('regions.deploying', '部署中...')
+                  : t('regions.deployNow', '一键部署')}
+              </button>
+            </div>
+          </div>
+
+          {!deployCollapsed && (
+            <div className="mt-2 space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    {t(
+                      'regions.deployResourceName',
+                      'resourceName (AOAI 资源名称)'
+                    )}
+                  </label>
+                  <input
+                    className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={deploymentResourceName}
+                    onChange={(e) =>
+                      onUpdateDeployment?.({ resourceName: e.target.value })
+                    }
+                    placeholder="my-aoai"
+                    disabled={privacyMode}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    {t('regions.deployLocation', 'location (Azure 区域)')}
+                  </label>
+                  <input
+                    className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={deploymentLocation}
+                    onChange={(e) =>
+                      onUpdateDeployment?.({ location: e.target.value })
+                    }
+                    placeholder="eastus2"
+                    disabled={privacyMode}
+                  />
+                </div>
+              </div>
+
+              {lastDeploymentName && (
+                <div className="text-xs text-muted-foreground">
+                  {t('regions.deployLast', '最近一次部署')}:{' '}
+                  <span className="font-mono">{lastDeploymentName}</span>
+                  {lastDeploymentState ? (
+                    <span className="ml-2">({lastDeploymentState})</span>
+                  ) : null}
+                </div>
+              )}
+
+              <div className="overflow-auto border border-gray-800 rounded-lg">
+                <table className="w-full min-w-[820px] text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-400 border-b border-gray-800">
+                      <th className="py-2 px-3">
+                        {t('regions.deployModel', 'model')}
+                      </th>
+                      <th className="py-2 px-3">
+                        {t('regions.deployDeploymentName', 'deploymentName')}
+                      </th>
+                      <th className="py-2 px-3">
+                        {t('regions.deployVersion', 'version')}
+                      </th>
+                      <th className="py-2 px-3 w-[140px]">
+                        {t('regions.deployCapacity', 'capacity')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedDeploymentRows.map((row) => (
+                      <tr
+                        key={row.modelName}
+                        className="border-b border-gray-900/60"
+                      >
+                        <td className="py-2 px-3 font-mono text-xs text-gray-200">
+                          {row.modelName}
+                        </td>
+                        <td className="py-2 px-3">
+                          <input
+                            className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            value={row.deploymentName}
+                            onChange={(e) =>
+                              onUpdateDeploymentModel?.(row.modelName, {
+                                deploymentName: e.target.value,
+                              })
+                            }
+                            disabled={privacyMode}
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <input
+                            className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            value={row.version}
+                            onChange={(e) =>
+                              onUpdateDeploymentModel?.(row.modelName, {
+                                version: e.target.value,
+                              })
+                            }
+                            placeholder="2024-07-18"
+                            disabled={privacyMode}
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <input
+                            className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            value={String(row.capacity)}
+                            onChange={(e) => {
+                              const num = Number(e.target.value);
+                              onUpdateDeploymentModel?.(row.modelName, {
+                                capacity: Number.isFinite(num) ? num : 0,
+                              });
+                            }}
+                            inputMode="numeric"
+                            placeholder="1000"
+                            disabled={privacyMode}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <ConfirmDialog
@@ -694,6 +1188,20 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={onDelete}
+      />
+
+      <ConfirmDialog
+        open={showDeployConfirm}
+        onOpenChange={setShowDeployConfirm}
+        title={t('regions.deployConfirmTitle', '确认跳转 Azure Portal 部署')}
+        description={t(
+          'regions.deployConfirmDesc',
+          '该操作将导出 ARM 模板（复制+下载），并跳转到 Azure Portal（资源组页面），请在 Portal 中执行自定义部署。可能产生费用，确认继续？'
+        )}
+        confirmText={t('regions.deployConfirmBtn', '确认部署')}
+        cancelText={t('common.cancel')}
+        variant="warning"
+        onConfirm={handleDeploy}
       />
     </>
   );
