@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { buildCopyString } from '../../utils/modelSeries';
@@ -9,6 +9,8 @@ export interface MasterModelDirectoryProps {
   masterGroups: string[][];
   masterGroupLines: string[][][];
   masterModels: string[];
+  deployedModelsOrdered: string[];
+  deployedRegionCounts: Record<string, number>;
   onCopy: (text: string, label: string) => void;
 }
 
@@ -18,10 +20,17 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
   masterGroups,
   masterGroupLines,
   masterModels,
+  deployedModelsOrdered,
+  deployedRegionCounts,
   onCopy,
 }) => {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
+
+  const deployedSet = useMemo(
+    () => new Set(deployedModelsOrdered),
+    [deployedModelsOrdered]
+  );
 
   return (
     <section
@@ -76,19 +85,40 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
               {t('masterModels.parsedCount', { count: masterModels.length })}
             </span>
             {masterModels.length > 0 && (
-              <button
-                type="button"
-                onClick={() =>
-                  onCopy(buildCopyString(masterModels), t('masterModels.title'))
-                }
-                className={clsx(
-                  'px-2.5 py-0.5 rounded-full',
-                  'border border-primary bg-slate-900 text-foreground',
-                  'cursor-pointer hover:bg-slate-800 transition-colors'
-                )}
-              >
-                {t('masterModels.copyList')}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onCopy(
+                      buildCopyString(masterModels),
+                      t('masterModels.copyAll')
+                    )
+                  }
+                  className={clsx(
+                    'px-2.5 py-0.5 rounded-full',
+                    'border border-primary bg-slate-900 text-foreground',
+                    'cursor-pointer hover:bg-slate-800 transition-colors'
+                  )}
+                >
+                  {t('masterModels.copyAll')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onCopy(
+                      buildCopyString(deployedModelsOrdered),
+                      t('masterModels.copyDeployed')
+                    )
+                  }
+                  className={clsx(
+                    'px-2.5 py-0.5 rounded-full',
+                    'border border-gray-600 bg-background text-foreground',
+                    'cursor-pointer hover:bg-slate-800 transition-colors'
+                  )}
+                >
+                  {t('masterModels.copyDeployed')}
+                </button>
+              </div>
             )}
           </div>
           {masterModels.length > 0 && (
@@ -100,26 +130,53 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                       {t('common.group', { index: groupIndex + 1 })} (
                       {masterGroups[groupIndex]?.length || 0})
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onCopy(
-                          groupLines
-                            .map((line) => buildCopyString(line))
-                            .join('\n'),
-                          `${t('masterModels.title')} - ${t('common.group', {
-                            index: groupIndex + 1,
-                          })}`
-                        )
-                      }
-                      className={clsx(
-                        'px-2 py-0.5 rounded-full',
-                        'border border-gray-600 bg-background text-foreground',
-                        'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
-                      )}
-                    >
-                      {t('common.copy')}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onCopy(
+                            groupLines
+                              .map((line) => buildCopyString(line))
+                              .join('\n'),
+                            `${t('common.group', { index: groupIndex + 1 })} - ${t(
+                              'masterModels.copyGroupAll'
+                            )}`
+                          )
+                        }
+                        className={clsx(
+                          'px-2 py-0.5 rounded-full',
+                          'border border-gray-600 bg-background text-foreground',
+                          'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                        )}
+                      >
+                        {t('masterModels.copyGroupAll')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onCopy(
+                            groupLines
+                              .map((line) =>
+                                buildCopyString(
+                                  line.filter((m) => deployedSet.has(m))
+                                )
+                              )
+                              .filter(Boolean)
+                              .join('\n'),
+                            `${t('common.group', { index: groupIndex + 1 })} - ${t(
+                              'masterModels.copyGroupDeployed'
+                            )}`
+                          )
+                        }
+                        className={clsx(
+                          'px-2 py-0.5 rounded-full',
+                          'border border-gray-600 bg-background text-foreground',
+                          'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                        )}
+                      >
+                        {t('masterModels.copyGroupDeployed')}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     {groupLines.map((line, lineIndex) => (
@@ -131,12 +188,25 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                           <span
                             key={m}
                             className={clsx(
-                              'px-2 py-0.5 rounded-full text-xs',
+                              'px-2 py-0.5 rounded-full text-xs relative',
                               'border border-slate-400/50',
                               'bg-gradient-to-r from-cyan-500/20 to-indigo-500/20'
                             )}
                           >
                             {m}
+                            <span
+                              className={clsx(
+                                'absolute -top-1 -right-1',
+                                'min-w-[16px] h-[16px] px-1',
+                                'rounded-full text-[10px] leading-[16px] text-center',
+                                'bg-cyan-500 text-black'
+                              )}
+                              title={t('masterModels.deployedRegions', {
+                                count: deployedRegionCounts[m] || 0,
+                              })}
+                            >
+                              {deployedRegionCounts[m] || 0}
+                            </span>
                           </span>
                         ))}
                       </div>

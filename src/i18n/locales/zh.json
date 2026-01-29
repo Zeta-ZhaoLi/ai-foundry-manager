@@ -18,7 +18,12 @@
     "description": "在此一次性维护所有可能用到的模型（逗号/空格/换行分隔；用空行分组）。下方账号 / 区域的模型都通过点击选择，不再重复输入。",
     "placeholder": "例如：gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ...",
     "parsedCount": "已解析模型：{{count}} 个",
-    "copyList": "复制目录列表（带逗号）"
+    "copyList": "复制目录列表（带逗号）",
+    "copyAll": "复制目录列表（所有）",
+    "copyDeployed": "复制目录列表（已部署）",
+    "copyGroupAll": "复制该分组（所有）",
+    "copyGroupDeployed": "复制该分组（已部署）",
+    "deployedRegions": "已部署区域数：{{count}}"
   },
   "dashboard": {
     "title": "可视化概览",

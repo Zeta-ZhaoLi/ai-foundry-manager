@@ -27,7 +27,11 @@ export interface ModelOverviewTableProps {
   privacyMode?: boolean;
   isDetailView?: boolean;
   onOpenDetail?: () => void;
-  onUpdateAccountPurchase?: (id: string, amount: number, currency: CurrencyType) => void;
+  onUpdateAccountPurchase?: (
+    id: string,
+    amount: number,
+    currency: CurrencyType
+  ) => void;
   onUpdateAccountUsedAmount?: (id: string, usedAmount: number) => void;
 }
 
@@ -46,10 +50,13 @@ const QUOTA_COLORS = [
 const ROW_HEIGHT = 36;
 
 // 计算成本/$ (每美元账户额度的实际成本)
-const getCostPerDollar = (account: LocalAccount): { value: number; currency: CurrencyType } | null => {
-  const quota = account.quota === 'custom'
-    ? (account.customQuota || 0)
-    : Number(account.quota || 200);
+const getCostPerDollar = (
+  account: LocalAccount
+): { value: number; currency: CurrencyType } | null => {
+  const quota =
+    account.quota === 'custom'
+      ? account.customQuota || 0
+      : Number(account.quota || 200);
   if (quota === 0 || !account.purchaseAmount) return null;
   return {
     value: account.purchaseAmount / quota,
@@ -73,21 +80,27 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   const [tierFilter, setTierFilter] = useState<AccountTierFilter>('all');
 
   // 计算各类别数量
-  const statusCounts = useMemo(() => ({
-    all: accounts.length,
-    enabled: accounts.filter(a => a.enabled).length,
-    disabled: accounts.filter(a => !a.enabled).length,
-  }), [accounts]);
+  const statusCounts = useMemo(
+    () => ({
+      all: accounts.length,
+      enabled: accounts.filter((a) => a.enabled).length,
+      disabled: accounts.filter((a) => !a.enabled).length,
+    }),
+    [accounts]
+  );
 
-  const tierCounts = useMemo(() => ({
-    all: accounts.length,
-    premium: accounts.filter(a => a.tier === 'premium').length,
-    standard: accounts.filter(a => a.tier !== 'premium').length,
-  }), [accounts]);
+  const tierCounts = useMemo(
+    () => ({
+      all: accounts.length,
+      premium: accounts.filter((a) => a.tier === 'premium').length,
+      standard: accounts.filter((a) => a.tier !== 'premium').length,
+    }),
+    [accounts]
+  );
 
   // 应用筛选
   const filteredAccounts = useMemo(() => {
-    return accounts.filter(acc => {
+    return accounts.filter((acc) => {
       if (statusFilter === 'enabled' && !acc.enabled) return false;
       if (statusFilter === 'disabled' && acc.enabled) return false;
       if (tierFilter === 'premium' && acc.tier !== 'premium') return false;
@@ -97,31 +110,35 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   }, [accounts, statusFilter, tierFilter]);
 
   // 计算启用的账号数量
-  const enabledAccounts = useMemo(() => accounts.filter(a => a.enabled), [accounts]);
+  const enabledAccounts = useMemo(
+    () => accounts.filter((a) => a.enabled),
+    [accounts]
+  );
 
   // 合计行数据 - 基于筛选后的账号
   const summaryData = useMemo(() => {
     // 筛选后的数据中，只统计 includeInStats 为 true 的账号
-    const accs = filteredAccounts.filter(a => a.includeInStats !== false);
+    const accs = filteredAccounts.filter((a) => a.includeInStats !== false);
     if (accs.length === 0) return null;
 
     // 统计类别数量
-    const premiumCount = accs.filter(a => a.tier === 'premium').length;
+    const premiumCount = accs.filter((a) => a.tier === 'premium').length;
     const standardCount = accs.length - premiumCount;
 
     // 统计额度总值
     let totalQuota = 0;
-    accs.forEach(acc => {
-      const quota = acc.quota === 'custom'
-        ? (acc.customQuota || 0)
-        : Number(acc.quota || 200);
+    accs.forEach((acc) => {
+      const quota =
+        acc.quota === 'custom'
+          ? acc.customQuota || 0
+          : Number(acc.quota || 200);
       totalQuota += quota;
     });
 
     // 统计购买金额总值（分币种）
     let totalPurchaseUSD = 0;
     let totalPurchaseCNY = 0;
-    accs.forEach(acc => {
+    accs.forEach((acc) => {
       if (acc.purchaseAmount) {
         if (acc.purchaseCurrency === 'CNY') {
           totalPurchaseCNY += acc.purchaseAmount;
@@ -133,7 +150,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
 
     // 统计已使用总值
     let totalUsed = 0;
-    accs.forEach(acc => {
+    accs.forEach((acc) => {
       if (acc.usedAmount !== undefined && acc.usedAmount !== null) {
         totalUsed += acc.usedAmount;
       }
@@ -143,19 +160,22 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
     let totalRegions = 0;
     let totalModels = 0;
     const allModelSet = new Set<string>();
-    accs.forEach(acc => {
-      const enabledRegions = acc.regions.filter(r => r.enabled !== false);
+    accs.forEach((acc) => {
+      const enabledRegions = acc.regions.filter((r) => r.enabled !== false);
       totalRegions += enabledRegions.length;
-      enabledRegions.forEach(r => {
+      enabledRegions.forEach((r) => {
         if (r.modelsText) {
-          r.modelsText.split(/[\s,]+/).filter(Boolean).forEach(m => allModelSet.add(m));
+          r.modelsText
+            .split(/[\s,]+/)
+            .filter(Boolean)
+            .forEach((m) => allModelSet.add(m));
         }
       });
     });
     totalModels = allModelSet.size;
 
     // 统计状态
-    const enabledCount = accs.filter(a => a.enabled).length;
+    const enabledCount = accs.filter((a) => a.enabled).length;
     const disabledCount = accs.length - enabledCount;
 
     // 计算账号成本 = 总购买金额 / 总额度（分币种计算）
@@ -163,10 +183,11 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
     // CNY 账号成本：totalPurchaseCNY / totalQuotaCNY（使用对应 CNY 账号的额度）
     let totalQuotaUSD = 0;
     let totalQuotaCNY = 0;
-    accs.forEach(acc => {
-      const quota = acc.quota === 'custom'
-        ? (acc.customQuota || 0)
-        : Number(acc.quota || 200);
+    accs.forEach((acc) => {
+      const quota =
+        acc.quota === 'custom'
+          ? acc.customQuota || 0
+          : Number(acc.quota || 200);
       if (acc.purchaseCurrency === 'CNY') {
         totalQuotaCNY += quota;
       } else {
@@ -175,19 +196,25 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
     });
 
     // 账号成本: 购买金额 / 额度
-    const accountCostUSD = totalQuotaUSD > 0 && totalPurchaseUSD > 0
-      ? totalPurchaseUSD / totalQuotaUSD
-      : null;
-    const accountCostCNY = totalQuotaCNY > 0 && totalPurchaseCNY > 0
-      ? totalPurchaseCNY / totalQuotaCNY
-      : null;
+    const accountCostUSD =
+      totalQuotaUSD > 0 && totalPurchaseUSD > 0
+        ? totalPurchaseUSD / totalQuotaUSD
+        : null;
+    const accountCostCNY =
+      totalQuotaCNY > 0 && totalPurchaseCNY > 0
+        ? totalPurchaseCNY / totalQuotaCNY
+        : null;
 
     // 计算实际成本 = 总购买金额 / 总已使用（分币种计算）
     // 已使用额度都是以 USD 计，所以需要分别计算每个币种的实际成本
     let totalUsedUSD = 0;
     let totalUsedCNY = 0;
-    accs.forEach(acc => {
-      if (acc.usedAmount !== undefined && acc.usedAmount !== null && acc.usedAmount > 0) {
+    accs.forEach((acc) => {
+      if (
+        acc.usedAmount !== undefined &&
+        acc.usedAmount !== null &&
+        acc.usedAmount > 0
+      ) {
         if (acc.purchaseCurrency === 'CNY') {
           totalUsedCNY += acc.usedAmount;
         } else {
@@ -197,15 +224,18 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
     });
 
     // 实际成本: 购买金额 / 已使用
-    const actualCostUSD = totalUsedUSD > 0 && totalPurchaseUSD > 0
-      ? totalPurchaseUSD / totalUsedUSD
-      : null;
-    const actualCostCNY = totalUsedCNY > 0 && totalPurchaseCNY > 0
-      ? totalPurchaseCNY / totalUsedCNY
-      : null;
+    const actualCostUSD =
+      totalUsedUSD > 0 && totalPurchaseUSD > 0
+        ? totalPurchaseUSD / totalUsedUSD
+        : null;
+    const actualCostCNY =
+      totalUsedCNY > 0 && totalPurchaseCNY > 0
+        ? totalPurchaseCNY / totalUsedCNY
+        : null;
 
     // 计算平均模型数（每个账号）
-    const avgModelsPerAccount = accs.length > 0 ? Math.round((totalModels / accs.length) * 10) / 10 : 0;
+    const avgModelsPerAccount =
+      accs.length > 0 ? Math.round((totalModels / accs.length) * 10) / 10 : 0;
 
     return {
       accountCount: accs.length,
@@ -235,22 +265,26 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
 
   // 账号状态分布（启用/禁用）
   const enabledDistribution: DonutChartData[] = useMemo(() => {
-    const enabled = accounts.filter(a => a.enabled).length;
-    const disabled = accounts.filter(a => !a.enabled).length;
+    const enabled = accounts.filter((a) => a.enabled).length;
+    const disabled = accounts.filter((a) => !a.enabled).length;
     return [
       { label: t('statistics.enabled'), value: enabled, color: '#4ade80' },
-      { label: t('statistics.disabledLabel'), value: disabled, color: '#f87171' },
-    ].filter(d => d.value > 0);
+      {
+        label: t('statistics.disabledLabel'),
+        value: disabled,
+        color: '#f87171',
+      },
+    ].filter((d) => d.value > 0);
   }, [accounts, t]);
 
   // 账号类别分布（高级/普通）
   const tierDistribution: DonutChartData[] = useMemo(() => {
-    const premium = accounts.filter(a => a.tier === 'premium').length;
-    const standard = accounts.filter(a => a.tier !== 'premium').length;
+    const premium = accounts.filter((a) => a.tier === 'premium').length;
+    const standard = accounts.filter((a) => a.tier !== 'premium').length;
     return [
       { label: t('accounts.tierPremium'), value: premium, color: '#fbbf24' },
       { label: t('accounts.tierStandard'), value: standard, color: '#94a3b8' },
-    ].filter(d => d.value > 0);
+    ].filter((d) => d.value > 0);
   }, [accounts, t]);
 
   // 账号额度分布
@@ -285,17 +319,20 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
         color: QUOTA_COLORS[idx % QUOTA_COLORS.length],
       }));
 
-    return sortedQuotas.filter(d => d.value > 0);
+    return sortedQuotas.filter((d) => d.value > 0);
   }, [accounts]);
 
   // 获取账号的模型数和区域数
   const getAccountStats = (account: LocalAccount) => {
-    const enabledRegions = account.regions.filter(r => r.enabled !== false);
+    const enabledRegions = account.regions.filter((r) => r.enabled !== false);
     const regionCount = enabledRegions.length;
     const modelSet = new Set<string>();
-    enabledRegions.forEach(r => {
+    enabledRegions.forEach((r) => {
       if (r.modelsText) {
-        r.modelsText.split(/[\s,]+/).filter(Boolean).forEach(m => modelSet.add(m));
+        r.modelsText
+          .split(/[\s,]+/)
+          .filter(Boolean)
+          .forEach((m) => modelSet.add(m));
       }
     });
     return { regionCount, modelCount: modelSet.size };
@@ -319,7 +356,8 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
 
   // 获取已使用显示
   const getUsedLabel = (account: LocalAccount) => {
-    if (account.usedAmount === undefined || account.usedAmount === null) return '-';
+    if (account.usedAmount === undefined || account.usedAmount === null)
+      return '-';
     return `$${account.usedAmount.toLocaleString()}`;
   };
 
@@ -359,12 +397,16 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   };
 
   return (
-    <section className={clsx(
-      'p-3 sm:p-4 rounded-xl border border-gray-800 bg-background',
-      !isDetailView && 'section-glow'
-    )}>
+    <section
+      className={clsx(
+        'p-3 sm:p-4 rounded-xl border border-gray-800 bg-background',
+        !isDetailView && 'section-glow'
+      )}
+    >
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-base sm:text-lg font-semibold">{t('statistics.accountOverview')}</h2>
+        <h2 className="text-base sm:text-lg font-semibold">
+          {t('statistics.accountOverview')}
+        </h2>
         {!isDetailView && onOpenDetail && (
           <button
             type="button"
@@ -390,7 +432,11 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
             <h3 className="text-sm font-medium text-muted-foreground mb-2">
               {t('statistics.accountStatus')}
             </h3>
-            <DonutChart data={enabledDistribution} size={100} strokeWidth={20} />
+            <DonutChart
+              data={enabledDistribution}
+              size={100}
+              strokeWidth={20}
+            />
           </div>
 
           {/* 账号类别分布 (高级/普通) */}
@@ -416,46 +462,56 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
         <div className="flex flex-wrap items-center gap-2 mb-3">
           {/* 状态筛选 */}
           <div className="flex items-center gap-1">
-            {(['all', 'enabled', 'disabled'] as AccountStatusFilter[]).map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setStatusFilter(filter)}
-                className={clsx(
-                  'px-2 py-1 rounded-full text-xs border transition-colors',
-                  statusFilter === filter
-                    ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
-                    : 'border-gray-700 bg-background text-muted-foreground hover:bg-gray-800'
-                )}
-              >
-                {filter === 'all' && `${t('coverage.filterAll')} (${statusCounts.all})`}
-                {filter === 'enabled' && `${t('statistics.enabled')} (${statusCounts.enabled})`}
-                {filter === 'disabled' && `${t('statistics.disabledLabel')} (${statusCounts.disabled})`}
-              </button>
-            ))}
+            {(['all', 'enabled', 'disabled'] as AccountStatusFilter[]).map(
+              (filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setStatusFilter(filter)}
+                  className={clsx(
+                    'px-2 py-1 rounded-full text-xs border transition-colors',
+                    statusFilter === filter
+                      ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
+                      : 'border-gray-700 bg-background text-muted-foreground hover:bg-gray-800'
+                  )}
+                >
+                  {filter === 'all' &&
+                    `${t('coverage.filterAll')} (${statusCounts.all})`}
+                  {filter === 'enabled' &&
+                    `${t('statistics.enabled')} (${statusCounts.enabled})`}
+                  {filter === 'disabled' &&
+                    `${t('statistics.disabledLabel')} (${statusCounts.disabled})`}
+                </button>
+              )
+            )}
           </div>
 
           <span className="text-gray-600">|</span>
 
           {/* 类别筛选 */}
           <div className="flex items-center gap-1">
-            {(['all', 'premium', 'standard'] as AccountTierFilter[]).map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setTierFilter(filter)}
-                className={clsx(
-                  'px-2 py-1 rounded-full text-xs border transition-colors',
-                  tierFilter === filter
-                    ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
-                    : 'border-gray-700 bg-background text-muted-foreground hover:bg-gray-800'
-                )}
-              >
-                {filter === 'all' && `${t('coverage.filterAll')} (${tierCounts.all})`}
-                {filter === 'premium' && `${t('accounts.tierPremium')} (${tierCounts.premium})`}
-                {filter === 'standard' && `${t('accounts.tierStandard')} (${tierCounts.standard})`}
-              </button>
-            ))}
+            {(['all', 'premium', 'standard'] as AccountTierFilter[]).map(
+              (filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setTierFilter(filter)}
+                  className={clsx(
+                    'px-2 py-1 rounded-full text-xs border transition-colors',
+                    tierFilter === filter
+                      ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
+                      : 'border-gray-700 bg-background text-muted-foreground hover:bg-gray-800'
+                  )}
+                >
+                  {filter === 'all' &&
+                    `${t('coverage.filterAll')} (${tierCounts.all})`}
+                  {filter === 'premium' &&
+                    `${t('accounts.tierPremium')} (${tierCounts.premium})`}
+                  {filter === 'standard' &&
+                    `${t('accounts.tierStandard')} (${tierCounts.standard})`}
+                </button>
+              )
+            )}
           </div>
         </div>
       )}
@@ -489,7 +545,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
         />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-800 bg-background">
-          <div className="min-w-[900px]">
+          <div className="min-w-[980px]">
             {/* Header */}
             <div
               className={clsx(
@@ -497,10 +553,14 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                 'border-b border-gray-800',
                 'text-xs text-muted-foreground'
               )}
-              style={{ gridTemplateColumns: '40px minmax(0, 2fr) 80px 80px 90px 80px 90px 90px 60px 60px 70px' }}
+              style={{
+                gridTemplateColumns:
+                  '40px minmax(0, 2fr) 80px 80px 80px 90px 80px 90px 90px 60px 60px 70px',
+              }}
             >
               <div className="text-center">#</div>
               <div>{t('accounts.accountName')}</div>
+              <div className="text-center">{t('accounts.accountId')}</div>
               <div className="text-center">{t('accounts.tier')}</div>
               <div className="text-center">{t('accounts.quota')}</div>
               <div className="text-center">{t('accounts.purchaseAmount')}</div>
@@ -531,7 +591,9 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                   const account = filteredAccounts[virtualRow.index];
                   const stats = getAccountStats(account);
                   // 找到原始索引用于显示
-                  const originalIndex = accounts.findIndex(a => a.id === account.id);
+                  const originalIndex = accounts.findIndex(
+                    (a) => a.id === account.id
+                  );
                   return (
                     <div
                       key={account.id}
@@ -542,7 +604,8 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                         !account.enabled && 'opacity-50'
                       )}
                       style={{
-                        gridTemplateColumns: '40px minmax(0, 2fr) 80px 80px 90px 80px 90px 90px 60px 60px 70px',
+                        gridTemplateColumns:
+                          '40px minmax(0, 2fr) 80px 80px 80px 90px 80px 90px 90px 60px 60px 70px',
                         position: 'absolute',
                         top: 0,
                         left: 0,
@@ -551,7 +614,9 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                     >
-                      <div className="text-muted-foreground text-center">{originalIndex + 1}</div>
+                      <div className="text-muted-foreground text-center">
+                        {originalIndex + 1}
+                      </div>
                       <div
                         className="whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-1 cursor-pointer hover:text-cyan-400 transition-colors"
                         title={`${getDisplayName(account, originalIndex)} (${t('statistics.doubleClickToLocate')})`}
@@ -559,6 +624,9 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                       >
                         {account.tier === 'premium' && <span>⭐</span>}
                         {getDisplayName(account, originalIndex)}
+                      </div>
+                      <div className="text-center font-mono text-xs text-muted-foreground">
+                        {account.accountId || '-'}
                       </div>
                       <div className="text-center">
                         <span
@@ -569,7 +637,9 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                               : 'border-gray-700 bg-gray-800/50 text-gray-400'
                           )}
                         >
-                          {account.tier === 'premium' ? t('accounts.tierPremium') : t('accounts.tierStandard')}
+                          {account.tier === 'premium'
+                            ? t('accounts.tierPremium')
+                            : t('accounts.tierStandard')}
                         </span>
                       </div>
                       <div className="text-muted-foreground text-center">
@@ -598,7 +668,9 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                               : 'border-red-900 bg-red-900/30 text-red-300'
                           )}
                         >
-                          {account.enabled ? t('statistics.enabled') : t('statistics.disabledLabel')}
+                          {account.enabled
+                            ? t('statistics.enabled')
+                            : t('statistics.disabledLabel')}
                         </span>
                       </div>
                     </div>
@@ -615,59 +687,118 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                   'border-t-2 border-cyan-800 bg-slate-900/80',
                   'text-xs text-foreground font-medium sticky bottom-0'
                 )}
-                style={{ gridTemplateColumns: '40px minmax(0, 2fr) 80px 80px 90px 80px 90px 90px 60px 60px 70px' }}
+                style={{
+                  gridTemplateColumns:
+                    '40px minmax(0, 2fr) 80px 80px 80px 90px 80px 90px 90px 60px 60px 70px',
+                }}
               >
-                <div className="text-cyan-400 text-center">{t('statistics.total')}</div>
+                <div className="text-cyan-400 text-center">
+                  {t('statistics.total')}
+                </div>
                 <div className="text-cyan-400">
                   {summaryData.accountCount} {t('statistics.accountsLabel')}
                 </div>
+                <div className="text-muted-foreground text-center">-</div>
                 <div className="text-muted-foreground text-center">
-                  <span className="text-amber-300">{summaryData.premiumCount}</span>
+                  <span className="text-amber-300">
+                    {summaryData.premiumCount}
+                  </span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-gray-400">{summaryData.standardCount}</span>
+                  <span className="text-gray-400">
+                    {summaryData.standardCount}
+                  </span>
                 </div>
                 <div className="text-cyan-400 text-center">
                   ${summaryData.totalQuota.toLocaleString()}
                 </div>
                 <div className="text-muted-foreground text-center">
-                  {privacyMode ? '***' : (
+                  {privacyMode ? (
+                    '***'
+                  ) : (
                     <>
-                      {summaryData.totalPurchaseUSD > 0 && <span>${summaryData.totalPurchaseUSD.toLocaleString()}</span>}
-                      {summaryData.totalPurchaseUSD > 0 && summaryData.totalPurchaseCNY > 0 && <span className="mx-0.5">+</span>}
-                      {summaryData.totalPurchaseCNY > 0 && <span>¥{summaryData.totalPurchaseCNY.toLocaleString()}</span>}
-                      {summaryData.totalPurchaseUSD === 0 && summaryData.totalPurchaseCNY === 0 && '-'}
+                      {summaryData.totalPurchaseUSD > 0 && (
+                        <span>
+                          ${summaryData.totalPurchaseUSD.toLocaleString()}
+                        </span>
+                      )}
+                      {summaryData.totalPurchaseUSD > 0 &&
+                        summaryData.totalPurchaseCNY > 0 && (
+                          <span className="mx-0.5">+</span>
+                        )}
+                      {summaryData.totalPurchaseCNY > 0 && (
+                        <span>
+                          ¥{summaryData.totalPurchaseCNY.toLocaleString()}
+                        </span>
+                      )}
+                      {summaryData.totalPurchaseUSD === 0 &&
+                        summaryData.totalPurchaseCNY === 0 &&
+                        '-'}
                     </>
                   )}
                 </div>
                 <div className="text-muted-foreground text-center">
-                  {privacyMode ? '***' : (summaryData.totalUsed > 0 ? `$${summaryData.totalUsed.toLocaleString()}` : '-')}
+                  {privacyMode
+                    ? '***'
+                    : summaryData.totalUsed > 0
+                      ? `$${summaryData.totalUsed.toLocaleString()}`
+                      : '-'}
                 </div>
                 <div className="text-muted-foreground text-center">
-                  {privacyMode ? '***' : (
+                  {privacyMode ? (
+                    '***'
+                  ) : (
                     <>
-                      {summaryData.accountCostUSD !== null && <span>${summaryData.accountCostUSD.toFixed(2)}</span>}
-                      {summaryData.accountCostUSD !== null && summaryData.accountCostCNY !== null && <span className="mx-0.5">|</span>}
-                      {summaryData.accountCostCNY !== null && <span>¥{summaryData.accountCostCNY.toFixed(2)}</span>}
-                      {summaryData.accountCostUSD === null && summaryData.accountCostCNY === null && '-'}
+                      {summaryData.accountCostUSD !== null && (
+                        <span>${summaryData.accountCostUSD.toFixed(2)}</span>
+                      )}
+                      {summaryData.accountCostUSD !== null &&
+                        summaryData.accountCostCNY !== null && (
+                          <span className="mx-0.5">|</span>
+                        )}
+                      {summaryData.accountCostCNY !== null && (
+                        <span>¥{summaryData.accountCostCNY.toFixed(2)}</span>
+                      )}
+                      {summaryData.accountCostUSD === null &&
+                        summaryData.accountCostCNY === null &&
+                        '-'}
                     </>
                   )}
                 </div>
                 <div className="text-muted-foreground text-center">
-                  {privacyMode ? '***' : (
+                  {privacyMode ? (
+                    '***'
+                  ) : (
                     <>
-                      {summaryData.actualCostUSD !== null && <span>${summaryData.actualCostUSD.toFixed(2)}</span>}
-                      {summaryData.actualCostUSD !== null && summaryData.actualCostCNY !== null && <span className="mx-0.5">|</span>}
-                      {summaryData.actualCostCNY !== null && <span>¥{summaryData.actualCostCNY.toFixed(2)}</span>}
-                      {summaryData.actualCostUSD === null && summaryData.actualCostCNY === null && '-'}
+                      {summaryData.actualCostUSD !== null && (
+                        <span>${summaryData.actualCostUSD.toFixed(2)}</span>
+                      )}
+                      {summaryData.actualCostUSD !== null &&
+                        summaryData.actualCostCNY !== null && (
+                          <span className="mx-0.5">|</span>
+                        )}
+                      {summaryData.actualCostCNY !== null && (
+                        <span>¥{summaryData.actualCostCNY.toFixed(2)}</span>
+                      )}
+                      {summaryData.actualCostUSD === null &&
+                        summaryData.actualCostCNY === null &&
+                        '-'}
                     </>
                   )}
                 </div>
-                <div className="text-cyan-400 text-center">{summaryData.totalRegions}</div>
-                <div className="text-muted-foreground text-center">~{summaryData.avgModelsPerAccount}</div>
+                <div className="text-cyan-400 text-center">
+                  {summaryData.totalRegions}
+                </div>
                 <div className="text-muted-foreground text-center">
-                  <span className="text-green-300">{summaryData.enabledCount}</span>
+                  ~{summaryData.avgModelsPerAccount}
+                </div>
+                <div className="text-muted-foreground text-center">
+                  <span className="text-green-300">
+                    {summaryData.enabledCount}
+                  </span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-red-300">{summaryData.disabledCount}</span>
+                  <span className="text-red-300">
+                    {summaryData.disabledCount}
+                  </span>
                 </div>
               </div>
             )}

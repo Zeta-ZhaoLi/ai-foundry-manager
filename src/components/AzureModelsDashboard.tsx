@@ -6,6 +6,8 @@ import {
   debounce,
   parseModels,
   parseMasterModelDirectory,
+  computeDeployedModels,
+  computeModelRegionCounts,
   orderModelsByMaster,
 } from '../utils/common';
 
@@ -19,7 +21,6 @@ import {
 import { ModelOverviewTable, ModelState } from './Dashboard/ModelOverviewTable';
 import { ModelStatisticsTable } from './Dashboard/ModelStatisticsTable';
 import { AccountsSection } from './Dashboard/AccountConfiguration/AccountsSection';
-import { GlobalSummary } from './Dashboard/Summary/GlobalSummary';
 import { TableDetailDialog } from './ui/TableDetailDialog';
 
 const MASTER_STORAGE_KEY = 'ai-foundry-manager:master-models';
@@ -37,8 +38,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
 
   const {
     accounts,
-    accountSummaries,
-    globalSeriesSummary,
     addAccount,
     updateAccountName,
     updateAccountNote,
@@ -162,13 +161,26 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     [activeAccounts]
   );
 
+  const deployedModels = useMemo(
+    () => computeDeployedModels(allRegions.map((r) => r.models)),
+    [allRegions]
+  );
+  const deployedModelsOrdered = useMemo(
+    () => orderModelsByMaster(deployedModels, masterModels),
+    [deployedModels, masterModels]
+  );
+  const deployedRegionCounts = useMemo(
+    () => computeModelRegionCounts(allRegions.map((r) => r.models)),
+    [allRegions]
+  );
+
   const totalAccounts = activeAccounts.length;
   const totalRegions = allRegions.length;
   const regionsWithModels = allRegions.filter(
     (r) => r.models.length > 0
   ).length;
   const totalMasterModels = masterModels.length;
-  const totalUsedModels = globalSeriesSummary.allModels.length;
+  const totalUsedModels = deployedModels.length;
   const avgModelsPerRegion =
     totalRegions === 0
       ? 0
@@ -239,38 +251,37 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     (m) => m.count === 1
   ).length;
 
-  const globalUsedModelsOrdered = useMemo(
-    () => orderModelsByMaster(globalSeriesSummary.allModels, masterModels),
-    [globalSeriesSummary.allModels, masterModels]
-  );
+  // global summary removed
 
-  // 计算每个模型部署在哪些账号上 (编号从1开始，使用原始账号列表的索引)
+  // 计算每个模型部署在哪些账号上（显示 accountId，如 A017/B030；无 accountId 则回退为原始序号）
   const modelAccountsMap = useMemo(() => {
-    const map = new Map<string, number[]>();
-    // 创建账号ID到原始列表编号的映射（使用原始 accounts 数组的索引）
-    const accountIndexMap = new Map<string, number>();
+    const map = new Map<string, string[]>();
+    const accountDisplayIdMap = new Map<string, string>();
     accounts.forEach((acc, idx) => {
-      // 只为启用的账号创建映射，但使用原始索引
       if (acc.enabled !== false) {
-        accountIndexMap.set(acc.id, idx + 1);
+        const displayId =
+          acc.accountId && acc.accountId.trim()
+            ? acc.accountId.trim()
+            : String(idx + 1);
+        accountDisplayIdMap.set(acc.id, displayId);
       }
     });
-    // 遍历所有区域，记录每个模型所属的账号编号
+    // 遍历所有区域，记录每个模型所属账号 ID
     for (const r of allRegions) {
-      const accountIndex = accountIndexMap.get(r.accountId);
-      if (!accountIndex) continue;
+      const displayId = accountDisplayIdMap.get(r.accountId);
+      if (!displayId) continue;
       for (const model of r.models) {
         if (!map.has(model)) {
           map.set(model, []);
         }
-        const indices = map.get(model)!;
-        if (!indices.includes(accountIndex)) {
-          indices.push(accountIndex);
+        const ids = map.get(model)!;
+        if (!ids.includes(displayId)) {
+          ids.push(displayId);
         }
       }
     }
-    // 对每个模型的账号编号排序
-    map.forEach((indices) => indices.sort((a, b) => a - b));
+    // 对每个模型的账号 ID 排序
+    map.forEach((ids) => ids.sort((a, b) => a.localeCompare(b)));
     return map;
   }, [allRegions, accounts]);
 
@@ -407,6 +418,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         masterGroups={masterGroups}
         masterGroupLines={masterGroupLines}
         masterModels={masterModels}
+        deployedModelsOrdered={deployedModelsOrdered}
+        deployedRegionCounts={deployedRegionCounts}
         onCopy={handleCopy}
       />
 
@@ -501,14 +514,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onUpdateRegionEnabled={updateRegionEnabled}
         onReorderAccounts={reorderAccounts}
         onReorderRegions={reorderRegions}
-        onCopy={handleCopy}
-      />
-
-      {/* Global Summary */}
-      <GlobalSummary
-        allModels={globalUsedModelsOrdered}
-        masterGroups={masterGroups}
-        masterGroupLines={masterGroupLines}
         onCopy={handleCopy}
       />
 

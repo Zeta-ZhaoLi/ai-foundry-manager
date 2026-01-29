@@ -18,7 +18,12 @@
     "description": "Maintain all possible models here once (separated by commas/spaces/newlines; use blank lines to group). Models for accounts/regions below are selected by clicking, no need to re-enter.",
     "placeholder": "e.g.: gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ...",
     "parsedCount": "Parsed Models: {{count}}",
-    "copyList": "Copy Directory List (with commas)"
+    "copyList": "Copy Directory List (with commas)",
+    "copyAll": "Copy Directory List (All)",
+    "copyDeployed": "Copy Directory List (Deployed)",
+    "copyGroupAll": "Copy Group (All)",
+    "copyGroupDeployed": "Copy Group (Deployed)",
+    "deployedRegions": "Deployed regions: {{count}}"
   },
   "dashboard": {
     "title": "Visual Overview",

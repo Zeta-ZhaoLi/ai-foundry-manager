@@ -15,7 +15,7 @@ export interface ModelStatisticsTableProps {
   statusFilter: StatusFilter;
   onStatusFilterChange: (filter: StatusFilter) => void;
   onCopy?: (text: string, label: string) => void;
-  modelAccountsMap?: Map<string, number[]>;
+  modelAccountsMap?: Map<string, string[]>;
   isDetailView?: boolean;
   onOpenDetail?: () => void;
 }

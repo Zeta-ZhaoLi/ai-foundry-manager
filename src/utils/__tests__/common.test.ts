@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   parseModels,
   parseMasterModelDirectory,
+  computeDeployedModels,
+  computeModelRegionCounts,
   orderModelsByMaster,
   generateId,
   isValidUrl,
@@ -85,6 +87,29 @@ describe('Common Utils', () => {
         groupLines: [],
         allModels: [],
       });
+    });
+  });
+
+  describe('computeDeployedModels', () => {
+    it('should compute union by first appearance order', () => {
+      const result = computeDeployedModels([['b', 'a'], ['a', 'c'], ['d']]);
+      expect(result).toEqual(['b', 'a', 'c', 'd']);
+    });
+
+    it('should ignore empty values', () => {
+      const result = computeDeployedModels([['', '  ', 'a']]);
+      expect(result).toEqual(['a']);
+    });
+  });
+
+  describe('computeModelRegionCounts', () => {
+    it('should count per region (dedupe within region)', () => {
+      const result = computeModelRegionCounts([
+        ['a', 'a', 'b'],
+        ['b', 'c'],
+        [],
+      ]);
+      expect(result).toEqual({ a: 1, b: 2, c: 1 });
     });
   });
 

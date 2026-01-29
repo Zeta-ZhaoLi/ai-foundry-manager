@@ -21,6 +21,49 @@ export interface MasterModelDirectoryParseResult {
 }
 
 /**
+ * 从区域模型列表计算：已部署模型（去重，按首次出现顺序）。
+ * regionsModels: 每个区域一个模型数组（建议已是 parseModels 的结果）。
+ */
+export function computeDeployedModels(regionsModels: string[][]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const regionModels of regionsModels) {
+    for (const raw of regionModels) {
+      const model = (raw || '').trim();
+      if (!model) continue;
+      if (seen.has(model)) continue;
+      seen.add(model);
+      out.push(model);
+    }
+  }
+
+  return out;
+}
+
+/**
+ * 计算每个模型被多少个区域部署。
+ * 同一个区域内重复出现的模型只计 1 次。
+ */
+export function computeModelRegionCounts(
+  regionsModels: string[][]
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const regionModels of regionsModels) {
+    const regionSet = new Set(
+      regionModels.map((m) => (m || '').trim()).filter(Boolean)
+    );
+
+    for (const model of regionSet) {
+      counts[model] = (counts[model] || 0) + 1;
+    }
+  }
+
+  return counts;
+}
+
+/**
  * 按全局模型目录排序：
  * - 目录内的模型按目录顺序排列
  * - 不在目录内的模型追加到末尾（字典序）
