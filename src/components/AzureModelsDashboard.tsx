@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocalAzureAccounts } from '../hooks/useLocalAzureAccounts';
 import { useToast } from '../hooks/useToast';
-import { debounce } from '../utils/common';
+import {
+  debounce,
+  parseModels,
+  parseMasterModelDirectory,
+  orderModelsByMaster,
+} from '../utils/common';
 
 import { MasterModelDirectory } from './Dashboard/MasterModelDirectory';
 import { OverviewDashboard } from './Dashboard/OverviewDashboard';
@@ -19,15 +24,6 @@ import { TableDetailDialog } from './ui/TableDetailDialog';
 
 const MASTER_STORAGE_KEY = 'ai-foundry-manager:master-models';
 const LEGACY_MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
-
-const parseModels = (text: string): string[] => {
-  if (!text) return [];
-  const parts = text
-    .split(/[\s,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return Array.from(new Set(parts));
-};
 
 export interface AzureModelsDashboardProps {
   privacyMode?: boolean;
@@ -52,8 +48,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     updateAccountQuota,
     updateAccountPurchase,
     updateAccountUsedAmount,
-    updateAccountWindowsServer,
-    updateAccountLinuxServer,
     updateAccountDeployment,
     deleteAccount,
     addRegion,
@@ -133,10 +127,12 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
   );
 
   // Computed values
-  const masterModels = useMemo(
-    () => parseModels(masterText).sort(),
+  const masterParsed = useMemo(
+    () => parseMasterModelDirectory(masterText),
     [masterText]
   );
+  const masterModels = masterParsed.allModels;
+  const masterGroups = masterParsed.groups;
 
   const filteredModels = useMemo(() => {
     const keyword = modelFilter.trim().toLowerCase();
@@ -241,6 +237,11 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
   const singleRegionModelsCount = modelCoverage.filter(
     (m) => m.count === 1
   ).length;
+
+  const globalUsedModelsOrdered = useMemo(
+    () => orderModelsByMaster(globalSeriesSummary.allModels, masterModels),
+    [globalSeriesSummary.allModels, masterModels]
+  );
 
   // 计算每个模型部署在哪些账号上 (编号从1开始，使用原始账号列表的索引)
   const modelAccountsMap = useMemo(() => {
@@ -402,6 +403,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       <MasterModelDirectory
         masterText={masterText}
         onMasterTextChange={setMasterText}
+        masterGroups={masterGroups}
         masterModels={masterModels}
         onCopy={handleCopy}
       />
@@ -451,6 +453,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       <ModelStatisticsTable
         modelStates={modelStates}
         filteredModelStates={filteredModelStates}
+        masterModels={masterModels}
+        masterGroups={masterGroups}
         totalRegions={totalRegions}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
@@ -462,6 +466,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       {/* Account Configuration */}
       <AccountsSection
         accounts={accounts}
+        masterGroups={masterGroups}
         masterModels={masterModels}
         filteredModels={filteredModels}
         modelFilterInput={modelFilterInput}
@@ -479,8 +484,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onUpdateAccountQuota={updateAccountQuota}
         onUpdateAccountPurchase={updateAccountPurchase}
         onUpdateAccountUsedAmount={updateAccountUsedAmount}
-        onUpdateAccountWindowsServer={updateAccountWindowsServer}
-        onUpdateAccountLinuxServer={updateAccountLinuxServer}
         onUpdateAccountDeployment={updateAccountDeployment}
         onDeleteAccount={deleteAccount}
         onAddRegion={addRegion}
@@ -500,7 +503,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
 
       {/* Global Summary */}
       <GlobalSummary
-        allModels={globalSeriesSummary.allModels}
+        allModels={globalUsedModelsOrdered}
+        masterGroups={masterGroups}
         onCopy={handleCopy}
       />
 
@@ -538,6 +542,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         <ModelStatisticsTable
           modelStates={modelStates}
           filteredModelStates={filteredModelStates}
+          masterModels={masterModels}
+          masterGroups={masterGroups}
           totalRegions={totalRegions}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}

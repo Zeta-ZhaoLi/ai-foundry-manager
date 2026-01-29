@@ -61,18 +61,6 @@ export type AccountQuota =
   | 'custom';
 export type CurrencyType = 'USD' | 'CNY';
 
-// 服务器凭据
-export interface ServerCredentials {
-  host: string;
-  username: string;
-  password?: string;
-  sshKey?: string;
-  port?: number;
-  note?: string;
-  serverId?: string; // 服务器编号 (001, 002, 等)
-  serverName?: string; // 兼容历史字段（迁移用）
-}
-
 export interface LocalAccount {
   id: string;
   accountId?: string; // 账号 ID 前缀 (A001, B001 等)
@@ -87,8 +75,6 @@ export interface LocalAccount {
   purchaseAmount?: number; // 购买金额
   purchaseCurrency?: CurrencyType; // 货币类型 (默认 USD)
   usedAmount?: number; // 已使用额度
-  windowsServer?: ServerCredentials; // Windows 服务器登录信息
-  linuxServer?: ServerCredentials; // Linux 服务器登录信息
   deployment?: AccountDeploymentConfig; // Azure 部署配置（真实 ARM 部署需要）
 }
 
@@ -112,68 +98,47 @@ const LEGACY_STORAGE_KEY = 'azure-openai-manager:accounts';
 export function useLocalAzureAccounts() {
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
 
-  // 解密敏感字段
+  // 解密敏感字段（仅保留仍然支持的字段；弃用字段会被丢弃）
   const decryptAccounts = useCallback(
     (accounts: LocalAccount[]): LocalAccount[] => {
-      return accounts.map((acct) => ({
-        ...acct,
-        regions: acct.regions.map((reg) => ({
-          ...reg,
-          apiKey: reg.apiKey ? decryptData(reg.apiKey) : reg.apiKey,
-        })),
-        windowsServer: acct.windowsServer
-          ? {
-              ...acct.windowsServer,
-              password: acct.windowsServer.password
-                ? decryptData(acct.windowsServer.password)
-                : undefined,
-            }
-          : undefined,
-        linuxServer: acct.linuxServer
-          ? {
-              ...acct.linuxServer,
-              password: acct.linuxServer.password
-                ? decryptData(acct.linuxServer.password)
-                : undefined,
-              sshKey: acct.linuxServer.sshKey
-                ? decryptData(acct.linuxServer.sshKey)
-                : undefined,
-            }
-          : undefined,
-      }));
+      return accounts.map((acct) => {
+        // 注意：这里用解构显式丢弃已弃用的 server 字段，兼容旧配置
+        const {
+          windowsServer: _windowsServer,
+          linuxServer: _linuxServer,
+          ...rest
+        } = acct as any;
+
+        return {
+          ...(rest as LocalAccount),
+          regions: (acct.regions || []).map((reg) => ({
+            ...reg,
+            apiKey: reg.apiKey ? decryptData(reg.apiKey) : reg.apiKey,
+          })),
+        };
+      });
     },
     []
   );
 
-  // 加密敏感字段
+  // 加密敏感字段（仅保留仍然支持的字段；弃用字段会被丢弃）
   const encryptAccounts = useCallback(
     (accounts: LocalAccount[]): LocalAccount[] => {
-      return accounts.map((acct) => ({
-        ...acct,
-        regions: acct.regions.map((reg) => ({
-          ...reg,
-          apiKey: reg.apiKey ? encryptData(reg.apiKey) : reg.apiKey,
-        })),
-        windowsServer: acct.windowsServer
-          ? {
-              ...acct.windowsServer,
-              password: acct.windowsServer.password
-                ? encryptData(acct.windowsServer.password)
-                : undefined,
-            }
-          : undefined,
-        linuxServer: acct.linuxServer
-          ? {
-              ...acct.linuxServer,
-              password: acct.linuxServer.password
-                ? encryptData(acct.linuxServer.password)
-                : undefined,
-              sshKey: acct.linuxServer.sshKey
-                ? encryptData(acct.linuxServer.sshKey)
-                : undefined,
-            }
-          : undefined,
-      }));
+      return accounts.map((acct) => {
+        const {
+          windowsServer: _windowsServer,
+          linuxServer: _linuxServer,
+          ...rest
+        } = acct as any;
+
+        return {
+          ...(rest as LocalAccount),
+          regions: (acct.regions || []).map((reg) => ({
+            ...reg,
+            apiKey: reg.apiKey ? encryptData(reg.apiKey) : reg.apiKey,
+          })),
+        };
+      });
     },
     []
   );
@@ -214,35 +179,7 @@ export function useLocalAzureAccounts() {
     []
   );
 
-  // 迁移函数：将 serverName 转换为 serverId
-  const migrateServerNamesToIds = useCallback(
-    (accounts: LocalAccount[]): LocalAccount[] => {
-      return accounts.map((acct) => {
-        let windowsServer = acct.windowsServer;
-        let linuxServer = acct.linuxServer;
-
-        // 迁移 Windows 服务器
-        if (windowsServer?.serverName && !windowsServer.serverId) {
-          // 提取末尾数字 (例如: "Server-01" → "01")
-          const match = windowsServer.serverName.match(/(\d+)$/);
-          const serverId = match ? match[1].padStart(3, '0') : '001';
-          windowsServer = { ...windowsServer, serverId };
-          delete (windowsServer as any).serverName;
-        }
-
-        // 迁移 Linux 服务器
-        if (linuxServer?.serverName && !linuxServer.serverId) {
-          const match = linuxServer.serverName.match(/(\d+)$/);
-          const serverId = match ? match[1].padStart(3, '0') : '001';
-          linuxServer = { ...linuxServer, serverId };
-          delete (linuxServer as any).serverName;
-        }
-
-        return { ...acct, windowsServer, linuxServer };
-      });
-    },
-    []
-  );
+  // 注：server login 字段已弃用，不再做 serverName/serverId 迁移。
 
   useEffect(() => {
     try {
@@ -271,16 +208,20 @@ export function useLocalAzureAccounts() {
             ...acct,
             enabled: acct.enabled !== false,
           }));
+          const hadMissingAccountId = (parsed as any[]).some(
+            (acct) => !acct?.accountId
+          );
+          const hadLegacyServerFields = (parsed as any[]).some(
+            (acct) => acct?.windowsServer || acct?.linuxServer
+          );
+
           // 迁移：为没有 accountId 的账号分配 ID
           const migratedAccounts = migrateAccountsToV2(normalized);
-          // 迁移：将 serverName 转换为 serverId
-          const migrated = migrateServerNamesToIds(migratedAccounts);
-          const decrypted = decryptAccounts(migrated);
+          const decrypted = decryptAccounts(migratedAccounts);
           setAccounts(decrypted);
-          // 如果发生了迁移，保存更新后的数据
-          if (
-            migrated.some((a) => !parsed.find((p) => p.id === a.id)?.accountId)
-          ) {
+
+          // 如果发生了迁移（accountId 或 server 字段清理），保存更新后的数据
+          if (hadMissingAccountId || hadLegacyServerFields) {
             debouncedSaveRef.current(decrypted);
           }
           return;
@@ -309,7 +250,7 @@ export function useLocalAzureAccounts() {
     ];
     setAccounts(initial);
     debouncedSaveRef.current(initial);
-  }, [decryptAccounts, migrateAccountsToV2, migrateServerNamesToIds]);
+  }, [decryptAccounts, migrateAccountsToV2]);
 
   const saveAccounts = useCallback(
     (updater: (prev: LocalAccount[]) => LocalAccount[]) => {
@@ -437,24 +378,6 @@ export function useLocalAzureAccounts() {
     (id: string, usedAmount: number) => {
       saveAccounts((prev) =>
         prev.map((acct) => (acct.id === id ? { ...acct, usedAmount } : acct))
-      );
-    },
-    [saveAccounts]
-  );
-
-  const updateAccountWindowsServer = useCallback(
-    (id: string, windowsServer: ServerCredentials | undefined) => {
-      saveAccounts((prev) =>
-        prev.map((acct) => (acct.id === id ? { ...acct, windowsServer } : acct))
-      );
-    },
-    [saveAccounts]
-  );
-
-  const updateAccountLinuxServer = useCallback(
-    (id: string, linuxServer: ServerCredentials | undefined) => {
-      saveAccounts((prev) =>
-        prev.map((acct) => (acct.id === id ? { ...acct, linuxServer } : acct))
       );
     },
     [saveAccounts]
@@ -791,7 +714,7 @@ export function useLocalAzureAccounts() {
           }
         }
 
-        // 解密敏感字段
+        // 解密敏感字段（并丢弃已弃用字段）
         const decrypted = decryptAccounts(parsed);
 
         // 保存到 localStorage
@@ -878,8 +801,6 @@ export function useLocalAzureAccounts() {
     updateAccountQuota,
     updateAccountPurchase,
     updateAccountUsedAmount,
-    updateAccountWindowsServer,
-    updateAccountLinuxServer,
     updateAccountDeployment,
     deleteAccount,
     addRegion,

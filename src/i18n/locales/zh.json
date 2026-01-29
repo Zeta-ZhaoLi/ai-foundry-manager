@@ -15,7 +15,7 @@
   },
   "masterModels": {
     "title": "全局模型目录",
-    "description": "在此一次性维护所有可能用到的模型（使用逗号、空格或换行分隔）。下方账号 / 区域的模型都通过点击选择，不再重复输入。",
+    "description": "在此一次性维护所有可能用到的模型（逗号/空格/换行分隔；用空行分组）。下方账号 / 区域的模型都通过点击选择，不再重复输入。",
     "placeholder": "例如：gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ...",
     "parsedCount": "已解析模型：{{count}} 个",
     "copyList": "复制目录列表（带逗号）"
@@ -72,13 +72,6 @@
     "quotaCustom": "自定义",
     "expand": "展开",
     "collapse": "收起",
-    "serverId": "服务器编号",
-    "serverIdPlaceholder": "例如：001",
-    "serverLocation": "服务器",
-    "serverWindows": "Windows",
-    "serverLinux": "Linux",
-    "serverBoth": "双服务器",
-    "serverNotConfigured": "未配置",
     "purchaseAmount": "购买金额",
     "usedAmount": "已使用",
     "accountCost": "账号成本/$",
@@ -91,21 +84,7 @@
     "tenantId": "Tenant ID",
     "clientId": "Client ID",
     "subscriptionId": "Subscription ID",
-    "resourceGroup": "Resource Group",
-    "serverLoginInfo": "服务器登录信息",
-    "windowsServer": "Windows 服务器（登录）",
-    "linuxServer": "Linux 服务器（API）",
-    "host": "主机",
-    "hostPlaceholder": "IP 地址或主机名",
-    "port": "端口",
-    "username": "用户名",
-    "password": "密码",
-    "sshKey": "SSH 密钥",
-    "authMethod": "认证方式",
-    "authPassword": "密码",
-    "authSSHKey": "SSH 密钥",
-    "serverNote": "备注",
-    "serverNotePlaceholder": "可选备注信息"
+    "resourceGroup": "Resource Group"
   },
   "regions": {
     "regionList": "区域列表",
@@ -147,7 +126,7 @@
     "apiKeyPlaceholder": "API 密钥",
     "modelsToggle": "模型（点击切换选中状态）",
     "selectAll": "全选",
-    "selectCategory": "选择此类",
+    "selectGroup": "选择此组",
     "clear": "清空",
     "deleteRegion": "删除区域",
     "selectedCount": "已选：{{count}} 个",
@@ -165,15 +144,10 @@
     "pasteSuccess": "已导入 {{count}} 个模型",
     "pasteEmpty": "剪贴板为空或没有有效的模型",
     "pasteFailed": "读取剪贴板失败",
-    "copyCategoryModels": "复制此分类模型",
+    "copyGroupModels": "复制此分组模型",
     "disabled": "已禁用",
     "customRegion": "自定义",
     "usePreset": "使用预设区域"
-  },
-  "modelCategory": {
-    "standard": "常规模型 (OpenAI 系列 + 其他模型)",
-    "sora": "Sora 系列",
-    "claude": "Claude 系列"
   },
   "models": {
     "title": "模型总览",
@@ -238,6 +212,8 @@
   },
   "common": {
     "copy": "复制",
+    "group": "组 {{index}}",
+    "other": "其他",
     "cancel": "取消",
     "confirm": "确认",
     "save": "保存",

@@ -2,16 +2,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
-import {
-  buildCopyString,
-  groupModelsByCategory,
-  ModelCategory,
-} from '../../../utils/modelSeries';
+import { buildCopyString } from '../../../utils/modelSeries';
 import { useToast } from '../../../hooks/useToast';
 import {
   convertOpenAIToAnthropicEndpoint,
   convertAnthropicToOpenAIEndpoint,
   extractAzureResourceName,
+  orderModelsByMaster,
 } from '../../../utils/common';
 import type {
   LocalRegion as ImportedLocalRegion,
@@ -32,6 +29,7 @@ export interface RegionCardProps {
   accountId: string;
   accountName: string;
   masterModels: string[];
+  masterGroups: string[][];
   filteredModels: string[];
   onUpdateName: (name: string) => void;
   onUpdateModelsText: (text: string) => void;
@@ -71,16 +69,6 @@ const maskEndpoint = (url: string): string => {
   } catch {
     return '***';
   }
-};
-
-// 分类标签配置
-const CATEGORY_CONFIG: Record<
-  ModelCategory,
-  { labelKey: string; color: string }
-> = {
-  standard: { labelKey: 'modelCategory.standard', color: 'text-cyan-400' },
-  sora: { labelKey: 'modelCategory.sora', color: 'text-purple-400' },
-  claude: { labelKey: 'modelCategory.claude', color: 'text-orange-400' },
 };
 
 // 预设 Azure 区域列表 (value: API值, label: 显示名称)
@@ -128,6 +116,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   privacyMode = false,
   accountName,
   masterModels,
+  masterGroups,
   filteredModels,
   onUpdateName,
   onUpdateModelsText,
@@ -193,19 +182,30 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     }
   };
 
-  const selectedSet = new Set(parseModels(region.modelsText));
-  const regionModels = Array.from(selectedSet).sort();
+  const selectedModels = useMemo(
+    () => parseModels(region.modelsText),
+    [region.modelsText]
+  );
+  const selectedSet = useMemo(() => new Set(selectedModels), [selectedModels]);
+  const regionModels = useMemo(
+    () => orderModelsByMaster(selectedModels, masterModels),
+    [selectedModels, masterModels]
+  );
 
   // 隐私模式下显示的区域名称
   const displayRegionName = privacyMode
     ? t('regions.region') + ` ${regionIndex + 1}`
     : region.name || t('regions.region') + ` ${regionIndex + 1}`;
 
-  // 按分类分组 master 模型和已选模型
-  const groupedFilteredModels = useMemo(
-    () => groupModelsByCategory(filteredModels),
-    [filteredModels]
-  );
+  const groupedFilteredModels = useMemo(() => {
+    const set = new Set(filteredModels);
+    return masterGroups
+      .map((models, idx) => ({
+        idx,
+        models: models.filter((m) => set.has(m)),
+      }))
+      .filter((g) => g.models.length > 0);
+  }, [filteredModels, masterGroups]);
 
   // =============== 模型部署（Azure Portal） ===============
   const deploymentResourceName = region.deployment?.resourceName || '';
@@ -408,7 +408,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     } else {
       set.add(modelId);
     }
-    onUpdateModelsText(Array.from(set).sort().join(','));
+    onUpdateModelsText(
+      orderModelsByMaster(Array.from(set), masterModels).join(',')
+    );
   };
 
   const selectAll = () => {
@@ -416,14 +418,15 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     onUpdateModelsText(masterModels.join(','));
   };
 
-  const selectCategory = (category: ModelCategory) => {
-    const categoryModels = groupedFilteredModels[category];
-    if (categoryModels.length === 0) return;
+  const selectGroup = (models: string[]) => {
+    if (models.length === 0) return;
     const set = new Set(parseModels(region.modelsText));
-    for (const model of categoryModels) {
+    for (const model of models) {
       set.add(model);
     }
-    onUpdateModelsText(Array.from(set).sort().join(','));
+    onUpdateModelsText(
+      orderModelsByMaster(Array.from(set), masterModels).join(',')
+    );
   };
 
   const clearModels = () => {
@@ -446,28 +449,14 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
       const currentModels = parseModels(region.modelsText);
       const mergedSet = new Set([...currentModels, ...models]);
-      onUpdateModelsText(Array.from(mergedSet).sort().join(','));
+      onUpdateModelsText(
+        orderModelsByMaster(Array.from(mergedSet), masterModels).join(',')
+      );
       toast.success(t('regions.pasteSuccess', { count: models.length }));
     } catch {
       toast.error(t('regions.pasteFailed'));
     }
   };
-
-  // 计算各分类已选数量
-  const selectedByCategory = useMemo(() => {
-    const result: Record<ModelCategory, number> = {
-      standard: 0,
-      sora: 0,
-      claude: 0,
-    };
-    for (const model of regionModels) {
-      const grouped = groupModelsByCategory([model]);
-      if (grouped.standard.length > 0) result.standard++;
-      if (grouped.sora.length > 0) result.sora++;
-      if (grouped.claude.length > 0) result.claude++;
-    }
-    return result;
-  }, [regionModels]);
 
   const isDisabled = region.enabled === false;
 
@@ -893,7 +882,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             </div>
           </div>
 
-          {/* 模型选择器 - 按分类显示 */}
+          {/* 模型选择器 - 按全局目录分组显示 */}
           {!collapsed && (
             <>
               {masterModels.length === 0 ? (
@@ -906,84 +895,79 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2 mt-1.5">
-                  {/* 按分类渲染 */}
-                  {(['standard', 'sora', 'claude'] as ModelCategory[]).map(
-                    (category) => {
-                      const models = groupedFilteredModels[category];
-                      if (models.length === 0) return null;
-                      const config = CATEGORY_CONFIG[category];
-                      const selectedCount = selectedByCategory[category];
-                      const selectedModels = models.filter((m) =>
-                        selectedSet.has(m)
-                      );
+                  {groupedFilteredModels.map(({ idx, models }) => {
+                    const groupTitle = t('common.group', { index: idx + 1 });
+                    const selectedModels = models.filter((m) =>
+                      selectedSet.has(m)
+                    );
+                    const selectedCount = selectedModels.length;
 
-                      return (
-                        <div
-                          key={category}
-                          className="border border-gray-800 rounded-lg p-2"
-                        >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span
-                              className={clsx(
-                                'text-xs font-medium',
-                                config.color
-                              )}
-                            >
-                              {t(config.labelKey)}
-                              <span className="text-muted-foreground ml-1">
-                                ({selectedCount}/{models.length})
-                              </span>
+                    return (
+                      <div
+                        key={`group-${idx}`}
+                        className="border border-gray-800 rounded-lg p-2"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span
+                            className={clsx(
+                              'text-xs font-medium',
+                              'text-cyan-300'
+                            )}
+                          >
+                            {groupTitle}
+                            <span className="text-muted-foreground ml-1">
+                              ({selectedCount}/{models.length})
                             </span>
-                            <div className="flex items-center gap-1">
-                              {/* 复制此分类已选模型 */}
-                              {selectedModels.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    onCopy(
-                                      buildCopyString(selectedModels),
-                                      `${displayRegionName} - ${t(config.labelKey)}`
-                                    )
-                                  }
-                                  className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
-                                  title={t('regions.copyCategoryModels')}
-                                >
-                                  📋
-                                </button>
-                              )}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {/* 复制此分组已选模型 */}
+                            {selectedModels.length > 0 && (
                               <button
                                 type="button"
-                                onClick={() => selectCategory(category)}
+                                onClick={() =>
+                                  onCopy(
+                                    buildCopyString(selectedModels),
+                                    `${displayRegionName} - ${groupTitle}`
+                                  )
+                                }
                                 className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
+                                title={t('regions.copyGroupModels')}
                               >
-                                {t('regions.selectCategory')}
+                                📋
                               </button>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {models.map((model) => {
-                              const selected = selectedSet.has(model);
-                              return (
-                                <button
-                                  key={model}
-                                  type="button"
-                                  onClick={() => toggleModel(model)}
-                                  className={clsx(
-                                    'px-2 py-1 rounded-full text-xs cursor-pointer transition-all',
-                                    selected
-                                      ? 'border border-cyan-500 bg-gradient-to-r from-cyan-500 to-green-500 text-white'
-                                      : 'border border-gray-600 bg-background text-foreground hover:border-gray-500'
-                                  )}
-                                >
-                                  {model}
-                                </button>
-                              );
-                            })}
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => selectGroup(models)}
+                              className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
+                            >
+                              {t('regions.selectGroup')}
+                            </button>
                           </div>
                         </div>
-                      );
-                    }
-                  )}
+                        <div className="flex flex-wrap gap-1.5">
+                          {models.map((model) => {
+                            const selected = selectedSet.has(model);
+                            return (
+                              <button
+                                key={model}
+                                type="button"
+                                onClick={() => toggleModel(model)}
+                                className={clsx(
+                                  'px-2 py-1 rounded-full text-xs cursor-pointer transition-all',
+                                  selected
+                                    ? 'border border-cyan-500 bg-gradient-to-r from-cyan-500 to-green-500 text-white'
+                                    : 'border border-gray-600 bg-background text-foreground hover:border-gray-500'
+                                )}
+                              >
+                                {model}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </>

@@ -1,59 +1,65 @@
 import React, { useState, useMemo } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
-import { buildCopyString, groupModelsByCategory, ModelCategory } from '../../../utils/modelSeries';
+import { buildCopyString } from '../../../utils/modelSeries';
 
 export interface GlobalSummaryProps {
   allModels: string[];
+  masterGroups: string[][];
   onCopy: (text: string, label: string) => void;
 }
 
-// 分类配置
-const CATEGORY_CONFIG: Record<ModelCategory, { labelKey: string; color: string; bgColor: string }> = {
-  standard: {
-    labelKey: 'modelCategory.standard',
-    color: 'text-cyan-400',
-    bgColor: 'bg-cyan-500/10 border-cyan-500/30',
-  },
-  sora: {
-    labelKey: 'modelCategory.sora',
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/10 border-purple-500/30',
-  },
-  claude: {
-    labelKey: 'modelCategory.claude',
-    color: 'text-orange-400',
-    bgColor: 'bg-orange-500/10 border-orange-500/30',
-  },
-};
-
-// 分类显示顺序
-const CATEGORY_ORDER: ModelCategory[] = ['standard', 'sora', 'claude'];
-
 export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
   allModels,
+  masterGroups,
   onCopy,
 }) => {
   const { t } = useTranslation();
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<ModelCategory, boolean>>({
-    standard: false,
-    sora: false,
-    claude: false,
-  });
+  const [collapsedGroups, setCollapsedGroups] = useState<
+    Record<string, boolean>
+  >({});
 
-  // 按三大类分组
-  const groupedModels = useMemo(
-    () => groupModelsByCategory(allModels),
-    [allModels]
-  );
+  const allSet = useMemo(() => new Set(allModels), [allModels]);
+  const masterIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < masterGroups.length; i++) {
+      for (const model of masterGroups[i]) {
+        if (!m.has(model)) m.set(model, i);
+      }
+    }
+    return m;
+  }, [masterGroups]);
+
+  const groupedUsedModels = useMemo(() => {
+    const groups: { key: string; title: string; models: string[] }[] = [];
+
+    for (let i = 0; i < masterGroups.length; i++) {
+      const models = masterGroups[i].filter((m) => allSet.has(m));
+      if (models.length === 0) continue;
+      groups.push({
+        key: `g-${i}`,
+        title: t('common.group', { index: i + 1 }),
+        models,
+      });
+    }
+
+    // not-in-directory models appended at end
+    const ungrouped = allModels.filter((m) => !masterIndex.has(m));
+    if (ungrouped.length > 0) {
+      groups.push({
+        key: 'other',
+        title: t('common.other', 'Other'),
+        models: ungrouped,
+      });
+    }
+
+    return groups;
+  }, [allModels, allSet, masterGroups, masterIndex, t]);
 
   if (allModels.length === 0) return null;
 
-  const toggleCategory = (category: ModelCategory) => {
-    setCollapsedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
@@ -67,7 +73,9 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
         </div>
         <button
           type="button"
-          onClick={() => onCopy(buildCopyString(allModels), t('summary.globalModelList'))}
+          onClick={() =>
+            onCopy(buildCopyString(allModels), t('summary.globalModelList'))
+          }
           disabled={allModels.length === 0}
           className={clsx(
             'px-2.5 py-1 rounded-full',
@@ -82,42 +90,42 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
 
       {/* 按三大类展示 */}
       <div className="space-y-3">
-        {CATEGORY_ORDER.map((category) => {
-          const models = groupedModels[category];
-          if (models.length === 0) return null;
-
-          const config = CATEGORY_CONFIG[category];
-          const collapsed = collapsedCategories[category];
+        {groupedUsedModels.map((group) => {
+          const collapsed = !!collapsedGroups[group.key];
 
           return (
             <div
-              key={category}
+              key={group.key}
               className={clsx(
                 'rounded-lg border p-3',
-                config.bgColor
+                'border-gray-700 bg-slate-900/30'
               )}
             >
               {/* 分类头部 */}
               <div className="flex items-center justify-between mb-2">
                 <button
                   type="button"
-                  onClick={() => toggleCategory(category)}
+                  onClick={() => toggleGroup(group.key)}
                   className="flex items-center gap-2 bg-transparent text-foreground cursor-pointer border-none p-0"
                 >
                   <span className="inline-block w-4 text-center text-muted-foreground text-sm">
                     {collapsed ? '▶' : '▼'}
                   </span>
-                  <span className={clsx('text-sm font-medium', config.color)}>
-                    {t(config.labelKey)}
+                  <span
+                    className={clsx('text-sm font-medium', 'text-cyan-300')}
+                  >
+                    {group.title}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    ({models.length})
+                    ({group.models.length})
                   </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => onCopy(buildCopyString(models), t(config.labelKey))}
+                  onClick={() =>
+                    onCopy(buildCopyString(group.models), group.title)
+                  }
                   className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
                 >
                   {t('common.copy')}
@@ -130,10 +138,10 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
                   className={clsx(
                     'text-xs text-foreground',
                     'whitespace-pre-wrap break-all',
-                    models.length > 20 && 'max-h-32 overflow-y-auto'
+                    group.models.length > 20 && 'max-h-32 overflow-y-auto'
                   )}
                 >
-                  {buildCopyString(models)}
+                  {buildCopyString(group.models)}
                 </div>
               )}
             </div>

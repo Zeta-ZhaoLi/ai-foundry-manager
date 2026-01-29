@@ -15,7 +15,7 @@
   },
   "masterModels": {
     "title": "Global Model Directory",
-    "description": "Maintain all possible models here once (separated by commas, spaces, or newlines). Models for accounts/regions below are selected by clicking, no need to re-enter.",
+    "description": "Maintain all possible models here once (separated by commas/spaces/newlines; use blank lines to group). Models for accounts/regions below are selected by clicking, no need to re-enter.",
     "placeholder": "e.g.: gpt-4o, gpt-4o-mini, gpt-4.1, gpt-35-turbo, o1-mini ...",
     "parsedCount": "Parsed Models: {{count}}",
     "copyList": "Copy Directory List (with commas)"
@@ -72,13 +72,6 @@
     "quotaCustom": "Custom",
     "expand": "Expand",
     "collapse": "Collapse",
-    "serverId": "Server ID",
-    "serverIdPlaceholder": "e.g., 001",
-    "serverLocation": "Server",
-    "serverWindows": "Windows",
-    "serverLinux": "Linux",
-    "serverBoth": "Both Servers",
-    "serverNotConfigured": "Not Configured",
     "purchaseAmount": "Purchase Amount",
     "usedAmount": "Used Amount",
     "accountCost": "Account Cost/$",
@@ -91,21 +84,7 @@
     "tenantId": "Tenant ID",
     "clientId": "Client ID",
     "subscriptionId": "Subscription ID",
-    "resourceGroup": "Resource Group",
-    "serverLoginInfo": "Server Login Information",
-    "windowsServer": "Windows Server (Login)",
-    "linuxServer": "Linux Server (API)",
-    "host": "Host",
-    "hostPlaceholder": "IP address or hostname",
-    "port": "Port",
-    "username": "Username",
-    "password": "Password",
-    "sshKey": "SSH Key",
-    "authMethod": "Auth Method",
-    "authPassword": "Password",
-    "authSSHKey": "SSH Key",
-    "serverNote": "Note",
-    "serverNotePlaceholder": "Optional note"
+    "resourceGroup": "Resource Group"
   },
   "regions": {
     "regionList": "Region List",
@@ -147,7 +126,7 @@
     "apiKeyPlaceholder": "API Key",
     "modelsToggle": "Models (click to toggle)",
     "selectAll": "Select All",
-    "selectCategory": "Select Category",
+    "selectGroup": "Select group",
     "clear": "Clear",
     "deleteRegion": "Delete Region",
     "selectedCount": "Selected: {{count}}",
@@ -165,15 +144,10 @@
     "pasteSuccess": "Imported {{count}} models",
     "pasteEmpty": "Clipboard is empty or has no valid models",
     "pasteFailed": "Failed to read clipboard",
-    "copyCategoryModels": "Copy category models",
+    "copyGroupModels": "Copy group models",
     "disabled": "Disabled",
     "customRegion": "Custom",
     "usePreset": "Use preset region"
-  },
-  "modelCategory": {
-    "standard": "Standard Models (OpenAI + Others)",
-    "sora": "Sora Series",
-    "claude": "Claude Series"
   },
   "models": {
     "title": "Model Overview",
@@ -238,6 +212,8 @@
   },
   "common": {
     "copy": "Copy",
+    "group": "Group {{index}}",
+    "other": "Other",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",

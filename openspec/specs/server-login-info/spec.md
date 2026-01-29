@@ -3,56 +3,6 @@
 ## Purpose
 TBD - created by archiving change 2025-12-21-add-account-prefixes-and-endpoint-conversion. Update Purpose after archive.
 ## Requirements
-### Requirement: Server Credential Fields
-
-Each account **MUST** support optional Windows server and Linux server credential storage.
-
-#### Scenario: Add Windows server credentials
-
-**Given** an account configuration card
-
-**When** the user enters Windows server credentials:
-- Host: "10.0.1.100"
-- Username: "admin"
-- Password: "secure123"
-- Port: 3389
-
-**Then** the credentials are saved to the account
-
-**And** the password is encrypted before storage
-
-#### Scenario: Add Linux server credentials with password
-
-**Given** an account configuration card
-
-**When** the user enters Linux server credentials:
-- Host: "192.168.1.50"
-- Username: "root"
-- Password: "linuxpass"
-- Port: 22
-
-**Then** the credentials are saved to the account
-
-**And** the password is encrypted before storage
-
-#### Scenario: Add Linux server credentials with SSH key
-
-**Given** an account configuration card
-
-**When** the user selects "SSH Key" auth method
-
-**And** enters:
-- Host: "api.example.com"
-- Username: "ubuntu"
-- SSH Key: "-----BEGIN RSA PRIVATE KEY-----\n..."
-- Port: 22
-
-**Then** the credentials are saved to the account
-
-**And** the SSH key is encrypted before storage
-
----
-
 ### Requirement: Credential Field Structure
 
 Server credentials **SHALL** include host, username, authentication (password or SSH key), port, and optional notes.
@@ -164,68 +114,6 @@ Server credential fields **MUST** be hidden or masked when privacy mode is enabl
 **Then** the host field displays "***" or "Server 1"
 
 **And** the actual hostname is not visible
-
----
-
-### Requirement: UI Collapsible Section
-
-Server login information **SHALL** be displayed in a collapsible section within the account card.
-
-#### Scenario: Collapse server login section
-
-**Given** the server login information section is expanded
-
-**When** the user clicks the collapse button
-
-**Then** the section collapses
-
-**And** only the section header remains visible
-
-**And** the collapse state is preserved when viewing other accounts
-
-#### Scenario: Expand server login section
-
-**Given** the server login information section is collapsed
-
-**When** the user clicks the expand button
-
-**Then** the section expands
-
-**And** all server credential fields are visible
-
----
-
-### Requirement: Show/Hide Password Toggle
-
-Password and SSH key fields **MUST** include a toggle to show or hide the sensitive content.
-
-#### Scenario: Show password
-
-**Given** a password field containing "myPass" displayed as "•••••••"
-
-**When** the user clicks the "Show" button (eye icon)
-
-**Then** the password field displays "myPass" in plain text
-
-**And** the button changes to "Hide" icon
-
-#### Scenario: Hide password
-
-**Given** a password field displaying "myPass" in plain text
-
-**When** the user clicks the "Hide" button (eye-slash icon)
-
-**Then** the password field displays "•••••••"
-
-**And** the button changes to "Show" icon
-
-#### Scenario: SSH key show/hide
-
-**Given** an SSH key field containing a private key
-
-**When** the user toggles show/hide
-
-**Then** the key content is revealed or obscured accordingly
 
 ---
 
@@ -345,4 +233,18 @@ interface LocalAccount {
   linuxServer?: ServerCredentials;
 }
 ```
+
+### Requirement: Legacy Server Fields Are Ignored
+
+Legacy configurations MAY contain `windowsServer` / `linuxServer` fields. The system MUST accept such input and discard these fields without error.
+
+#### Scenario: Import legacy config with server fields
+
+**Given** an imported config JSON contains accounts with `windowsServer` and/or `linuxServer`
+
+**When** the user imports the configuration
+
+**Then** the import MUST succeed
+
+**And** the resulting in-memory and persisted accounts MUST NOT contain server login fields
 

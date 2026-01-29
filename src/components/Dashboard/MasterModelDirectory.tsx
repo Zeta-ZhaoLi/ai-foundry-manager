@@ -6,6 +6,7 @@ import { buildCopyString } from '../../utils/modelSeries';
 export interface MasterModelDirectoryProps {
   masterText: string;
   onMasterTextChange: (text: string) => void;
+  masterGroups: string[][];
   masterModels: string[];
   onCopy: (text: string, label: string) => void;
 }
@@ -13,6 +14,7 @@ export interface MasterModelDirectoryProps {
 export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
   masterText,
   onMasterTextChange,
+  masterGroups,
   masterModels,
   onCopy,
 }) => {
@@ -68,11 +70,15 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
             placeholder={t('masterModels.placeholder')}
           />
           <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
-            <span>{t('masterModels.parsedCount', { count: masterModels.length })}</span>
+            <span>
+              {t('masterModels.parsedCount', { count: masterModels.length })}
+            </span>
             {masterModels.length > 0 && (
               <button
                 type="button"
-                onClick={() => onCopy(buildCopyString(masterModels), t('masterModels.title'))}
+                onClick={() =>
+                  onCopy(buildCopyString(masterModels), t('masterModels.title'))
+                }
                 className={clsx(
                   'px-2.5 py-0.5 rounded-full',
                   'border border-primary bg-slate-900 text-foreground',
@@ -84,18 +90,48 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
             )}
           </div>
           {masterModels.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {masterModels.map((m) => (
-                <span
-                  key={m}
-                  className={clsx(
-                    'px-2 py-0.5 rounded-full text-xs',
-                    'border border-slate-400/50',
-                    'bg-gradient-to-r from-cyan-500/20 to-indigo-500/20'
-                  )}
-                >
-                  {m}
-                </span>
+            <div className="mt-2 space-y-3">
+              {masterGroups.map((group, groupIndex) => (
+                <div key={`group-${groupIndex}`} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      {t('common.group', { index: groupIndex + 1 })} (
+                      {group.length})
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onCopy(
+                          buildCopyString(group),
+                          `${t('masterModels.title')} - ${t('common.group', {
+                            index: groupIndex + 1,
+                          })}`
+                        )
+                      }
+                      className={clsx(
+                        'px-2 py-0.5 rounded-full',
+                        'border border-gray-600 bg-background text-foreground',
+                        'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                      )}
+                    >
+                      {t('common.copy')}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.map((m) => (
+                      <span
+                        key={m}
+                        className={clsx(
+                          'px-2 py-0.5 rounded-full text-xs',
+                          'border border-slate-400/50',
+                          'bg-gradient-to-r from-cyan-500/20 to-indigo-500/20'
+                        )}
+                      >
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

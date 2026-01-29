@@ -22,7 +22,6 @@ import {
   AccountTier,
   AccountQuota,
   CurrencyType,
-  ServerCredentials,
   AccountDeploymentConfig,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
@@ -36,6 +35,7 @@ export interface AccountCardProps {
   account: LocalAccount;
   index?: number;
   privacyMode?: boolean;
+  masterGroups: string[][];
   masterModels: string[];
   filteredModels: string[];
   onUpdateName: (name: string) => void;
@@ -46,8 +46,6 @@ export interface AccountCardProps {
   onUpdateQuota?: (quota: AccountQuota, customQuota?: number) => void;
   onUpdatePurchase?: (amount: number, currency: CurrencyType) => void;
   onUpdateUsedAmount?: (usedAmount: number) => void;
-  onUpdateWindowsServer?: (credentials: ServerCredentials) => void;
-  onUpdateLinuxServer?: (credentials: ServerCredentials) => void;
   onUpdateDeployment?: (patch: Partial<AccountDeploymentConfig>) => void;
   onDelete: () => void;
   onAddRegion: () => void;
@@ -87,6 +85,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   account,
   index = 0,
   privacyMode = false,
+  masterGroups,
   masterModels,
   filteredModels,
   onUpdateName,
@@ -97,8 +96,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateQuota,
   onUpdatePurchase,
   onUpdateUsedAmount,
-  onUpdateWindowsServer,
-  onUpdateLinuxServer,
   onUpdateDeployment,
   onDelete,
   onAddRegion,
@@ -117,10 +114,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   const { t } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(account.enabled);
-  const [showPasswordWindows, setShowPasswordWindows] = useState(false);
-  const [showPasswordLinux, setShowPasswordLinux] = useState(false);
-  const [linuxAuthUseSSH, setLinuxAuthUseSSH] = useState(false);
-  const [showServerInfo, setShowServerInfo] = useState(false);
   const [showAzureDeployConfig, setShowAzureDeployConfig] = useState(false);
 
   const sensors = useSensors(
@@ -152,121 +145,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
   const displayNote = privacyMode ? '***' : account.note;
 
-  // 渲染服务器徽章
-  const renderServerBadges = () => {
-    const badges = [];
-
-    if (account.windowsServer?.serverId) {
-      badges.push(
-        <span
-          key="windows"
-          className={clsx(
-            'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
-            'bg-blue-900/30 text-blue-300 border border-blue-700'
-          )}
-        >
-          {privacyMode ? 'Win#XXX' : `Win#${account.windowsServer.serverId}`}
-        </span>
-      );
-    }
-
-    if (account.linuxServer?.serverId) {
-      badges.push(
-        <span
-          key="linux"
-          className={clsx(
-            'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
-            'bg-green-900/30 text-green-300 border border-green-700'
-          )}
-        >
-          {privacyMode ? 'Linux#XXX' : `Linux#${account.linuxServer.serverId}`}
-        </span>
-      );
-    }
-
-    return badges;
-  };
-
-  // Windows Server ID handlers
-  const handleWindowsServerIdChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = e.target.value;
-    if (value === '' || /^\d{1,5}$/.test(value)) {
-      const padded = value ? value.padStart(3, '0') : '001';
-      onUpdateWindowsServer?.({
-        ...account.windowsServer,
-        host: account.windowsServer?.host || '',
-        username: account.windowsServer?.username || '',
-        serverId: padded,
-      });
-    }
-  };
-
-  const incrementWindowsServerId = () => {
-    const current = account.windowsServer?.serverId || '001';
-    const num = parseInt(current, 10);
-    const next = String(num + 1).padStart(3, '0');
-    onUpdateWindowsServer?.({
-      ...account.windowsServer,
-      host: account.windowsServer?.host || '',
-      username: account.windowsServer?.username || '',
-      serverId: next,
-    });
-  };
-
-  const decrementWindowsServerId = () => {
-    const current = account.windowsServer?.serverId || '001';
-    const num = parseInt(current, 10);
-    const next = String(Math.max(1, num - 1)).padStart(3, '0');
-    onUpdateWindowsServer?.({
-      ...account.windowsServer,
-      host: account.windowsServer?.host || '',
-      username: account.windowsServer?.username || '',
-      serverId: next,
-    });
-  };
-
-  // Linux Server ID handlers
-  const handleLinuxServerIdChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = e.target.value;
-    if (value === '' || /^\d{1,5}$/.test(value)) {
-      const padded = value ? value.padStart(3, '0') : '001';
-      onUpdateLinuxServer?.({
-        ...account.linuxServer,
-        host: account.linuxServer?.host || '',
-        username: account.linuxServer?.username || '',
-        serverId: padded,
-      });
-    }
-  };
-
-  const incrementLinuxServerId = () => {
-    const current = account.linuxServer?.serverId || '001';
-    const num = parseInt(current, 10);
-    const next = String(num + 1).padStart(3, '0');
-    onUpdateLinuxServer?.({
-      ...account.linuxServer,
-      host: account.linuxServer?.host || '',
-      username: account.linuxServer?.username || '',
-      serverId: next,
-    });
-  };
-
-  const decrementLinuxServerId = () => {
-    const current = account.linuxServer?.serverId || '001';
-    const num = parseInt(current, 10);
-    const next = String(Math.max(1, num - 1)).padStart(3, '0');
-    onUpdateLinuxServer?.({
-      ...account.linuxServer,
-      host: account.linuxServer?.host || '',
-      username: account.linuxServer?.username || '',
-      serverId: next,
-    });
-  };
-
   // 未启用账号收起时的简化视图
   if (!account.enabled && !isExpanded) {
     return (
@@ -295,8 +173,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   : account.accountId}
               </span>
             )}
-            {/* 服务器徽章 */}
-            {renderServerBadges()}
             {/* 账号名称 */}
             <span className="text-sm font-medium truncate">{displayName}</span>
             <span className="text-xs text-gray-500">
@@ -347,8 +223,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     : account.accountId}
                 </span>
               )}
-              {/* 服务器徽章 */}
-              {renderServerBadges()}
               {/* 账号名称 */}
               <span className="text-sm font-medium truncate">
                 {displayName}
@@ -736,318 +610,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           </div>
         )}
 
-        {/* Server Login Information */}
-        {!privacyMode && (
-          <div className="mb-3 border-t border-gray-800 pt-3">
-            <button
-              type="button"
-              onClick={() => setShowServerInfo((prev) => !prev)}
-              className="flex items-center gap-2 text-sm font-medium mb-2 hover:text-cyan-400 transition-colors"
-            >
-              <span className="text-lg">🖥️</span>
-              <span>{t('accounts.serverLoginInfo')}</span>
-              <span className="text-xs text-muted-foreground">
-                {showServerInfo ? '▼' : '▶'}
-              </span>
-            </button>
-
-            {showServerInfo && (
-              <div className="space-y-3">
-                {/* Windows Server */}
-                <div className="border border-gray-800 rounded-lg p-3 bg-slate-950/50">
-                  <div className="text-xs font-medium text-cyan-400 mb-2">
-                    {t('accounts.windowsServer')}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.serverId')}
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="text"
-                          value={account.windowsServer?.serverId || '001'}
-                          onChange={handleWindowsServerIdChange}
-                          pattern="[0-9]{3,}"
-                          maxLength={5}
-                          className="w-20 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="001"
-                        />
-                        <div className="flex flex-col">
-                          <button
-                            type="button"
-                            onClick={incrementWindowsServerId}
-                            className="px-1.5 py-0 rounded-t border border-gray-700 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
-                            title="Increment"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            onClick={decrementWindowsServerId}
-                            className="px-1.5 py-0 rounded-b border border-gray-700 border-t-0 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
-                            title="Decrement"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.host')}
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        value={account.windowsServer?.host || ''}
-                        onChange={(e) =>
-                          onUpdateWindowsServer?.({
-                            ...account.windowsServer,
-                            host: e.target.value,
-                            username: account.windowsServer?.username || '',
-                          })
-                        }
-                        placeholder={t('accounts.hostPlaceholder')}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.port')}
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        value={account.windowsServer?.port || 3389}
-                        onChange={(e) =>
-                          onUpdateWindowsServer?.({
-                            ...account.windowsServer,
-                            host: account.windowsServer?.host || '',
-                            username: account.windowsServer?.username || '',
-                            port: Number(e.target.value),
-                          })
-                        }
-                        placeholder="3389"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.username')}
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        value={account.windowsServer?.username || ''}
-                        onChange={(e) =>
-                          onUpdateWindowsServer?.({
-                            ...account.windowsServer,
-                            host: account.windowsServer?.host || '',
-                            username: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.password')}
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type={showPasswordWindows ? 'text' : 'password'}
-                          className="flex-1 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                          value={account.windowsServer?.password || ''}
-                          onChange={(e) =>
-                            onUpdateWindowsServer?.({
-                              ...account.windowsServer,
-                              host: account.windowsServer?.host || '',
-                              username: account.windowsServer?.username || '',
-                              password: e.target.value,
-                            })
-                          }
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowPasswordWindows(!showPasswordWindows)
-                          }
-                          className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors"
-                          title={
-                            showPasswordWindows
-                              ? t('common.hide')
-                              : t('common.show')
-                          }
-                        >
-                          {showPasswordWindows ? '👁️' : '🙈'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Linux Server */}
-                <div className="border border-gray-800 rounded-lg p-3 bg-slate-950/50">
-                  <div className="text-xs font-medium text-green-400 mb-2">
-                    {t('accounts.linuxServer')}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.serverId')}
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="text"
-                          value={account.linuxServer?.serverId || '001'}
-                          onChange={handleLinuxServerIdChange}
-                          pattern="[0-9]{3,}"
-                          maxLength={5}
-                          className="w-20 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="001"
-                        />
-                        <div className="flex flex-col">
-                          <button
-                            type="button"
-                            onClick={incrementLinuxServerId}
-                            className="px-1.5 py-0 rounded-t border border-gray-700 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
-                            title="Increment"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            onClick={decrementLinuxServerId}
-                            className="px-1.5 py-0 rounded-b border border-gray-700 border-t-0 bg-background text-foreground hover:bg-slate-800 transition-colors text-xs leading-tight"
-                            title="Decrement"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.host')}
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        value={account.linuxServer?.host || ''}
-                        onChange={(e) =>
-                          onUpdateLinuxServer?.({
-                            ...account.linuxServer,
-                            host: e.target.value,
-                            username: account.linuxServer?.username || '',
-                          })
-                        }
-                        placeholder={t('accounts.hostPlaceholder')}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.port')}
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        value={account.linuxServer?.port || 22}
-                        onChange={(e) =>
-                          onUpdateLinuxServer?.({
-                            ...account.linuxServer,
-                            host: account.linuxServer?.host || '',
-                            username: account.linuxServer?.username || '',
-                            port: Number(e.target.value),
-                          })
-                        }
-                        placeholder="22"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">
-                        {t('accounts.username')}
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        value={account.linuxServer?.username || ''}
-                        onChange={(e) =>
-                          onUpdateLinuxServer?.({
-                            ...account.linuxServer,
-                            host: account.linuxServer?.host || '',
-                            username: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground flex items-center gap-2 mb-1">
-                        <span>{t('accounts.authMethod')}</span>
-                        <label className="flex items-center gap-1 text-xs cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={linuxAuthUseSSH}
-                            onChange={(e) =>
-                              setLinuxAuthUseSSH(e.target.checked)
-                            }
-                          />
-                          <span>{t('accounts.authSSHKey')}</span>
-                        </label>
-                      </label>
-                      <div className="flex items-center gap-1">
-                        {linuxAuthUseSSH ? (
-                          <textarea
-                            className="flex-1 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
-                            rows={2}
-                            value={account.linuxServer?.sshKey || ''}
-                            onChange={(e) =>
-                              onUpdateLinuxServer?.({
-                                ...account.linuxServer,
-                                host: account.linuxServer?.host || '',
-                                username: account.linuxServer?.username || '',
-                                sshKey: e.target.value,
-                                password: undefined,
-                              })
-                            }
-                            placeholder="-----BEGIN RSA PRIVATE KEY-----"
-                          />
-                        ) : (
-                          <input
-                            type={showPasswordLinux ? 'text' : 'password'}
-                            className="flex-1 p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                            value={account.linuxServer?.password || ''}
-                            onChange={(e) =>
-                              onUpdateLinuxServer?.({
-                                ...account.linuxServer,
-                                host: account.linuxServer?.host || '',
-                                username: account.linuxServer?.username || '',
-                                password: e.target.value,
-                                sshKey: undefined,
-                              })
-                            }
-                          />
-                        )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowPasswordLinux(!showPasswordLinux)
-                          }
-                          className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors"
-                          title={
-                            showPasswordLinux
-                              ? t('common.hide')
-                              : t('common.show')
-                          }
-                        >
-                          {showPasswordLinux ? '👁️' : '🙈'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Regions */}
         <div className="mb-1.5">
           <div className="flex items-center justify-between mb-1">
@@ -1088,6 +650,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       privacyMode={privacyMode}
                       accountId={account.id}
                       accountName={displayName}
+                      masterGroups={masterGroups}
                       masterModels={masterModels}
                       filteredModels={filteredModels}
                       onUpdateName={(name) =>

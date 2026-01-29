@@ -23,7 +23,6 @@ import {
   AccountTier,
   AccountQuota,
   CurrencyType,
-  ServerCredentials,
   AccountDeploymentConfig,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
@@ -33,6 +32,7 @@ import { parseModels } from '../../../utils/common';
 
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
+  masterGroups: string[][];
   masterModels: string[];
   filteredModels: string[];
   modelFilterInput: string;
@@ -61,14 +61,6 @@ export interface AccountsSectionProps {
     currency: CurrencyType
   ) => void;
   onUpdateAccountUsedAmount?: (accountId: string, usedAmount: number) => void;
-  onUpdateAccountWindowsServer?: (
-    accountId: string,
-    credentials: ServerCredentials
-  ) => void;
-  onUpdateAccountLinuxServer?: (
-    accountId: string,
-    credentials: ServerCredentials
-  ) => void;
   onUpdateAccountDeployment?: (
     accountId: string,
     patch: Partial<AccountDeploymentConfig>
@@ -128,6 +120,7 @@ export interface AccountsSectionProps {
 
 export const AccountsSection: React.FC<AccountsSectionProps> = ({
   accounts,
+  masterGroups,
   masterModels,
   filteredModels,
   modelFilterInput,
@@ -145,8 +138,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateAccountQuota,
   onUpdateAccountPurchase,
   onUpdateAccountUsedAmount,
-  onUpdateAccountWindowsServer,
-  onUpdateAccountLinuxServer,
   onUpdateAccountDeployment,
   onDeleteAccount,
   onAddRegion,
@@ -380,6 +371,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     account={account}
                     index={originalIndex}
                     privacyMode={privacyMode}
+                    masterGroups={masterGroups}
                     masterModels={masterModels}
                     filteredModels={filteredModels}
                     onUpdateName={(name) =>
@@ -420,21 +412,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                       onUpdateAccountUsedAmount
                         ? (usedAmount) =>
                             onUpdateAccountUsedAmount(account.id, usedAmount)
-                        : undefined
-                    }
-                    onUpdateWindowsServer={
-                      onUpdateAccountWindowsServer
-                        ? (credentials) =>
-                            onUpdateAccountWindowsServer(
-                              account.id,
-                              credentials
-                            )
-                        : undefined
-                    }
-                    onUpdateLinuxServer={
-                      onUpdateAccountLinuxServer
-                        ? (credentials) =>
-                            onUpdateAccountLinuxServer(account.id, credentials)
                         : undefined
                     }
                     onUpdateDeployment={
