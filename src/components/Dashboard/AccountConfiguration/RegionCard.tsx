@@ -17,8 +17,7 @@ import type {
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 
-import { stringifyAzureOpenAiArmTemplate } from '../../../utils/armTemplate';
-import { buildAzurePortalResourceGroupOverviewUrl } from '../../../utils/azurePortal';
+import { stringifyAzureOpenAiMainTemplate } from '../../../utils/armTemplate';
 
 export type LocalRegion = ImportedLocalRegion;
 
@@ -30,6 +29,7 @@ export interface RegionCardProps {
   accountName: string;
   masterModels: string[];
   masterGroups: string[][];
+  masterGroupLines: string[][][];
   filteredModels: string[];
   onUpdateName: (name: string) => void;
   onUpdateModelsText: (text: string) => void;
@@ -117,13 +117,13 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   accountName,
   masterModels,
   masterGroups,
+  masterGroupLines,
   filteredModels,
   onUpdateName,
   onUpdateModelsText,
   onUpdateOpenaiEndpoint,
   onUpdateAnthropicEndpoint,
   onUpdateApiKey,
-  accountDeployment,
   onUpdateDeployment,
   onUpdateDeploymentModel,
   onUpdateEnabled,
@@ -134,14 +134,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const toast = useToast();
   const [collapsed, setCollapsed] = useState(true);
   const [deployCollapsed, setDeployCollapsed] = useState(true);
-  const [showDeployConfirm, setShowDeployConfirm] = useState(false);
-  const [deploying, setDeploying] = useState(false);
-  const [lastDeploymentName, setLastDeploymentName] = useState<string | null>(
-    null
-  );
-  const [lastDeploymentState, setLastDeploymentState] = useState<string | null>(
-    null
-  );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isExpanded, setIsExpanded] = useState(region.enabled !== false);
@@ -197,15 +189,22 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     ? t('regions.region') + ` ${regionIndex + 1}`
     : region.name || t('regions.region') + ` ${regionIndex + 1}`;
 
-  const groupedFilteredModels = useMemo(() => {
-    const set = new Set(filteredModels);
-    return masterGroups
-      .map((models, idx) => ({
-        idx,
-        models: models.filter((m) => set.has(m)),
-      }))
-      .filter((g) => g.models.length > 0);
-  }, [filteredModels, masterGroups]);
+  const groupedFilteredLines = useMemo((): {
+    idx: number;
+    lines: string[][];
+  }[] => {
+    const visible = new Set(filteredModels);
+
+    return masterGroupLines
+      .map((groupLines, idx) => {
+        const lines = groupLines
+          .map((line) => line.filter((m) => visible.has(m)))
+          .filter((line) => line.length > 0);
+
+        return { idx, lines };
+      })
+      .filter((g) => g.lines.length > 0);
+  }, [filteredModels, masterGroupLines]);
 
   // =============== 模型部署（Azure Portal） ===============
   const deploymentResourceName = region.deployment?.resourceName || '';
@@ -225,18 +224,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   }, [region.deployment?.models, regionModels]);
 
   const validateDeployInputs = useCallback((): string | null => {
-    const a = accountDeployment;
-    if (!a?.subscriptionId?.trim())
-      return t(
-        'regions.deployMissingSubscriptionId',
-        '请先在账号里填写 Subscription ID'
-      );
-    if (!a?.resourceGroup?.trim())
-      return t(
-        'regions.deployMissingResourceGroup',
-        '请先在账号里填写 Resource Group'
-      );
-
     const derived = extractAzureResourceName(region.openaiEndpoint || '');
     const resourceName =
       deploymentResourceName.trim() || (derived || '').trim();
@@ -279,7 +266,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
     return null;
   }, [
-    accountDeployment,
     deploymentLocation,
     deploymentResourceName,
     region.openaiEndpoint,
@@ -309,14 +295,13 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     t,
   ]);
 
-  const handleDeploy = useCallback(async () => {
+  const handleDeploy = useCallback(() => {
     const err = validateDeployInputs();
     if (err) {
       toast.error(err);
       return;
     }
 
-    const a = accountDeployment as AccountDeploymentConfig;
     const derived = extractAzureResourceName(region.openaiEndpoint || '');
     const resourceName =
       deploymentResourceName.trim() || (derived || '').trim();
@@ -333,67 +318,22 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       })),
     };
 
-    const json = stringifyAzureOpenAiArmTemplate(templateInput);
-
-    const safeName = `arm-openai-${resourceName}-${region.name}-${new Date()
-      .toISOString()
-      .slice(0, 10)}`
-      .replace(/[^a-zA-Z0-9._-]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 80);
-
-    setDeploying(true);
-    setLastDeploymentName(safeName);
-    setLastDeploymentState('Portal');
     try {
-      // copy template
-      onCopy(json, `${displayRegionName} ARM Template`);
-
-      // download template
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${safeName}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      const subId = a.subscriptionId!.trim();
-      const rg = a.resourceGroup!.trim();
-      window.open(
-        buildAzurePortalResourceGroupOverviewUrl({
-          subscriptionId: subId,
-          resourceGroup: rg,
-        }),
-        '_blank',
-        'noopener,noreferrer'
-      );
-
-      toast.success(
-        t(
-          'regions.deployStarted',
-          '已打开 Azure Portal，并导出模板（已复制+已下载）'
-        )
-      );
+      const json = stringifyAzureOpenAiMainTemplate(templateInput);
+      onCopy(json, `${displayRegionName} Deployment Code`);
+      toast.success(t('regions.deployCodeCopied', '部署代码已复制'));
     } catch (e: any) {
       toast.error(
         t('regions.deployFailed', '操作失败：{{msg}}', {
           msg: e?.message || String(e),
         })
       );
-    } finally {
-      setDeploying(false);
     }
   }, [
-    accountDeployment,
     deploymentLocation,
     deploymentResourceName,
     displayRegionName,
     onCopy,
-    region.name,
     region.openaiEndpoint,
     selectedDeploymentRows,
     toast,
@@ -895,9 +835,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2 mt-1.5">
-                  {groupedFilteredModels.map(({ idx, models }) => {
+                  {groupedFilteredLines.map(({ idx, lines }) => {
                     const groupTitle = t('common.group', { index: idx + 1 });
-                    const selectedModels = models.filter((m) =>
+                    const groupAllModels = masterGroups[idx] || [];
+                    const selectedModels = groupAllModels.filter((m) =>
                       selectedSet.has(m)
                     );
                     const selectedCount = selectedModels.length;
@@ -916,7 +857,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                           >
                             {groupTitle}
                             <span className="text-muted-foreground ml-1">
-                              ({selectedCount}/{models.length})
+                              ({selectedCount}/{groupAllModels.length})
                             </span>
                           </span>
                           <div className="flex items-center gap-1">
@@ -938,32 +879,39 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                             )}
                             <button
                               type="button"
-                              onClick={() => selectGroup(models)}
+                              onClick={() => selectGroup(groupAllModels)}
                               className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
                             >
                               {t('regions.selectGroup')}
                             </button>
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {models.map((model) => {
-                            const selected = selectedSet.has(model);
-                            return (
-                              <button
-                                key={model}
-                                type="button"
-                                onClick={() => toggleModel(model)}
-                                className={clsx(
-                                  'px-2 py-1 rounded-full text-xs cursor-pointer transition-all',
-                                  selected
-                                    ? 'border border-cyan-500 bg-gradient-to-r from-cyan-500 to-green-500 text-white'
-                                    : 'border border-gray-600 bg-background text-foreground hover:border-gray-500'
-                                )}
-                              >
-                                {model}
-                              </button>
-                            );
-                          })}
+                        <div className="space-y-1">
+                          {lines.map((line, lineIndex) => (
+                            <div
+                              key={`group-${idx}-line-${lineIndex}`}
+                              className="flex flex-wrap gap-1.5"
+                            >
+                              {line.map((model) => {
+                                const selected = selectedSet.has(model);
+                                return (
+                                  <button
+                                    key={model}
+                                    type="button"
+                                    onClick={() => toggleModel(model)}
+                                    className={clsx(
+                                      'px-2 py-1 rounded-full text-xs cursor-pointer transition-all',
+                                      selected
+                                        ? 'border border-cyan-500 bg-gradient-to-r from-cyan-500 to-green-500 text-white'
+                                        : 'border border-gray-600 bg-background text-foreground hover:border-gray-500'
+                                    )}
+                                  >
+                                    {model}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     );
@@ -1024,18 +972,16 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               </button>
               <button
                 type="button"
-                disabled={privacyMode || deploying || regionModels.length === 0}
-                onClick={() => setShowDeployConfirm(true)}
+                disabled={privacyMode || regionModels.length === 0}
+                onClick={handleDeploy}
                 className={clsx(
                   'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
-                  privacyMode || deploying || regionModels.length === 0
+                  privacyMode || regionModels.length === 0
                     ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
                     : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
                 )}
               >
-                {deploying
-                  ? t('regions.deploying', '部署中...')
-                  : t('regions.deployNow', '一键部署')}
+                {t('regions.deployNow', '复制部署代码')}
               </button>
             </div>
           </div>
@@ -1075,16 +1021,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   />
                 </div>
               </div>
-
-              {lastDeploymentName && (
-                <div className="text-xs text-muted-foreground">
-                  {t('regions.deployLast', '最近一次部署')}:{' '}
-                  <span className="font-mono">{lastDeploymentName}</span>
-                  {lastDeploymentState ? (
-                    <span className="ml-2">({lastDeploymentState})</span>
-                  ) : null}
-                </div>
-              )}
 
               <div className="overflow-auto border border-gray-800 rounded-lg">
                 <table className="w-full min-w-[820px] text-sm">
@@ -1172,20 +1108,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={onDelete}
-      />
-
-      <ConfirmDialog
-        open={showDeployConfirm}
-        onOpenChange={setShowDeployConfirm}
-        title={t('regions.deployConfirmTitle', '确认跳转 Azure Portal 部署')}
-        description={t(
-          'regions.deployConfirmDesc',
-          '该操作将导出 ARM 模板（复制+下载），并跳转到 Azure Portal（资源组页面），请在 Portal 中执行自定义部署。可能产生费用，确认继续？'
-        )}
-        confirmText={t('regions.deployConfirmBtn', '确认部署')}
-        cancelText={t('common.cancel')}
-        variant="warning"
-        onConfirm={handleDeploy}
       />
     </>
   );

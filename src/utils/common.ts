@@ -14,6 +14,8 @@ export function parseModels(text: string): string[] {
 export interface MasterModelDirectoryParseResult {
   /** Groups separated by blank lines, with duplicates removed globally by first appearance */
   groups: string[][];
+  /** Groups -> lines -> models (lines preserved for rendering; duplicates removed globally) */
+  groupLines: string[][][];
   /** Flattened unique model list ordered by first appearance */
   allModels: string[];
 }
@@ -59,7 +61,8 @@ export function orderModelsByMaster(
 export function parseMasterModelDirectory(
   text: string
 ): MasterModelDirectoryParseResult {
-  if (!text || !text.trim()) return { groups: [], allModels: [] };
+  if (!text || !text.trim())
+    return { groups: [], groupLines: [], allModels: [] };
 
   const normalized = text.replace(/\r\n/g, '\n');
   const blocks = normalized.split(/\n\s*\n+/g);
@@ -67,26 +70,41 @@ export function parseMasterModelDirectory(
   const seen = new Set<string>();
   const allModels: string[] = [];
   const groups: string[][] = [];
+  const groupLines: string[][][] = [];
 
   for (const block of blocks) {
-    const tokens = block.match(/[^\s,]+/g) || [];
+    const lines = block.split('\n');
     const group: string[] = [];
+    const linesOut: string[][] = [];
 
-    for (const raw of tokens) {
-      const model = raw.trim();
-      if (!model) continue;
-      if (seen.has(model)) continue;
-      seen.add(model);
-      allModels.push(model);
-      group.push(model);
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      const tokens = trimmedLine.match(/[^\s,]+/g) || [];
+      const lineModels: string[] = [];
+
+      for (const raw of tokens) {
+        const model = raw.trim();
+        if (!model) continue;
+        if (seen.has(model)) continue;
+        seen.add(model);
+        allModels.push(model);
+        group.push(model);
+        lineModels.push(model);
+      }
+
+      if (lineModels.length > 0) {
+        linesOut.push(lineModels);
+      }
     }
 
     if (group.length > 0) {
       groups.push(group);
+      groupLines.push(linesOut);
     }
   }
 
-  return { groups, allModels };
+  return { groups, groupLines, allModels };
 }
 
 /**

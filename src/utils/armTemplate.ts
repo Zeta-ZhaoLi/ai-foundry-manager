@@ -25,6 +25,10 @@ export const AZURE_DEPLOYMENT_RESOURCE_API_VERSION = '2021-04-01';
 export const DEFAULT_OPENAI_ACCOUNT_SKU = 'S0';
 export const DEFAULT_DEPLOYMENT_SKU = 'GlobalStandard';
 
+// NOTE: mainTemplate.json lives at repo root and is treated as canonical.
+// It is imported at build time and used as a read-only base template.
+import mainTemplateJson from '../../mainTemplate.json';
+
 export function validateArmTemplateInput(
   input: ArmTemplateInput
 ): ArmTemplateValidation {
@@ -151,6 +155,39 @@ export function stringifyAzureOpenAiArmTemplate(
   input: ArmTemplateInput
 ): string {
   const template = buildAzureOpenAiArmTemplate(input);
+  return JSON.stringify(template, null, 2);
+}
+
+export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
+  // Deep clone to avoid mutating the imported JSON module
+  const template: any = JSON.parse(JSON.stringify(mainTemplateJson));
+
+  template.parameters = template.parameters || {};
+  template.parameters.resourceName = template.parameters.resourceName || {
+    type: 'String',
+  };
+  template.parameters.location = template.parameters.location || {
+    type: 'String',
+  };
+
+  template.parameters.resourceName.defaultValue = input.resourceName;
+  template.parameters.location.defaultValue = input.location;
+
+  template.variables = template.variables || {};
+  template.variables.modelDeployments = input.modelDeployments.map((d) => ({
+    deploymentName: d.deploymentName,
+    modelName: d.modelName,
+    version: d.version,
+    capacity: d.capacity,
+  }));
+
+  return template;
+}
+
+export function stringifyAzureOpenAiMainTemplate(
+  input: ArmTemplateInput
+): string {
+  const template = buildAzureOpenAiMainTemplate(input);
   return JSON.stringify(template, null, 2);
 }
 

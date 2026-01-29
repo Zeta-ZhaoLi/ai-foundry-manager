@@ -40,6 +40,10 @@ describe('Common Utils', () => {
         ['gpt-4o'],
         ['claude-3-opus', 'claude-3-5-sonnet'],
       ]);
+      expect(result.groupLines).toEqual([
+        [['gpt-4o']],
+        [['claude-3-opus'], ['claude-3-5-sonnet']],
+      ]);
       expect(result.allModels).toEqual([
         'gpt-4o',
         'claude-3-opus',
@@ -50,28 +54,35 @@ describe('Common Utils', () => {
     it('should accept mixed separators within a group', () => {
       const result = parseMasterModelDirectory('gpt-4o, gpt-4o-mini\n o1-mini');
       expect(result.groups).toEqual([['gpt-4o', 'gpt-4o-mini', 'o1-mini']]);
+      expect(result.groupLines).toEqual([
+        [['gpt-4o', 'gpt-4o-mini'], ['o1-mini']],
+      ]);
       expect(result.allModels).toEqual(['gpt-4o', 'gpt-4o-mini', 'o1-mini']);
     });
 
     it('should treat multiple blank lines as one separator', () => {
       const result = parseMasterModelDirectory('a\n\n\n\nb');
       expect(result.groups).toEqual([['a'], ['b']]);
+      expect(result.groupLines).toEqual([[['a']], [['b']]]);
       expect(result.allModels).toEqual(['a', 'b']);
     });
 
     it('should de-duplicate by first appearance globally', () => {
       const result = parseMasterModelDirectory('a\n\n a\n b\n a');
       expect(result.groups).toEqual([['a'], ['b']]);
+      expect(result.groupLines).toEqual([[['a']], [['b']]]);
       expect(result.allModels).toEqual(['a', 'b']);
     });
 
     it('should return empty groups for empty input', () => {
       expect(parseMasterModelDirectory('')).toEqual({
         groups: [],
+        groupLines: [],
         allModels: [],
       });
       expect(parseMasterModelDirectory('   ')).toEqual({
         groups: [],
+        groupLines: [],
         allModels: [],
       });
     });

@@ -33,6 +33,7 @@ import { parseModels } from '../../../utils/common';
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
   masterGroups: string[][];
+  masterGroupLines: string[][][];
   masterModels: string[];
   filteredModels: string[];
   modelFilterInput: string;
@@ -121,6 +122,7 @@ export interface AccountsSectionProps {
 export const AccountsSection: React.FC<AccountsSectionProps> = ({
   accounts,
   masterGroups,
+  masterGroupLines,
   masterModels,
   filteredModels,
   modelFilterInput,
@@ -372,6 +374,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     index={originalIndex}
                     privacyMode={privacyMode}
                     masterGroups={masterGroups}
+                    masterGroupLines={masterGroupLines}
                     masterModels={masterModels}
                     filteredModels={filteredModels}
                     onUpdateName={(name) =>

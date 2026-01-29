@@ -4,6 +4,8 @@ import {
   validateArmTemplateInput,
   buildAzureOpenAiArmTemplate,
   stringifyAzureOpenAiArmTemplate,
+  buildAzureOpenAiMainTemplate,
+  stringifyAzureOpenAiMainTemplate,
 } from '../armTemplate';
 
 describe('armTemplate', () => {
@@ -29,6 +31,27 @@ describe('armTemplate', () => {
 
   it('stringifies to valid JSON', () => {
     const json = stringifyAzureOpenAiArmTemplate(SAMPLE_ARM_TEMPLATE_INPUT);
+    expect(() => JSON.parse(json)).not.toThrow();
+  });
+
+  it('builds mainTemplate-based ARM template with expected substitutions', () => {
+    const template = buildAzureOpenAiMainTemplate(
+      SAMPLE_ARM_TEMPLATE_INPUT
+    ) as any;
+    expect(template.parameters.resourceName.defaultValue).toBe(
+      SAMPLE_ARM_TEMPLATE_INPUT.resourceName
+    );
+    expect(template.parameters.location.defaultValue).toBe(
+      SAMPLE_ARM_TEMPLATE_INPUT.location
+    );
+    expect(Array.isArray(template.variables.modelDeployments)).toBe(true);
+    expect(template.variables.modelDeployments.length).toBe(
+      SAMPLE_ARM_TEMPLATE_INPUT.modelDeployments.length
+    );
+  });
+
+  it('stringifies mainTemplate-based template to valid JSON', () => {
+    const json = stringifyAzureOpenAiMainTemplate(SAMPLE_ARM_TEMPLATE_INPUT);
     expect(() => JSON.parse(json)).not.toThrow();
   });
 

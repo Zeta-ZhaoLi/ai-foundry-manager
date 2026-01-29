@@ -7,6 +7,7 @@ export interface MasterModelDirectoryProps {
   masterText: string;
   onMasterTextChange: (text: string) => void;
   masterGroups: string[][];
+  masterGroupLines: string[][][];
   masterModels: string[];
   onCopy: (text: string, label: string) => void;
 }
@@ -15,6 +16,7 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
   masterText,
   onMasterTextChange,
   masterGroups,
+  masterGroupLines,
   masterModels,
   onCopy,
 }) => {
@@ -91,18 +93,20 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
           </div>
           {masterModels.length > 0 && (
             <div className="mt-2 space-y-3">
-              {masterGroups.map((group, groupIndex) => (
+              {masterGroupLines.map((groupLines, groupIndex) => (
                 <div key={`group-${groupIndex}`} className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
                       {t('common.group', { index: groupIndex + 1 })} (
-                      {group.length})
+                      {masterGroups[groupIndex]?.length || 0})
                     </div>
                     <button
                       type="button"
                       onClick={() =>
                         onCopy(
-                          buildCopyString(group),
+                          groupLines
+                            .map((line) => buildCopyString(line))
+                            .join('\n'),
                           `${t('masterModels.title')} - ${t('common.group', {
                             index: groupIndex + 1,
                           })}`
@@ -117,18 +121,25 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                       {t('common.copy')}
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.map((m) => (
-                      <span
-                        key={m}
-                        className={clsx(
-                          'px-2 py-0.5 rounded-full text-xs',
-                          'border border-slate-400/50',
-                          'bg-gradient-to-r from-cyan-500/20 to-indigo-500/20'
-                        )}
+                  <div className="space-y-1">
+                    {groupLines.map((line, lineIndex) => (
+                      <div
+                        key={`group-${groupIndex}-line-${lineIndex}`}
+                        className="flex flex-wrap gap-1.5"
                       >
-                        {m}
-                      </span>
+                        {line.map((m) => (
+                          <span
+                            key={m}
+                            className={clsx(
+                              'px-2 py-0.5 rounded-full text-xs',
+                              'border border-slate-400/50',
+                              'bg-gradient-to-r from-cyan-500/20 to-indigo-500/20'
+                            )}
+                          >
+                            {m}
+                          </span>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </div>

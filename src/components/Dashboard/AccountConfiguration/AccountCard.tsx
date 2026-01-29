@@ -36,6 +36,7 @@ export interface AccountCardProps {
   index?: number;
   privacyMode?: boolean;
   masterGroups: string[][];
+  masterGroupLines: string[][][];
   masterModels: string[];
   filteredModels: string[];
   onUpdateName: (name: string) => void;
@@ -86,6 +87,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   index = 0,
   privacyMode = false,
   masterGroups,
+  masterGroupLines,
   masterModels,
   filteredModels,
   onUpdateName,
@@ -651,6 +653,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       accountId={account.id}
                       accountName={displayName}
                       masterGroups={masterGroups}
+                      masterGroupLines={masterGroupLines}
                       masterModels={masterModels}
                       filteredModels={filteredModels}
                       onUpdateName={(name) =>

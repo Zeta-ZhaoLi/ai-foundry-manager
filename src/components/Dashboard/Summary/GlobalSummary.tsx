@@ -6,12 +6,14 @@ import { buildCopyString } from '../../../utils/modelSeries';
 export interface GlobalSummaryProps {
   allModels: string[];
   masterGroups: string[][];
+  masterGroupLines: string[][][];
   onCopy: (text: string, label: string) => void;
 }
 
 export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
   allModels,
   masterGroups,
+  masterGroupLines,
   onCopy,
 }) => {
   const { t } = useTranslation();
@@ -31,14 +33,23 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
   }, [masterGroups]);
 
   const groupedUsedModels = useMemo(() => {
-    const groups: { key: string; title: string; models: string[] }[] = [];
+    const groups: {
+      key: string;
+      title: string;
+      lines: string[][];
+      models: string[];
+    }[] = [];
 
-    for (let i = 0; i < masterGroups.length; i++) {
-      const models = masterGroups[i].filter((m) => allSet.has(m));
-      if (models.length === 0) continue;
+    for (let i = 0; i < masterGroupLines.length; i++) {
+      const lines = (masterGroupLines[i] || [])
+        .map((line) => line.filter((m) => allSet.has(m)))
+        .filter((line) => line.length > 0);
+      if (lines.length === 0) continue;
+      const models = lines.flat();
       groups.push({
         key: `g-${i}`,
         title: t('common.group', { index: i + 1 }),
+        lines,
         models,
       });
     }
@@ -49,12 +60,13 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
       groups.push({
         key: 'other',
         title: t('common.other', 'Other'),
+        lines: [ungrouped],
         models: ungrouped,
       });
     }
 
     return groups;
-  }, [allModels, allSet, masterGroups, masterIndex, t]);
+  }, [allModels, allSet, masterGroupLines, masterIndex, t]);
 
   if (allModels.length === 0) return null;
 
@@ -124,7 +136,12 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
                 <button
                   type="button"
                   onClick={() =>
-                    onCopy(buildCopyString(group.models), group.title)
+                    onCopy(
+                      group.lines
+                        .map((line) => buildCopyString(line))
+                        .join('\n'),
+                      group.title
+                    )
                   }
                   className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
                 >
@@ -141,7 +158,7 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
                     group.models.length > 20 && 'max-h-32 overflow-y-auto'
                   )}
                 >
-                  {buildCopyString(group.models)}
+                  {group.lines.map((line) => buildCopyString(line)).join('\n')}
                 </div>
               )}
             </div>

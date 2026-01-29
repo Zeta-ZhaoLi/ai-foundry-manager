@@ -133,6 +133,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
   );
   const masterModels = masterParsed.allModels;
   const masterGroups = masterParsed.groups;
+  const masterGroupLines = masterParsed.groupLines;
 
   const filteredModels = useMemo(() => {
     const keyword = modelFilter.trim().toLowerCase();
@@ -404,6 +405,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         masterText={masterText}
         onMasterTextChange={setMasterText}
         masterGroups={masterGroups}
+        masterGroupLines={masterGroupLines}
         masterModels={masterModels}
         onCopy={handleCopy}
       />
@@ -467,6 +469,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       <AccountsSection
         accounts={accounts}
         masterGroups={masterGroups}
+        masterGroupLines={masterGroupLines}
         masterModels={masterModels}
         filteredModels={filteredModels}
         modelFilterInput={modelFilterInput}
@@ -505,6 +508,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       <GlobalSummary
         allModels={globalUsedModelsOrdered}
         masterGroups={masterGroups}
+        masterGroupLines={masterGroupLines}
         onCopy={handleCopy}
       />
 
