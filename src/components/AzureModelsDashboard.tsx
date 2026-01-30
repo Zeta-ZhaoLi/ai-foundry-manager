@@ -23,8 +23,10 @@ import { ModelStatisticsTable } from './Dashboard/ModelStatisticsTable';
 import { AccountsSection } from './Dashboard/AccountConfiguration/AccountsSection';
 import { TableDetailDialog } from './ui/TableDetailDialog';
 
-const MASTER_STORAGE_KEY = 'ai-foundry-manager:master-models';
-const LEGACY_MASTER_STORAGE_KEY = 'azure-openai-manager:master-models';
+import {
+  loadInitialMasterModelsText,
+  MASTER_MODELS_STORAGE_KEY,
+} from '../utils/masterModelsStorage';
 
 export interface AzureModelsDashboardProps {
   privacyMode?: boolean;
@@ -69,27 +71,16 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
   const [masterText, setMasterText] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     try {
-      // 尝试从新 key 读取数据
-      let data = window.localStorage.getItem(MASTER_STORAGE_KEY);
-
-      // 如果新 key 没有数据，尝试从旧 key 迁移
-      if (!data) {
-        const legacyData = window.localStorage.getItem(
-          LEGACY_MASTER_STORAGE_KEY
+      const result = loadInitialMasterModelsText(window.localStorage);
+      if (result.source === 'legacy') {
+        console.log(
+          '[Migration] Migrating master models from legacy key to new key'
         );
-        if (legacyData) {
-          console.log(
-            '[Migration] Migrating master models from legacy key to new key'
-          );
-          window.localStorage.setItem(MASTER_STORAGE_KEY, legacyData);
-          data = legacyData;
-          console.log(
-            '[Migration] Master models migration completed successfully'
-          );
-        }
+        console.log(
+          '[Migration] Master models migration completed successfully'
+        );
       }
-
-      return data || '';
+      return result.text;
     } catch {
       return '';
     }
@@ -97,7 +88,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(MASTER_STORAGE_KEY, masterText);
+      window.localStorage.setItem(MASTER_MODELS_STORAGE_KEY, masterText);
     } catch {
       // ignore
     }
