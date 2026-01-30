@@ -199,6 +199,13 @@
   "language": {
     "zh": "中文",
     "en": "English",
+    "ja": "日本語",
+    "fr": "Français",
+    "de": "Deutsch",
+    "es": "Español",
+    "pt-BR": "Português (Brasil)",
+    "ko": "한국어",
+    "select": "选择语言",
     "toggle": "切换语言"
   },
   "theme": {
@@ -208,6 +215,8 @@
   },
   "toast": {
     "copied": "已复制",
+    "copiedWithLabel": "已复制：{{label}}",
+    "nothingToCopy": "没有内容可以复制",
     "copyFailed": "复制失败，请手动选择文本",
     "configExported": "配置已导出为 JSON 文件",
     "configImported": "配置导入成功",
@@ -314,6 +323,7 @@
     "skipToContent": "跳转到主要内容",
     "headerNav": "页面设置",
     "githubLink": "在 GitHub 上查看项目",
+    "dragToReorder": "拖拽排序",
     "filterResults": "筛选结果：{{count}} 个项目"
   },
   "shortcuts": {
@@ -420,5 +430,11 @@
     "columnCoverage": "覆盖率",
     "noModels": "暂无模型，请先在全局模型目录中配置模型。",
     "modelsLabel": "个模型"
+  },
+  "errorBoundary": {
+    "title": "出错了",
+    "description": "应用程序遇到了一个错误。请刷新页面重试。",
+    "details": "错误详情",
+    "reload": "刷新页面"
   }
 }

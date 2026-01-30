@@ -29,7 +29,7 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
     <div
       className={clsx(
         'w-full rounded-xl md:col-span-2 lg:col-span-1',
-        'border border-gray-800 p-3 bg-background'
+        'border border-border p-3 bg-background'
       )}
     >
       <div className="flex justify-between items-start mb-1.5">
@@ -44,10 +44,12 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <select
             value={statusFilter}
-            onChange={(e) => onStatusFilterChange(e.target.value as StatusFilter)}
+            onChange={(e) =>
+              onStatusFilterChange(e.target.value as StatusFilter)
+            }
             className={clsx(
               'px-1.5 py-0.5 rounded-full',
-              'border border-gray-600 bg-background text-foreground',
+              'border border-border bg-background text-foreground',
               'cursor-pointer'
             )}
           >
@@ -60,16 +62,13 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
       </div>
 
       {modelCoverage.length === 0 ? (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-muted-foreground">
           {t('coverage.noModelsOrNoMatch')}
         </div>
       ) : (
         <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
           {modelCoverage.map((m) => (
-            <div
-              key={m.model}
-              className="flex items-center gap-2 text-xs"
-            >
+            <div key={m.model} className="flex items-center gap-2 text-xs">
               <span
                 className="w-36 whitespace-nowrap overflow-hidden text-ellipsis text-foreground"
                 title={m.model}
@@ -79,7 +78,7 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
               <div
                 className={clsx(
                   'flex-1 bg-background rounded-full',
-                  'border border-gray-800 overflow-hidden h-2'
+                  'border border-border overflow-hidden h-2'
                 )}
               >
                 <div

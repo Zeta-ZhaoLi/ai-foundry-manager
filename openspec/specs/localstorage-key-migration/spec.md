@@ -100,24 +100,21 @@ The application SHALL use `ai-foundry-manager:theme` as the localStorage key for
 
 ### Requirement: Language Storage Key Update
 
-The application SHALL use `ai-foundry-manager:lang` as the localStorage key for language preference instead of `azure-openai-manager:lang`.
-
-**Files:**
-- `src/i18n/index.ts`
-
-#### Scenario: New installations use new key
-
-**Given** a user installs the application for the first time
-**When** the application saves language preference
-**Then** the data SHALL be stored under key `ai-foundry-manager:lang`
+The language preference migration MUST preserve the selected language across all supported languages.
 
 #### Scenario: Existing users have language preference migrated
 
 **Given** a user has existing data under key `azure-openai-manager:lang`
+
 **And** no data exists under key `ai-foundry-manager:lang`
+
 **When** the application initializes i18n
+
 **Then** the application SHALL copy language preference from old key to new key
-**And** the application SHALL preserve the selected language (zh/en)
+
+**And** the application SHALL preserve the selected language when it is one of the supported languages (`zh`, `en`, `ja`, `fr`, `de`, `es`, `pt-BR`, `ko`)
+
+**And** the application SHALL fall back to a supported default if the stored value is not supported
 
 ### Requirement: Audit Log Storage Key Update
 

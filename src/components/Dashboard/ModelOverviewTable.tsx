@@ -399,7 +399,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   return (
     <section
       className={clsx(
-        'p-3 sm:p-4 rounded-xl border border-gray-800 bg-background',
+        'p-3 sm:p-4 rounded-xl border border-border bg-background',
         !isDetailView && 'section-glow'
       )}
     >
@@ -411,9 +411,9 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
           <button
             type="button"
             onClick={onOpenDetail}
-            className="px-2 py-1 text-xs rounded-md border border-gray-700 text-muted-foreground hover:text-foreground hover:bg-gray-800 transition-colors"
+            className="px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            {t('common.detail', '详情')}
+            {t('common.detail')}
           </button>
         )}
       </div>
@@ -472,7 +472,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                     'px-2 py-1 rounded-full text-xs border transition-colors',
                     statusFilter === filter
                       ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
-                      : 'border-gray-700 bg-background text-muted-foreground hover:bg-gray-800'
+                      : 'border-border bg-background text-muted-foreground hover:bg-muted'
                   )}
                 >
                   {filter === 'all' &&
@@ -486,7 +486,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
             )}
           </div>
 
-          <span className="text-gray-600">|</span>
+          <span className="text-muted-foreground/40">|</span>
 
           {/* 类别筛选 */}
           <div className="flex items-center gap-1">
@@ -500,7 +500,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                     'px-2 py-1 rounded-full text-xs border transition-colors',
                     tierFilter === filter
                       ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
-                      : 'border-gray-700 bg-background text-muted-foreground hover:bg-gray-800'
+                      : 'border-border bg-background text-muted-foreground hover:bg-muted'
                   )}
                 >
                   {filter === 'all' &&
@@ -544,13 +544,13 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-800 bg-background">
+        <div className="overflow-x-auto rounded-xl border border-border bg-background">
           <div className="min-w-[980px]">
             {/* Header */}
             <div
               className={clsx(
                 'grid gap-2 px-2.5 py-1.5',
-                'border-b border-gray-800',
+                'border-b border-border',
                 'text-xs text-muted-foreground'
               )}
               style={{
@@ -599,7 +599,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                       key={account.id}
                       className={clsx(
                         'grid gap-2 px-2.5 items-center',
-                        'border-b border-gray-900',
+                        'border-b border-border',
                         'text-xs text-foreground',
                         !account.enabled && 'opacity-50'
                       )}
@@ -634,7 +634,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                             'inline-block px-2 py-0.5 rounded-full text-xs border',
                             account.tier === 'premium'
                               ? 'border-amber-900 bg-amber-900/30 text-amber-300'
-                              : 'border-gray-700 bg-gray-800/50 text-gray-400'
+                              : 'border-border bg-muted/50 text-muted-foreground'
                           )}
                         >
                           {account.tier === 'premium'
@@ -684,7 +684,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
               <div
                 className={clsx(
                   'grid gap-2 px-2.5 py-2 items-center',
-                  'border-t-2 border-cyan-800 bg-slate-900/80',
+                  'border-t-2 border-cyan-800 bg-muted/80',
                   'text-xs text-foreground font-medium sticky bottom-0'
                 )}
                 style={{
@@ -704,7 +704,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                     {summaryData.premiumCount}
                   </span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-gray-400">
+                  <span className="text-muted-foreground">
                     {summaryData.standardCount}
                   </span>
                 </div>

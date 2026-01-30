@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import clsx from 'clsx';
 import { AccountCard, AccountCardProps, LocalAccount } from './AccountCard';
+import i18n from '../../../i18n';
 
 interface SortableAccountCardProps extends Omit<AccountCardProps, 'account'> {
   account: LocalAccount;
@@ -46,7 +47,7 @@ export const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
           'text-muted-foreground hover:text-foreground transition-colors',
           'rounded-l-xl z-10'
         )}
-        title="拖拽排序"
+        title={i18n.t('accessibility.dragToReorder')}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

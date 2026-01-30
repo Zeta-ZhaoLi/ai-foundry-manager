@@ -59,7 +59,7 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
     if (ungrouped.length > 0) {
       groups.push({
         key: 'other',
-        title: t('common.other', 'Other'),
+        title: t('common.other'),
         lines: [ungrouped],
         models: ungrouped,
       });
@@ -75,7 +75,7 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
   };
 
   return (
-    <section className="p-4 rounded-xl border border-gray-800 bg-background section-glow">
+    <section className="p-4 rounded-xl border border-border bg-background section-glow">
       <h2 className="text-lg font-semibold mb-2">{t('summary.globalTitle')}</h2>
 
       {/* 总体统计 */}
@@ -91,8 +91,8 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
           disabled={allModels.length === 0}
           className={clsx(
             'px-2.5 py-1 rounded-full',
-            'border border-gray-600 bg-background text-foreground',
-            'text-sm cursor-pointer hover:bg-slate-800',
+            'border border-border bg-background text-foreground',
+            'text-sm cursor-pointer hover:bg-muted',
             'disabled:opacity-50 disabled:cursor-not-allowed'
           )}
         >
@@ -110,7 +110,7 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
               key={group.key}
               className={clsx(
                 'rounded-lg border p-3',
-                'border-gray-700 bg-slate-900/30'
+                'border-border bg-muted/60'
               )}
             >
               {/* 分类头部 */}
@@ -143,7 +143,7 @@ export const GlobalSummary: React.FC<GlobalSummaryProps> = ({
                       group.title
                     )
                   }
-                  className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
+                  className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted"
                 >
                   {t('common.copy')}
                 </button>

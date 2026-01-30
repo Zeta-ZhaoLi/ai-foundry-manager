@@ -5,20 +5,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: '#020617',
-        foreground: '#e5e7eb',
-        border: '#1f2937',
+        background: 'rgb(var(--background) / <alpha-value>)',
+        foreground: 'rgb(var(--foreground) / <alpha-value>)',
+        border: 'rgb(var(--border) / <alpha-value>)',
         muted: {
-          DEFAULT: '#111827',
-          foreground: '#9ca3af',
+          DEFAULT: 'rgb(var(--muted) / <alpha-value>)',
+          foreground: 'rgb(var(--muted-foreground) / <alpha-value>)',
         },
         primary: {
-          DEFAULT: '#0ea5e9',
-          foreground: '#f9fafb',
+          DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
+          foreground: 'rgb(var(--primary-foreground) / <alpha-value>)',
         },
         secondary: {
-          DEFAULT: '#22c55e',
-          foreground: '#022c22',
+          DEFAULT: 'rgb(var(--secondary) / <alpha-value>)',
+          foreground: 'rgb(var(--secondary-foreground) / <alpha-value>)',
         },
       },
       borderRadius: {
@@ -30,4 +30,3 @@ module.exports = {
   },
   plugins: [],
 };
-

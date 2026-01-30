@@ -255,7 +255,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
 
   return (
     <>
-      <section className="p-4 rounded-xl border border-gray-800 bg-background section-glow">
+      <section className="p-4 rounded-xl border border-border bg-background section-glow">
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div>
@@ -285,8 +285,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                 onClick={() => setShowRenumberConfirm(true)}
                 className={clsx(
                   'px-3 py-1.5 rounded-full',
-                  'border border-gray-600 bg-background text-foreground',
-                  'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                  'border border-border bg-background text-foreground',
+                  'text-xs cursor-pointer hover:bg-muted transition-colors'
                 )}
                 title={t('accounts.renumberTooltip')}
               >
@@ -299,8 +299,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                 onClick={handleImportClick}
                 className={clsx(
                   'px-3 py-1.5 rounded-full',
-                  'border border-gray-600 bg-background text-foreground',
-                  'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                  'border border-border bg-background text-foreground',
+                  'text-xs cursor-pointer hover:bg-muted transition-colors'
                 )}
               >
                 {t('accounts.importConfig')}
@@ -311,8 +311,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
               onClick={() => setShowExportWarning(true)}
               className={clsx(
                 'px-3 py-1.5 rounded-full',
-                'border border-gray-600 bg-background text-foreground',
-                'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                'border border-border bg-background text-foreground',
+                'text-xs cursor-pointer hover:bg-muted transition-colors'
               )}
             >
               {t('accounts.exportConfig')}
@@ -326,7 +326,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
           <input
             className={clsx(
               'flex-1 min-w-0 p-1 rounded-full',
-              'border border-gray-700 bg-background text-foreground text-xs',
+              'border border-border bg-background text-foreground text-xs',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
             value={modelFilterInput}
@@ -339,8 +339,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
               onClick={() => onFilterChange('')}
               className={clsx(
                 'px-2 py-0.5 rounded-full',
-                'border border-gray-600 bg-background text-foreground',
-                'text-xs cursor-pointer hover:bg-slate-800'
+                'border border-border bg-background text-foreground',
+                'text-xs cursor-pointer hover:bg-muted'
               )}
             >
               {t('common.clear')}

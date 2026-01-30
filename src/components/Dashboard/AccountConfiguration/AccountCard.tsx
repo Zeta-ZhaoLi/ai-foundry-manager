@@ -152,8 +152,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     return (
       <div
         className={clsx(
-          'rounded-xl border border-gray-800 p-3',
-          'bg-gradient-to-br from-slate-950/90 to-slate-950/70',
+          'rounded-xl border border-border p-3',
+          'bg-gradient-to-br from-white to-slate-50 dark:from-slate-950/90 dark:to-slate-950/70',
           'shadow-lg opacity-50'
         )}
       >
@@ -167,7 +167,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
                   account.tier === 'premium'
                     ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
-                    : 'bg-gray-700/50 text-gray-300 border border-gray-600'
+                    : 'bg-muted text-muted-foreground border border-border'
                 )}
               >
                 {privacyMode
@@ -177,7 +177,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             )}
             {/* 账号名称 */}
             <span className="text-sm font-medium truncate">{displayName}</span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               ({t('regions.disabled')})
             </span>
           </div>
@@ -185,7 +185,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           <button
             type="button"
             onClick={() => setIsExpanded(true)}
-            className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800 whitespace-nowrap shrink-0"
+            className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted whitespace-nowrap shrink-0"
           >
             {t('accounts.expand')}
           </button>
@@ -198,8 +198,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     <>
       <div
         className={clsx(
-          'rounded-xl border border-gray-800 p-3',
-          'bg-gradient-to-br from-slate-950/90 to-slate-950/70',
+          'rounded-xl border border-border p-3',
+          'bg-gradient-to-br from-white to-slate-50 dark:from-slate-950/90 dark:to-slate-950/70',
           'shadow-lg',
           account.enabled ? 'opacity-100' : 'opacity-60'
         )}
@@ -217,7 +217,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
                     account.tier === 'premium'
                       ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
-                      : 'bg-gray-700/50 text-gray-300 border border-gray-600'
+                      : 'bg-muted text-muted-foreground border border-border'
                   )}
                 >
                   {privacyMode
@@ -256,7 +256,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsExpanded(false)}
-                  className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800 whitespace-nowrap"
+                  className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted whitespace-nowrap"
                 >
                   {t('accounts.collapse')}
                 </button>
@@ -290,7 +290,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   }
                   className={clsx(
                     'flex-1 px-2 py-1.5 rounded-lg',
-                    'border border-gray-700 bg-background text-foreground text-sm',
+                    'border border-border bg-background text-foreground text-sm',
                     'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
                     'cursor-pointer'
                   )}
@@ -308,7 +308,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       'px-2 py-1 rounded text-xs font-mono font-bold whitespace-nowrap',
                       account.tier === 'premium'
                         ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
-                        : 'bg-gray-700/50 text-gray-300 border border-gray-600'
+                        : 'bg-muted text-muted-foreground border border-border'
                     )}
                   >
                     {privacyMode
@@ -327,7 +327,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               <input
                 className={clsx(
                   'w-full p-1.5 rounded-lg',
-                  'border border-gray-700 bg-background text-foreground text-sm',
+                  'border border-border bg-background text-foreground text-sm',
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
                 value={privacyMode ? displayName : account.name}
@@ -350,7 +350,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   }
                   className={clsx(
                     'flex-1 px-2 py-1.5 rounded-lg',
-                    'border border-gray-700 bg-background text-foreground text-sm',
+                    'border border-border bg-background text-foreground text-sm',
                     'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
                     'cursor-pointer'
                   )}
@@ -381,7 +381,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   placeholder="0"
                   className={clsx(
                     'w-full p-1.5 rounded-lg',
-                    'border border-gray-700 bg-background text-foreground text-sm',
+                    'border border-border bg-background text-foreground text-sm',
                     'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                   )}
                 />
@@ -560,7 +560,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               className="flex items-center gap-2 text-sm font-medium mb-2 hover:text-cyan-400 transition-colors"
             >
               <span className="text-lg">☁️</span>
-              <span>{t('accounts.azureDeployConfig', 'Azure 部署配置')}</span>
+              <span>{t('accounts.azureDeployConfig')}</span>
               <span className="text-xs text-muted-foreground">
                 {showAzureDeployConfig ? '▼' : '▶'}
               </span>
@@ -569,16 +569,13 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             {showAzureDeployConfig && (
               <div className="border border-gray-800 rounded-lg p-3 bg-slate-950/50">
                 <div className="text-xs text-muted-foreground mb-2">
-                  {t(
-                    'accounts.azureDeployHint',
-                    '用于跳转 Azure Portal 自定义部署（建议提前登录 Portal）。'
-                  )}
+                  {t('accounts.azureDeployHint')}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">
-                      {t('accounts.subscriptionId', 'Subscription ID')}
+                      {t('accounts.subscriptionId')}
                     </label>
                     <input
                       type="text"
@@ -593,7 +590,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">
-                      {t('accounts.resourceGroup', 'Resource Group')}
+                      {t('accounts.resourceGroup')}
                     </label>
                     <input
                       type="text"

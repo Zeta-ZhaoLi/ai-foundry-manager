@@ -52,7 +52,7 @@ export const RegionCoverageChart: React.FC<RegionCoverageChartProps> = ({
     <div
       className={clsx(
         'w-full rounded-xl',
-        'border border-gray-800 p-3 bg-background'
+        'border border-border p-3 bg-background'
       )}
     >
       <div className="flex justify-between items-center mb-1.5">
@@ -65,16 +65,13 @@ export const RegionCoverageChart: React.FC<RegionCoverageChartProps> = ({
       </div>
 
       {regionCoverage.length === 0 ? (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-muted-foreground">
           {t('coverage.noRegionsOrEmptyMaster')}
         </div>
       ) : (
         <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto overflow-x-hidden">
           {regionCoverage.slice(0, maxItems).map((r) => (
-            <div
-              key={r.key}
-              className="flex items-center gap-2 text-xs"
-            >
+            <div key={r.key} className="flex items-center gap-2 text-xs">
               <span
                 className="w-44 whitespace-nowrap overflow-hidden text-ellipsis text-foreground flex items-center gap-1"
                 title={getDisplayLabel(r)}
@@ -87,7 +84,7 @@ export const RegionCoverageChart: React.FC<RegionCoverageChartProps> = ({
               <div
                 className={clsx(
                   'flex-1 bg-background rounded-full',
-                  'border border-gray-800 overflow-hidden h-2'
+                  'border border-border overflow-hidden h-2'
                 )}
               >
                 <div

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import i18n from '../i18n';
 import { getSeries } from '../utils/modelSeries';
 import {
   parseModels,
@@ -235,8 +236,8 @@ export function useLocalAzureAccounts() {
       {
         id: 'sample-account',
         accountId: 'B001', // 示例账号默认为 standard
-        name: '示例账号',
-        note: '你可以删除这个示例并添加自己的账号',
+        name: `${i18n.t('accounts.account')} 1`,
+        note: '',
         enabled: true,
         tier: 'standard',
         regions: [
@@ -270,7 +271,7 @@ export function useLocalAzureAccounts() {
       const newAccount: LocalAccount = {
         id: generateId('acct'),
         accountId,
-        name: '新账号',
+        name: `${i18n.t('accounts.account')} ${prev.length + 1}`,
         note: '',
         enabled: true,
         includeInStats: true, // 默认参与统计

@@ -30,18 +30,23 @@ export const BarChart: React.FC<BarChartProps> = ({
   if (horizontal) {
     return (
       <div className="flex flex-col gap-2">
-        {title && <div className="text-xs text-muted-foreground mb-1">{title}</div>}
+        {title && (
+          <div className="text-xs text-muted-foreground mb-1">{title}</div>
+        )}
         {data.map((item, idx) => {
           const pct = (item.value / max) * 100;
 
           return (
             <div key={idx} className="flex items-center gap-2">
-              <div className="w-24 text-xs text-muted-foreground truncate" title={item.label}>
+              <div
+                className="w-24 text-xs text-muted-foreground truncate"
+                title={item.label}
+              >
                 {item.label}
               </div>
               <div className="flex-1 min-w-0">
                 <div
-                  className="rounded-full bg-gray-800 overflow-hidden"
+                  className="rounded-full bg-muted overflow-hidden"
                   style={{ height }}
                 >
                   {item.segments ? (
@@ -57,7 +62,11 @@ export const BarChart: React.FC<BarChartProps> = ({
                               width: `${segPct}%`,
                               backgroundColor: seg.color,
                             }}
-                            title={seg.label ? `${seg.label}: ${seg.value}` : String(seg.value)}
+                            title={
+                              seg.label
+                                ? `${seg.label}: ${seg.value}`
+                                : String(seg.value)
+                            }
                           />
                         );
                       })}
@@ -67,7 +76,8 @@ export const BarChart: React.FC<BarChartProps> = ({
                     <div
                       className={clsx(
                         'h-full rounded-full transition-all',
-                        !item.color && 'bg-gradient-to-r from-cyan-500 to-green-500'
+                        !item.color &&
+                          'bg-gradient-to-r from-cyan-500 to-green-500'
                       )}
                       style={{
                         width: `${pct}%`,
@@ -92,7 +102,9 @@ export const BarChart: React.FC<BarChartProps> = ({
   // Vertical bar chart
   return (
     <div className="flex flex-col">
-      {title && <div className="text-xs text-muted-foreground mb-2">{title}</div>}
+      {title && (
+        <div className="text-xs text-muted-foreground mb-2">{title}</div>
+      )}
       <div className="flex items-end gap-2 h-32">
         {data.map((item, idx) => {
           const pct = (item.value / max) * 100;
@@ -101,7 +113,7 @@ export const BarChart: React.FC<BarChartProps> = ({
             <div key={idx} className="flex flex-col items-center gap-1 flex-1">
               <div className="w-full flex justify-center">
                 <div
-                  className="w-6 rounded-t bg-gray-800 overflow-hidden relative"
+                  className="w-6 rounded-t bg-muted overflow-hidden relative"
                   style={{ height: '100px' }}
                 >
                   {item.segments ? (
@@ -117,7 +129,11 @@ export const BarChart: React.FC<BarChartProps> = ({
                               height: `${segPct}%`,
                               backgroundColor: seg.color,
                             }}
-                            title={seg.label ? `${seg.label}: ${seg.value}` : String(seg.value)}
+                            title={
+                              seg.label
+                                ? `${seg.label}: ${seg.value}`
+                                : String(seg.value)
+                            }
                           />
                         );
                       })}
@@ -126,7 +142,8 @@ export const BarChart: React.FC<BarChartProps> = ({
                     <div
                       className={clsx(
                         'absolute bottom-0 left-0 right-0 rounded-t transition-all',
-                        !item.color && 'bg-gradient-to-t from-cyan-500 to-green-500'
+                        !item.color &&
+                          'bg-gradient-to-t from-cyan-500 to-green-500'
                       )}
                       style={{
                         height: `${pct}%`,
@@ -139,7 +156,10 @@ export const BarChart: React.FC<BarChartProps> = ({
               {showValue && (
                 <div className="text-xs text-foreground">{item.value}</div>
               )}
-              <div className="text-xs text-muted-foreground truncate max-w-full" title={item.label}>
+              <div
+                className="text-xs text-muted-foreground truncate max-w-full"
+                title={item.label}
+              >
                 {item.label}
               </div>
             </div>

@@ -424,7 +424,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       />
 
       {/* Overview Dashboard + Coverage Charts */}
-      <section className="p-3 sm:p-4 rounded-xl border border-gray-800 bg-background section-glow">
+      <section className="p-3 sm:p-4 rounded-xl border border-border bg-background section-glow">
         <h2 className="text-base sm:text-lg font-semibold mb-2">
           {t('dashboard.title')}
         </h2>

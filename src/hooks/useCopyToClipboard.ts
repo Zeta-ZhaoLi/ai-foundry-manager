@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from './useToast';
+import i18n from '../i18n';
 
 export interface UseCopyToClipboardOptions {
   /** 复制成功后的重置延迟（毫秒） */
@@ -50,7 +51,7 @@ export const useCopyToClipboard = (
     async (text: string, label?: string): Promise<boolean> => {
       if (!text) {
         if (showToast) {
-          toast.error('没有内容可以复制');
+          toast.error(i18n.t('toast.nothingToCopy'));
         }
         return false;
       }
@@ -62,7 +63,11 @@ export const useCopyToClipboard = (
           setCopiedText(text);
           setCopied(true);
           if (showToast) {
-            toast.success(`已复制${label ? `：${label}` : ''}`);
+            toast.success(
+              label
+                ? i18n.t('toast.copiedWithLabel', { label })
+                : i18n.t('toast.copied')
+            );
           }
 
           // 设置自动重置
@@ -92,7 +97,11 @@ export const useCopyToClipboard = (
           setCopiedText(text);
           setCopied(true);
           if (showToast) {
-            toast.success(`已复制${label ? `：${label}` : ''}`);
+            toast.success(
+              label
+                ? i18n.t('toast.copiedWithLabel', { label })
+                : i18n.t('toast.copied')
+            );
           }
 
           // 设置自动重置
@@ -110,7 +119,7 @@ export const useCopyToClipboard = (
       } catch (error) {
         console.error('Failed to copy:', error);
         if (showToast) {
-          toast.error('复制失败，请手动选择文本');
+          toast.error(i18n.t('toast.copyFailed'));
         }
         return false;
       }

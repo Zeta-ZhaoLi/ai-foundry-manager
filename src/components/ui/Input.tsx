@@ -16,7 +16,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-300 mb-2"
+            className="block text-sm font-medium text-muted-foreground mb-2"
           >
             {label}
           </label>
@@ -25,12 +25,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           className={clsx(
-            'w-full px-3 py-2 rounded-lg border bg-gray-900 text-gray-100 placeholder-gray-500',
-            'focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent',
+            'w-full px-3 py-2 rounded-lg border bg-background text-foreground placeholder:text-muted-foreground',
+            'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
             'transition-colors',
-            error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-700 hover:border-gray-600',
+            error ? 'border-red-500 focus:ring-red-500' : 'border-border',
             className
           )}
           aria-invalid={!!error}
@@ -38,7 +36,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {error && (
-          <p id={`${inputId}-error`} className="mt-1 text-xs text-red-400" role="alert">
+          <p
+            id={`${inputId}-error`}
+            className="mt-1 text-xs text-red-400"
+            role="alert"
+          >
             {error}
           </p>
         )}
@@ -57,14 +59,15 @@ export interface TextareaProps
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, error, label, id, ...props }, ref) => {
-    const textareaId = id || `textarea-${Math.random().toString(36).slice(2, 9)}`;
+    const textareaId =
+      id || `textarea-${Math.random().toString(36).slice(2, 9)}`;
 
     return (
       <div className="w-full">
         {label && (
           <label
             htmlFor={textareaId}
-            className="block text-sm font-medium text-gray-300 mb-2"
+            className="block text-sm font-medium text-muted-foreground mb-2"
           >
             {label}
           </label>
@@ -73,12 +76,10 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={textareaId}
           ref={ref}
           className={clsx(
-            'w-full px-3 py-2 rounded-lg border bg-gray-900 text-gray-100 placeholder-gray-500',
-            'focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent',
+            'w-full px-3 py-2 rounded-lg border bg-background text-foreground placeholder:text-muted-foreground',
+            'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
             'transition-colors resize-vertical',
-            error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-700 hover:border-gray-600',
+            error ? 'border-red-500 focus:ring-red-500' : 'border-border',
             className
           )}
           aria-invalid={!!error}
@@ -86,7 +87,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           {...props}
         />
         {error && (
-          <p id={`${textareaId}-error`} className="mt-1 text-xs text-red-400" role="alert">
+          <p
+            id={`${textareaId}-error`}
+            className="mt-1 text-xs text-red-400"
+            role="alert"
+          >
             {error}
           </p>
         )}

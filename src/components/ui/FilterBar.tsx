@@ -4,7 +4,15 @@ import { useTranslation } from 'react-i18next';
 
 // ================== Types ==================
 
-export type FilterOperator = 'equals' | 'contains' | 'startsWith' | 'endsWith' | 'gt' | 'lt' | 'gte' | 'lte';
+export type FilterOperator =
+  | 'equals'
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith'
+  | 'gt'
+  | 'lt'
+  | 'gte'
+  | 'lte';
 
 export interface FilterCondition {
   id: string;
@@ -94,7 +102,11 @@ const ClearIcon: React.FC<{ className?: string }> = ({ className }) => (
     stroke="currentColor"
     strokeWidth={2}
   >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M6 18L18 6M6 6l12 12"
+    />
   </svg>
 );
 
@@ -153,7 +165,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     [presets, activePresetId]
   );
 
-  const hasActiveFilters = searchValue || activePresetId || activeQuickFilters.length > 0;
+  const hasActiveFilters =
+    searchValue || activePresetId || activeQuickFilters.length > 0;
 
   const sizeClasses = {
     sm: {
@@ -190,7 +203,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder || t('accounts.searchPlaceholder')}
             className={clsx(
-              'w-full rounded-lg border border-gray-700 bg-background text-foreground',
+              'w-full rounded-lg border border-border bg-background text-foreground',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
               'transition-colors',
               sizes.input
@@ -221,12 +234,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 'transition-colors',
                 activePreset
                   ? 'border-cyan-600 bg-cyan-900/30 text-cyan-300'
-                  : 'border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:border-gray-600',
+                  : 'border-border bg-background text-muted-foreground hover:text-foreground',
                 sizes.button
               )}
             >
               <FilterIcon className={sizes.icon} />
-              <span>{activePreset?.name || t('filterBar.presets', '预设')}</span>
+              <span>{activePreset?.name || t('filterBar.presets')}</span>
             </button>
 
             {isPresetOpen && (
@@ -238,7 +251,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 <div
                   className={clsx(
                     'absolute right-0 top-full mt-1 z-50',
-                    'min-w-[160px] py-1 rounded-lg border border-gray-700 bg-gray-900 shadow-xl'
+                    'min-w-[160px] py-1 rounded-lg border border-border bg-background shadow-xl'
                   )}
                 >
                   <button
@@ -246,11 +259,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     onClick={() => handlePresetSelect(null)}
                     className={clsx(
                       'w-full px-3 py-1.5 text-left text-sm',
-                      'hover:bg-gray-800 transition-colors',
-                      !activePresetId ? 'text-cyan-400' : 'text-gray-300'
+                      'hover:bg-muted transition-colors',
+                      !activePresetId
+                        ? 'text-cyan-600 dark:text-cyan-400'
+                        : 'text-foreground'
                     )}
                   >
-                    {t('filterBar.allItems', '全部')}
+                    {t('filterBar.allItems')}
                   </button>
                   {presets.map((preset) => (
                     <button
@@ -259,8 +274,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                       onClick={() => handlePresetSelect(preset.id)}
                       className={clsx(
                         'w-full px-3 py-1.5 text-left text-sm flex items-center gap-2',
-                        'hover:bg-gray-800 transition-colors',
-                        activePresetId === preset.id ? 'text-cyan-400' : 'text-gray-300'
+                        'hover:bg-muted transition-colors',
+                        activePresetId === preset.id
+                          ? 'text-cyan-600 dark:text-cyan-400'
+                          : 'text-foreground'
                       )}
                     >
                       {preset.icon}
@@ -284,20 +301,20 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             const isActive = activeQuickFilters.includes(filter.id);
             const colorClasses = {
               default: isActive
-                ? 'border-gray-500 bg-gray-700 text-white'
-                : 'border-gray-700 text-gray-400 hover:border-gray-600',
+                ? 'border-border bg-muted text-foreground'
+                : 'border-border text-muted-foreground',
               primary: isActive
                 ? 'border-cyan-500 bg-cyan-900/50 text-cyan-300'
-                : 'border-gray-700 text-gray-400 hover:border-cyan-700',
+                : 'border-border text-muted-foreground hover:border-cyan-700',
               success: isActive
                 ? 'border-green-500 bg-green-900/50 text-green-300'
-                : 'border-gray-700 text-gray-400 hover:border-green-700',
+                : 'border-border text-muted-foreground hover:border-green-700',
               warning: isActive
                 ? 'border-yellow-500 bg-yellow-900/50 text-yellow-300'
-                : 'border-gray-700 text-gray-400 hover:border-yellow-700',
+                : 'border-border text-muted-foreground hover:border-yellow-700',
               danger: isActive
                 ? 'border-red-500 bg-red-900/50 text-red-300'
-                : 'border-gray-700 text-gray-400 hover:border-red-700',
+                : 'border-border text-muted-foreground hover:border-red-700',
             };
 
             return (
@@ -323,12 +340,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       {(resultCount !== undefined || hasActiveFilters) && (
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            {resultCount !== undefined && totalCount !== undefined ? (
-              t('accessibility.filterResults', { count: resultCount }) +
-              (resultCount !== totalCount ? ` / ${totalCount}` : '')
-            ) : hasActiveFilters ? (
-              t('filterBar.filtersApplied', '已应用筛选')
-            ) : null}
+            {resultCount !== undefined && totalCount !== undefined
+              ? t('accessibility.filterResults', { count: resultCount }) +
+                (resultCount !== totalCount ? ` / ${totalCount}` : '')
+              : hasActiveFilters
+                ? t('filterBar.filtersApplied')
+                : null}
           </span>
           {hasActiveFilters && (
             <button
@@ -340,7 +357,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               }}
               className="text-cyan-400 hover:text-cyan-300 transition-colors"
             >
-              {t('emptyState.clearFilters', '清除筛选')}
+              {t('emptyState.clearFilters')}
             </button>
           )}
         </div>
@@ -389,7 +406,10 @@ export const useFilterPresets = (
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const presets = useMemo(
-    () => [...builtInPresets.map((p) => ({ ...p, isBuiltIn: true })), ...customPresets],
+    () => [
+      ...builtInPresets.map((p) => ({ ...p, isBuiltIn: true })),
+      ...customPresets,
+    ],
     [builtInPresets, customPresets]
   );
 
@@ -430,7 +450,9 @@ export const useFilterPresets = (
 
   const updatePreset = useCallback(
     (id: string, updates: Partial<FilterPreset>) => {
-      savePresets(customPresets.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+      savePresets(
+        customPresets.map((p) => (p.id === id ? { ...p, ...updates } : p))
+      );
     },
     [customPresets, savePresets]
   );
@@ -455,7 +477,9 @@ export interface UseQuickFiltersReturn {
   isActive: (id: string) => boolean;
 }
 
-export const useQuickFilters = (initialFilters: string[] = []): UseQuickFiltersReturn => {
+export const useQuickFilters = (
+  initialFilters: string[] = []
+): UseQuickFiltersReturn => {
   const [activeFilters, setActiveFilters] = useState<string[]>(initialFilters);
 
   const toggleFilter = useCallback((id: string) => {
@@ -472,7 +496,10 @@ export const useQuickFilters = (initialFilters: string[] = []): UseQuickFiltersR
     setActiveFilters([]);
   }, []);
 
-  const isActive = useCallback((id: string) => activeFilters.includes(id), [activeFilters]);
+  const isActive = useCallback(
+    (id: string) => activeFilters.includes(id),
+    [activeFilters]
+  );
 
   return {
     activeFilters,
@@ -495,11 +522,17 @@ export const applyFilter = <T extends Record<string, unknown>>(
     case 'equals':
       return value === condition.value;
     case 'contains':
-      return String(value).toLowerCase().includes(String(condition.value).toLowerCase());
+      return String(value)
+        .toLowerCase()
+        .includes(String(condition.value).toLowerCase());
     case 'startsWith':
-      return String(value).toLowerCase().startsWith(String(condition.value).toLowerCase());
+      return String(value)
+        .toLowerCase()
+        .startsWith(String(condition.value).toLowerCase());
     case 'endsWith':
-      return String(value).toLowerCase().endsWith(String(condition.value).toLowerCase());
+      return String(value)
+        .toLowerCase()
+        .endsWith(String(condition.value).toLowerCase());
     case 'gt':
       return Number(value) > Number(condition.value);
     case 'lt':

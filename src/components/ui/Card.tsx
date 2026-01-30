@@ -8,9 +8,9 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = 'default', children, ...props }, ref) => {
     const variantStyles = {
-      default: 'bg-gray-900 border-gray-800',
+      default: 'bg-background border-border',
       gradient:
-        'bg-gradient-to-br from-gray-900/90 to-gray-900/70 border-gray-800',
+        'bg-gradient-to-br from-white to-slate-50 dark:from-gray-900/90 dark:to-gray-900/70 border-border',
     };
 
     return (
@@ -46,7 +46,10 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   children,
   ...props
 }) => (
-  <h3 className={clsx('text-lg font-semibold text-gray-100', className)} {...props}>
+  <h3
+    className={clsx('text-lg font-semibold text-foreground', className)}
+    {...props}
+  >
     {children}
   </h3>
 );
@@ -54,7 +57,10 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
 export const CardDescription: React.FC<
   React.HTMLAttributes<HTMLParagraphElement>
 > = ({ className, children, ...props }) => (
-  <p className={clsx('text-sm text-gray-400 mt-1', className)} {...props}>
+  <p
+    className={clsx('text-sm text-muted-foreground mt-1', className)}
+    {...props}
+  >
     {children}
   </p>
 );

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Button } from '../ui';
 import { configImportSchema } from '../../schemas/account';
 import { useToast } from '../../hooks/useToast';
+import { useTranslation } from 'react-i18next';
 
 interface ConfigImportButtonProps {
   onImport: (config: { accounts: any[]; masterText?: string }) => void;
@@ -10,6 +11,7 @@ interface ConfigImportButtonProps {
 export const ConfigImportButton: React.FC<ConfigImportButtonProps> = ({
   onImport,
 }) => {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
@@ -31,15 +33,15 @@ export const ConfigImportButton: React.FC<ConfigImportButtonProps> = ({
       const result = configImportSchema.safeParse(json);
 
       if (!result.success) {
-        toast.error('配置文件格式不正确');
+        toast.error(t('toast.invalidConfig'));
         console.error('Validation errors:', result.error);
         return;
       }
 
       onImport(result.data);
-      toast.success('配置导入成功');
+      toast.success(t('toast.configImported'));
     } catch (error) {
-      toast.error('配置文件解析失败');
+      toast.error(t('toast.configImportFailed'));
       console.error('Import error:', error);
     } finally {
       // 重置 input，允许重复导入同一个文件
@@ -57,15 +59,15 @@ export const ConfigImportButton: React.FC<ConfigImportButtonProps> = ({
         accept=".json"
         onChange={handleFileChange}
         className="hidden"
-        aria-label="Import configuration file"
+        aria-label={t('accounts.importConfig')}
       />
       <Button
         variant="secondary"
         size="sm"
         onClick={handleClick}
-        aria-label="Import configuration from JSON file"
+        aria-label={t('accounts.importConfig')}
       >
-        导入配置
+        {t('accounts.importConfig')}
       </Button>
     </>
   );

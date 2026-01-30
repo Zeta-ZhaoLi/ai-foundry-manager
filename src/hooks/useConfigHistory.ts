@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import i18n from '../i18n';
 
 const STORAGE_KEY = 'ai-foundry-manager:config-history';
 const LEGACY_STORAGE_KEY = 'azure-openai-manager:config-history';
@@ -30,7 +31,11 @@ export interface UseConfigHistoryReturn {
   /** 当前版本 ID */
   currentVersionId: string | null;
   /** 保存新版本 */
-  saveVersion: (data: unknown, description?: string, isAutoSave?: boolean) => void;
+  saveVersion: (
+    data: unknown,
+    description?: string,
+    isAutoSave?: boolean
+  ) => void;
   /** 恢复到指定版本 */
   restoreVersion: (versionId: string) => unknown | null;
   /** 删除指定版本 */
@@ -40,7 +45,10 @@ export interface UseConfigHistoryReturn {
   /** 获取版本数据 */
   getVersionData: (versionId: string) => unknown | null;
   /** 比较两个版本 */
-  compareVersions: (versionId1: string, versionId2: string) => VersionDiff | null;
+  compareVersions: (
+    versionId1: string,
+    versionId2: string
+  ) => VersionDiff | null;
   /** 是否有未保存的变更 */
   hasUnsavedChanges: (currentData: unknown) => boolean;
 }
@@ -61,7 +69,7 @@ const simpleHash = (str: string): string => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32bit integer
   }
   return Math.abs(hash).toString(36);
@@ -77,10 +85,14 @@ const loadHistory = (): ConfigHistoryState => {
     if (!stored) {
       const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY);
       if (legacyStored) {
-        console.log('[Migration] Migrating config history from legacy key to new key');
+        console.log(
+          '[Migration] Migrating config history from legacy key to new key'
+        );
         localStorage.setItem(STORAGE_KEY, legacyStored);
         stored = legacyStored;
-        console.log('[Migration] Config history migration completed successfully');
+        console.log(
+          '[Migration] Config history migration completed successfully'
+        );
       }
     }
 
@@ -161,7 +173,11 @@ export const useConfigHistory = (): UseConfigHistoryReturn => {
       const newVersion: ConfigVersion = {
         id: generateId(),
         timestamp: Date.now(),
-        description: description || (isAutoSave ? '自动保存' : '手动保存'),
+        description:
+          description ||
+          (isAutoSave
+            ? i18n.t('configHistory.autoSave')
+            : i18n.t('configHistory.manualSave')),
         data: dataStr,
         hash,
         isAutoSave,
@@ -177,7 +193,9 @@ export const useConfigHistory = (): UseConfigHistoryReturn => {
           if (autoSaveVersions.length > 10) {
             // 只保留最近 10 个自动保存
             const idsToRemove = autoSaveVersions.slice(10).map((v) => v.id);
-            newVersions = newVersions.filter((v) => !idsToRemove.includes(v.id));
+            newVersions = newVersions.filter(
+              (v) => !idsToRemove.includes(v.id)
+            );
           }
         }
 
@@ -252,8 +270,14 @@ export const useConfigHistory = (): UseConfigHistoryReturn => {
   // 比较两个版本
   const compareVersions = useCallback(
     (versionId1: string, versionId2: string): VersionDiff | null => {
-      const data1 = getVersionData(versionId1) as Record<string, unknown> | null;
-      const data2 = getVersionData(versionId2) as Record<string, unknown> | null;
+      const data1 = getVersionData(versionId1) as Record<
+        string,
+        unknown
+      > | null;
+      const data2 = getVersionData(versionId2) as Record<
+        string,
+        unknown
+      > | null;
 
       if (!data1 || !data2) return null;
 
@@ -264,7 +288,8 @@ export const useConfigHistory = (): UseConfigHistoryReturn => {
       const added = [...keys2].filter((k) => !keys1.has(k));
       const removed = [...keys1].filter((k) => !keys2.has(k));
       const modified = [...keys1].filter(
-        (k) => keys2.has(k) && JSON.stringify(data1[k]) !== JSON.stringify(data2[k])
+        (k) =>
+          keys2.has(k) && JSON.stringify(data1[k]) !== JSON.stringify(data2[k])
       );
 
       return { added, removed, modified };

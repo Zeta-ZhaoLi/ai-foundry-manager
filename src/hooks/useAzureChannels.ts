@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { NewApiClient } from '../api/newApiClient';
 import type { Channel } from '../types/channel';
 import { getSeries } from '../utils/modelSeries';
+import i18n from '../i18n';
 
 export interface AzureChannelModels {
   [channelId: number]: string[];
@@ -95,7 +96,7 @@ export function useAzureChannels(client: NewApiClient) {
   const accountSummaries: AccountSummary[] = useMemo(() => {
     const accounts: { [key: string]: AccountSummary } = {};
     for (const ch of channels) {
-      const accountKey = ch.tag || '默认账号';
+      const accountKey = ch.tag || i18n.t('common.other');
       if (!accounts[accountKey]) {
         accounts[accountKey] = {
           accountKey,
@@ -114,12 +115,10 @@ export function useAzureChannels(client: NewApiClient) {
 
     // 去重和排序
     return Object.values(accounts).map((acc) => {
-      const regionEntries = Object.entries(acc.regions).map(
-        ([label, info]) => {
-          const unique = Array.from(new Set(info.models)).sort();
-          return [label, { models: unique }] as const;
-        },
-      );
+      const regionEntries = Object.entries(acc.regions).map(([label, info]) => {
+        const unique = Array.from(new Set(info.models)).sort();
+        return [label, { models: unique }] as const;
+      });
       const regions = Object.fromEntries(regionEntries);
       const allModels = Array.from(new Set(acc.allModels)).sort();
       return { ...acc, regions, allModels };
@@ -155,4 +154,3 @@ export function useAzureChannels(client: NewApiClient) {
     loadAllModels,
   };
 }
-

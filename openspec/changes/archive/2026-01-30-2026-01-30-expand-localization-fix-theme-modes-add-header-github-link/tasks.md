@@ -1,0 +1,22 @@
+# Tasks
+
+- [x] Inventory current i18n keys and confirm `zh.json`/`en.json` are the canonical keyset.
+- [x] Add new locale resource files (`ja`, `fr`, `de`, `es`, `pt-BR`, `ko`) with a complete keyset.
+- [x] Update i18n initialization:
+  - register the new locales
+  - accept/persist the expanded set of language codes
+  - fall back safely when localStorage contains an unknown value
+- [x] Replace the header language toggle with a multi-language selector.
+- [x] Add a header GitHub icon+link (top-right) and localize its accessible label.
+- [x] Fix theme modes:
+  - define a light palette alongside the existing dark palette
+  - ensure semantic Tailwind tokens render correctly in both themes
+  - replace hard-coded dark-only classes where they block Light mode
+  - verify System mode updates when OS theme changes
+- [x] Documentation:
+  - update `README.md` to reflect current behavior and supported languages
+  - add localized READMEs (`README.zh-CN.md`, `README.ja.md`, `README.fr.md`, `README.de.md`, `README.es.md`, `README.pt-BR.md`, `README.ko.md`) and cross-link them
+- [x] Tests and validation:
+  - add a test that fails if any locale is missing translation keys
+  - add/adjust theme tests (persistence + system resolution)
+  - run `npm run test`, `npm run lint`, `npm run build`

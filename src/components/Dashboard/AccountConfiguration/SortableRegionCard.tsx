@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import clsx from 'clsx';
 import { RegionCard, RegionCardProps, LocalRegion } from './RegionCard';
+import i18n from '../../../i18n';
 
 interface SortableRegionCardProps extends Omit<RegionCardProps, 'region'> {
   region: LocalRegion;
@@ -30,10 +31,7 @@ export const SortableRegionCard: React.FC<SortableRegionCardProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={clsx(
-        'relative',
-        isDragging && 'z-50 opacity-90 shadow-xl'
-      )}
+      className={clsx('relative', isDragging && 'z-50 opacity-90 shadow-xl')}
     >
       {/* Drag handle */}
       <div
@@ -45,7 +43,7 @@ export const SortableRegionCard: React.FC<SortableRegionCardProps> = ({
           'text-muted-foreground hover:text-foreground transition-colors',
           'rounded-l-lg'
         )}
-        title="拖拽排序"
+        title={i18n.t('accessibility.dragToReorder')}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

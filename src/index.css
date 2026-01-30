@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 主题色板（Tailwind 通过 CSS 变量实现 light/dark token 切换） */
+:root {
+  /* Default to dark to match initial app behavior. */
+  --background: 2 6 23;
+  --foreground: 229 231 235;
+  --border: 31 41 55;
+  --muted: 17 24 39;
+  --muted-foreground: 156 163 175;
+  --primary: 14 165 233;
+  --primary-foreground: 249 250 251;
+  --secondary: 34 197 94;
+  --secondary-foreground: 2 44 34;
+}
+
+html.light {
+  --background: 248 250 252;
+  --foreground: 15 23 42;
+  --border: 226 232 240;
+  --muted: 241 245 249;
+  --muted-foreground: 100 116 139;
+  --primary: 14 165 233;
+  --primary-foreground: 255 255 255;
+  --secondary: 34 197 94;
+  --secondary-foreground: 2 44 34;
+}
+
+html.dark {
+  --background: 2 6 23;
+  --foreground: 229 231 235;
+  --border: 31 41 55;
+  --muted: 17 24 39;
+  --muted-foreground: 156 163 175;
+  --primary: 14 165 233;
+  --primary-foreground: 249 250 251;
+  --secondary: 34 197 94;
+  --secondary-foreground: 2 44 34;
+}
+
 html,
 body {
   @apply bg-background text-foreground;
@@ -9,11 +47,14 @@ body {
 
 /* 高亮闪烁动画 - 用于双击定位账号卡片 */
 @keyframes highlight-flash {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: none;
   }
   50% {
-    box-shadow: 0 0 0 3px #22d3ee, 0 0 15px rgba(34, 211, 238, 0.5);
+    box-shadow:
+      0 0 0 3px #22d3ee,
+      0 0 15px rgba(34, 211, 238, 0.5);
   }
 }
 
@@ -24,22 +65,34 @@ body {
 /* 账号卡片悬停流光边框效果 */
 @keyframes glow-flow {
   0% {
-    box-shadow: 0 0 0 1px #22d3ee, 0 0 8px rgba(34, 211, 238, 0.4);
+    box-shadow:
+      0 0 0 1px #22d3ee,
+      0 0 8px rgba(34, 211, 238, 0.4);
   }
   20% {
-    box-shadow: 0 0 0 1px #4ade80, 0 0 8px rgba(74, 222, 128, 0.4);
+    box-shadow:
+      0 0 0 1px #4ade80,
+      0 0 8px rgba(74, 222, 128, 0.4);
   }
   40% {
-    box-shadow: 0 0 0 1px #a78bfa, 0 0 8px rgba(167, 139, 250, 0.4);
+    box-shadow:
+      0 0 0 1px #a78bfa,
+      0 0 8px rgba(167, 139, 250, 0.4);
   }
   60% {
-    box-shadow: 0 0 0 1px #fb923c, 0 0 8px rgba(251, 146, 60, 0.4);
+    box-shadow:
+      0 0 0 1px #fb923c,
+      0 0 8px rgba(251, 146, 60, 0.4);
   }
   80% {
-    box-shadow: 0 0 0 1px #f87171, 0 0 8px rgba(248, 113, 113, 0.4);
+    box-shadow:
+      0 0 0 1px #f87171,
+      0 0 8px rgba(248, 113, 113, 0.4);
   }
   100% {
-    box-shadow: 0 0 0 1px #22d3ee, 0 0 8px rgba(34, 211, 238, 0.4);
+    box-shadow:
+      0 0 0 1px #22d3ee,
+      0 0 8px rgba(34, 211, 238, 0.4);
   }
 }
 

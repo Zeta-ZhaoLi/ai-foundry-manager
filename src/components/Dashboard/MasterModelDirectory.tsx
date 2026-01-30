@@ -35,8 +35,8 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
   return (
     <section
       className={clsx(
-        'p-4 rounded-xl border border-gray-800',
-        'bg-gradient-to-br from-slate-900 via-slate-950 to-black',
+        'p-4 rounded-xl border border-border',
+        'bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-950 dark:to-black',
         'text-foreground shadow-lg',
         'section-glow'
       )}
@@ -72,7 +72,7 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
           <textarea
             className={clsx(
               'w-full min-h-20 p-2 rounded-lg',
-              'border border-gray-600 bg-background text-foreground',
+              'border border-border bg-background text-foreground',
               'text-sm resize-y',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
@@ -96,8 +96,8 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                   }
                   className={clsx(
                     'px-2.5 py-0.5 rounded-full',
-                    'border border-primary bg-slate-900 text-foreground',
-                    'cursor-pointer hover:bg-slate-800 transition-colors'
+                    'border border-primary bg-primary/10 text-foreground',
+                    'cursor-pointer hover:bg-primary/20 transition-colors'
                   )}
                 >
                   {t('masterModels.copyAll')}
@@ -112,8 +112,8 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                   }
                   className={clsx(
                     'px-2.5 py-0.5 rounded-full',
-                    'border border-gray-600 bg-background text-foreground',
-                    'cursor-pointer hover:bg-slate-800 transition-colors'
+                    'border border-border bg-background text-foreground',
+                    'cursor-pointer hover:bg-muted transition-colors'
                   )}
                 >
                   {t('masterModels.copyDeployed')}
@@ -145,8 +145,8 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                         }
                         className={clsx(
                           'px-2 py-0.5 rounded-full',
-                          'border border-gray-600 bg-background text-foreground',
-                          'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                          'border border-border bg-background text-foreground',
+                          'text-xs cursor-pointer hover:bg-muted transition-colors'
                         )}
                       >
                         {t('masterModels.copyGroupAll')}
@@ -170,8 +170,8 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                         }
                         className={clsx(
                           'px-2 py-0.5 rounded-full',
-                          'border border-gray-600 bg-background text-foreground',
-                          'text-xs cursor-pointer hover:bg-slate-800 transition-colors'
+                          'border border-border bg-background text-foreground',
+                          'text-xs cursor-pointer hover:bg-muted transition-colors'
                         )}
                       >
                         {t('masterModels.copyGroupDeployed')}

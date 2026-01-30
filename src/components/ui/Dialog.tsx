@@ -44,7 +44,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
         ref={ref}
         className={clsx(
           'fixed left-1/2 top-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4',
-          'border border-gray-800 bg-background p-6 shadow-lg rounded-xl',
+          'border border-border bg-background p-6 shadow-lg rounded-xl',
           'animate-in fade-in-0 zoom-in-95',
           sizeClasses[size],
           size === 'full' && 'overflow-auto',
@@ -89,7 +89,10 @@ const DialogHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={clsx('flex flex-col space-y-1.5 text-center sm:text-left', className)}
+    className={clsx(
+      'flex flex-col space-y-1.5 text-center sm:text-left',
+      className
+    )}
     {...props}
   />
 );
@@ -101,7 +104,10 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={clsx('text-lg font-semibold leading-none tracking-tight text-foreground', className)}
+    className={clsx(
+      'text-lg font-semibold leading-none tracking-tight text-foreground',
+      className
+    )}
     {...props}
   />
 ));

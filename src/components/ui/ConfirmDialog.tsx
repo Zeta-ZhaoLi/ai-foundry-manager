@@ -8,6 +8,7 @@ import {
   DialogFooter,
 } from './Dialog';
 import { Button } from './Button';
+import { useTranslation } from 'react-i18next';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -26,12 +27,16 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onOpenChange,
   title,
   description,
-  confirmText = '确认',
-  cancelText = '取消',
+  confirmText,
+  cancelText,
   variant = 'default',
   onConfirm,
   loading = false,
 }) => {
+  const { t } = useTranslation();
+
+  const resolvedConfirmText = confirmText ?? t('common.confirm');
+  const resolvedCancelText = cancelText ?? t('common.cancel');
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);
@@ -61,14 +66,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            {cancelText}
+            {resolvedCancelText}
           </Button>
           <Button
             variant={getConfirmVariant()}
             onClick={handleConfirm}
             loading={loading}
           >
-            {confirmText}
+            {resolvedConfirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

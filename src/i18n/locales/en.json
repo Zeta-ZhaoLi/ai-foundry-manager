@@ -199,7 +199,14 @@
   "language": {
     "zh": "中文",
     "en": "English",
-    "toggle": "Toggle Language"
+    "ja": "日本語",
+    "fr": "Français",
+    "de": "Deutsch",
+    "es": "Español",
+    "pt-BR": "Português (Brasil)",
+    "ko": "한국어",
+    "select": "Language",
+    "toggle": "Change Language"
   },
   "theme": {
     "light": "Light",
@@ -208,6 +215,8 @@
   },
   "toast": {
     "copied": "Copied",
+    "copiedWithLabel": "Copied: {{label}}",
+    "nothingToCopy": "Nothing to copy",
     "copyFailed": "Copy failed, please select text manually",
     "configExported": "Config exported as JSON file",
     "configImported": "Config imported successfully",
@@ -314,6 +323,7 @@
     "skipToContent": "Skip to main content",
     "headerNav": "Page settings",
     "githubLink": "View project on GitHub",
+    "dragToReorder": "Drag to reorder",
     "filterResults": "Filter results: {{count}} items"
   },
   "shortcuts": {
@@ -420,5 +430,11 @@
     "columnCoverage": "Coverage",
     "noModels": "No models yet. Please configure models in Global Model Directory first.",
     "modelsLabel": "models"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "The application encountered an error. Please reload the page.",
+    "details": "Error details",
+    "reload": "Reload page"
   }
 }

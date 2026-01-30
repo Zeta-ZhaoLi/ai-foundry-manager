@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import i18n from '../i18n';
 
 // ================== Types ==================
 
@@ -98,7 +99,9 @@ const loadState = (storageKey: string): AuditLogState => {
     if (!stored && storageKey === DEFAULT_STORAGE_KEY) {
       const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY);
       if (legacyStored) {
-        console.log('[Migration] Migrating audit log from legacy key to new key');
+        console.log(
+          '[Migration] Migrating audit log from legacy key to new key'
+        );
         localStorage.setItem(DEFAULT_STORAGE_KEY, legacyStored);
         stored = legacyStored;
         console.log('[Migration] Audit log migration completed successfully');
@@ -124,7 +127,9 @@ const saveState = (storageKey: string, state: AuditLogState): void => {
 
 // ================== Hook ==================
 
-export const useAuditLog = (options: UseAuditLogOptions = {}): UseAuditLogReturn => {
+export const useAuditLog = (
+  options: UseAuditLogOptions = {}
+): UseAuditLogReturn => {
   const {
     storageKey = DEFAULT_STORAGE_KEY,
     maxEntries = DEFAULT_MAX_ENTRIES,
@@ -132,7 +137,9 @@ export const useAuditLog = (options: UseAuditLogOptions = {}): UseAuditLogReturn
     enabled = true,
   } = options;
 
-  const [state, setState] = useState<AuditLogState>(() => loadState(storageKey));
+  const [state, setState] = useState<AuditLogState>(() =>
+    loadState(storageKey)
+  );
 
   // 同步到 localStorage
   useEffect(() => {
@@ -269,26 +276,9 @@ export const useAuditLog = (options: UseAuditLogOptions = {}): UseAuditLogReturn
 // ================== Audit Log Viewer Component ==================
 
 export const formatAuditAction = (action: AuditAction): string => {
-  const actionLabels: Record<AuditAction, string> = {
-    'account:create': '创建账号',
-    'account:update': '更新账号',
-    'account:delete': '删除账号',
-    'account:enable': '启用账号',
-    'account:disable': '禁用账号',
-    'region:create': '创建区域',
-    'region:update': '更新区域',
-    'region:delete': '删除区域',
-    'region:enable': '启用区域',
-    'region:disable': '禁用区域',
-    'models:update': '更新模型',
-    'models:add': '添加模型',
-    'models:remove': '移除模型',
-    'config:import': '导入配置',
-    'config:export': '导出配置',
-    'config:restore': '恢复配置',
-    'masterModels:update': '更新全局模型',
-  };
-  return actionLabels[action] || action;
+  const key = `auditLog.actions.${action}`;
+  const translated = i18n.t(key);
+  return translated === key ? action : translated;
 };
 
 export const formatAuditTimestamp = (timestamp: number): string => {
@@ -298,29 +288,30 @@ export const formatAuditTimestamp = (timestamp: number): string => {
 
   // 小于 1 分钟
   if (diff < 60 * 1000) {
-    return '刚刚';
+    return i18n.t('auditLog.justNow');
   }
 
   // 小于 1 小时
   if (diff < 60 * 60 * 1000) {
     const minutes = Math.floor(diff / (60 * 1000));
-    return `${minutes} 分钟前`;
+    return i18n.t('auditLog.minutesAgo', { count: minutes });
   }
 
   // 小于 24 小时
   if (diff < 24 * 60 * 60 * 1000) {
     const hours = Math.floor(diff / (60 * 60 * 1000));
-    return `${hours} 小时前`;
+    return i18n.t('auditLog.hoursAgo', { count: hours });
   }
 
   // 小于 7 天
   if (diff < 7 * 24 * 60 * 60 * 1000) {
     const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-    return `${days} 天前`;
+    return i18n.t('auditLog.daysAgo', { count: days });
   }
 
   // 其他情况显示完整日期
-  return date.toLocaleDateString('zh-CN', {
+  const locale = i18n.language === 'zh' ? 'zh-CN' : i18n.language;
+  return date.toLocaleString(locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

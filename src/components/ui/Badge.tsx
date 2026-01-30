@@ -12,11 +12,13 @@ export const Badge: React.FC<BadgeProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    success: 'bg-green-900/50 text-green-300 border-green-800',
-    warning: 'bg-yellow-900/50 text-yellow-300 border-yellow-800',
-    danger: 'bg-red-900/50 text-red-300 border-red-800',
-    info: 'bg-cyan-900/50 text-cyan-300 border-cyan-800',
-    default: 'bg-gray-800/50 text-gray-300 border-gray-700',
+    success:
+      'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30',
+    warning:
+      'bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30',
+    danger: 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
+    info: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
+    default: 'bg-muted text-muted-foreground border-border',
   };
 
   return (

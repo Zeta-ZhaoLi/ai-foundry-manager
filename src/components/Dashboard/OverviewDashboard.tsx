@@ -41,19 +41,37 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     <div
       className={clsx(
         'w-full rounded-xl',
-        'border border-gray-800 p-3 bg-background'
+        'border border-border p-3 bg-background'
       )}
     >
       {/* 响应式 grid：移动端两列 */}
       <div className="grid grid-cols-2 gap-2.5">
         <StatItem label={t('dashboard.accountCount')} value={totalAccounts} />
         <StatItem label={t('dashboard.regionCount')} value={totalRegions} />
-        <StatItem label={t('dashboard.regionsWithModels')} value={regionsWithModels} />
-        <StatItem label={t('dashboard.avgModelsPerRegion')} value={avgModelsPerRegion} />
-        <StatItem label={t('dashboard.masterModelsCount')} value={totalMasterModels} />
-        <StatItem label={t('dashboard.usedModelsCount')} value={totalUsedModels} />
-        <StatItem label={t('dashboard.unusedModelsCount')} value={unusedModelsCount} />
-        <StatItem label={t('dashboard.singleRegionModels')} value={singleRegionModelsCount} />
+        <StatItem
+          label={t('dashboard.regionsWithModels')}
+          value={regionsWithModels}
+        />
+        <StatItem
+          label={t('dashboard.avgModelsPerRegion')}
+          value={avgModelsPerRegion}
+        />
+        <StatItem
+          label={t('dashboard.masterModelsCount')}
+          value={totalMasterModels}
+        />
+        <StatItem
+          label={t('dashboard.usedModelsCount')}
+          value={totalUsedModels}
+        />
+        <StatItem
+          label={t('dashboard.unusedModelsCount')}
+          value={unusedModelsCount}
+        />
+        <StatItem
+          label={t('dashboard.singleRegionModels')}
+          value={singleRegionModelsCount}
+        />
       </div>
     </div>
   );

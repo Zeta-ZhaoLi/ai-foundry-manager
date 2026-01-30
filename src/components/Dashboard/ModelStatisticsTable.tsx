@@ -265,7 +265,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
 
   // Get group badge style
   const getGroupBadgeStyle = (groupIdx: number) => {
-    if (groupIdx < 0) return 'border-gray-700 bg-gray-900/30 text-gray-300';
+    if (groupIdx < 0) return 'border-border bg-muted/50 text-muted-foreground';
     switch (groupIdx % 4) {
       case 1:
         return 'border-violet-900 bg-violet-900/30 text-violet-300';
@@ -310,7 +310,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
   return (
     <section
       className={clsx(
-        'p-3 sm:p-4 rounded-xl border border-gray-800 bg-background',
+        'p-3 sm:p-4 rounded-xl border border-border bg-background',
         !isDetailView && 'section-glow'
       )}
     >
@@ -322,9 +322,9 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
           <button
             type="button"
             onClick={onOpenDetail}
-            className="px-2 py-1 text-xs rounded-md border border-gray-700 text-muted-foreground hover:text-foreground hover:bg-gray-800 transition-colors"
+            className="px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            {t('common.detail', '详情')}
+            {t('common.detail')}
           </button>
         )}
       </div>
@@ -385,7 +385,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                 'px-3 py-1 rounded-full text-xs border transition-colors',
                 statusFilter === filter
                   ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
-                  : 'border-gray-700 bg-background text-muted-foreground hover:bg-gray-800'
+                  : 'border-border bg-background text-muted-foreground hover:bg-muted'
               )}
             >
               {filter === 'all' &&
@@ -403,21 +403,21 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
 
       {/* Model Table */}
       {modelStates.length === 0 ? (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-muted-foreground">
           {t('modelStatistics.noModels')}
         </div>
       ) : sortedFilteredModelStates.length === 0 ? (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-muted-foreground">
           {t('coverage.noModelsOrNoMatch')}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-800 bg-background">
+        <div className="overflow-x-auto rounded-xl border border-border bg-background">
           <div className="min-w-[700px]">
             {/* Header */}
             <div
               className={clsx(
                 'grid gap-2 px-2.5 py-1.5',
-                'border-b border-gray-800',
+                'border-b border-border',
                 'text-xs text-muted-foreground'
               )}
               style={{
@@ -467,7 +467,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                       key={model.model}
                       className={clsx(
                         'grid gap-2 px-2.5 items-center',
-                        'border-b border-gray-900',
+                        'border-b border-border',
                         'text-xs text-foreground'
                       )}
                       style={{

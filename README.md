@@ -1,5 +1,7 @@
 # Azure AI Foundry Manager
 
+Languages: [English](README.md) | [中文](README.zh-CN.md) | [日本語](README.ja.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [한국어](README.ko.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
@@ -14,6 +16,7 @@
 ## ✨ Features
 
 ### 🏢 Account Management
+
 - **Account ID System**: Automatic prefix assignment (A-series for premium accounts, B-series for standard)
 - **Drag & Drop Reordering**: Easily reorganize accounts and regions
 - **Tier Classification**: Categorize accounts as Premium or Standard
@@ -22,18 +25,21 @@
 - **Flexible Controls**: Enable/disable accounts and regions, include/exclude from statistics
 
 ### 🌍 Region Configuration
+
 - **Multi-Region Support**: Configure multiple Azure regions per account
 - **Dual Endpoint Management**: OpenAI and Anthropic endpoints with automatic sync
 - **Secure Storage**: Encrypted API key storage
 - **Regional Control**: Enable/disable individual regions with drag-and-drop reordering
 
 ### 🖥️ Server Management
+
 - **Dual Platform Support**: Windows and Linux server credentials
 - **Numeric Server IDs**: Standardized 3-digit IDs (001, 002, etc.) with increment/decrement controls
 - **Visual Badges**: Color-coded server badges (Windows: blue, Linux: green)
 - **Secure Credentials**: Encrypted password and SSH key storage
 
 ### 🤖 Model Management
+
 - **Master Model Directory**: Centralized model catalog with series classification
 - **Click-to-Select**: Easy model assignment to accounts and regions
 - **Smart Search**: Filter accounts by model name in real-time
@@ -42,13 +48,15 @@
 - **Category Support**: Organized by Standard, Sora, and Claude series
 
 ### 💾 Data & Configuration
+
 - **Local Storage**: All data stored in browser localStorage—fully offline capable
 - **Import/Export**: Encrypted JSON configuration backup and restore
 - **Version History**: Up to 20 saved configuration versions with manual and automatic save points
 - **Privacy Mode**: Hide sensitive information (API keys, endpoints, credentials)
 
 ### 🎨 User Interface
-- **Bilingual**: Full support for Chinese (中文) and English
+
+- **Multi-language UI**: zh, en, ja, fr, de, es, pt-BR, ko
 - **Theme Modes**: Dark, Light, and System theme options
 - **Command Palette**: Quick access to all features (Ctrl+K / Cmd+K)
 - **Keyboard Shortcuts**: Efficient navigation and actions
@@ -57,6 +65,7 @@
 - **Drag & Drop**: Intuitive reordering throughout the interface
 
 ### 📊 Visualizations
+
 - **Dashboard Overview**: Account statistics and model distribution
 - **Donut Charts**: Model deployment status and coverage distribution
 - **Bar Charts**: Account model distribution analysis
@@ -137,7 +146,8 @@ Build output is generated in the `dist/` directory, ready for deployment to any 
 ### Privacy Mode
 
 Enable privacy mode to hide sensitive information when sharing your screen:
-- API keys displayed as "***"
+
+- API keys displayed as "\*\*\*"
 - Endpoints hidden
 - Server credentials masked
 - Account IDs partially obscured
@@ -145,30 +155,33 @@ Enable privacy mode to hide sensitive information when sharing your screen:
 ### Configuration Management
 
 **Export Configuration:**
+
 ```
 Click "导出配置" (Export Config) → Save encrypted JSON file
 ```
 
 **Import Configuration:**
+
 ```
 Click "导入配置" (Import Config) → Select JSON file
 ```
 
 **Configuration History:**
+
 ```
 Click "配置历史" (Config History) → View/restore previous versions
 ```
 
 ### Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + K` | Open command palette |
-| `Ctrl/Cmd + E` | Export configuration |
-| `Ctrl/Cmd + D` | Toggle theme |
-| `Ctrl/Cmd + H` | Toggle privacy mode |
-| `?` | Show keyboard shortcuts help |
-| `Esc` | Close dialogs |
+| Shortcut       | Action                       |
+| -------------- | ---------------------------- |
+| `Ctrl/Cmd + K` | Open command palette         |
+| `Ctrl/Cmd + E` | Export configuration         |
+| `Ctrl/Cmd + D` | Toggle theme                 |
+| `Ctrl/Cmd + H` | Toggle privacy mode          |
+| `?`            | Show keyboard shortcuts help |
+| `Esc`          | Close dialogs                |
 
 ---
 
@@ -176,12 +189,12 @@ Click "配置历史" (Config History) → View/restore previous versions
 
 ### Core Technologies
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **React** | 18.3 | UI framework |
-| **TypeScript** | 5.6 | Type-safe development |
-| **Vite** | 5.4 | Build tool & dev server |
-| **Tailwind CSS** | 3.4 | Utility-first styling |
+| Technology       | Version | Purpose                 |
+| ---------------- | ------- | ----------------------- |
+| **React**        | 18.3    | UI framework            |
+| **TypeScript**   | 5.6     | Type-safe development   |
+| **Vite**         | 5.4     | Build tool & dev server |
+| **Tailwind CSS** | 3.4     | Utility-first styling   |
 
 ### Key Libraries
 
@@ -248,9 +261,9 @@ All data is stored in your browser's `localStorage`:
 
 ```javascript
 // Storage Keys
-'ai-foundry-manager:accounts'       // Account configurations
-'ai-foundry-manager:master-models'  // Global model directory
-'ai-foundry-manager:config-history' // Configuration versions
+'ai-foundry-manager:accounts'; // Account configurations
+'ai-foundry-manager:master-models'; // Global model directory
+'ai-foundry-manager:config-history'; // Configuration versions
 ```
 
 ### Encryption
@@ -371,6 +384,7 @@ Contributions are welcome! This project follows the OpenSpec workflow for managi
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 
 **MIT License Summary:**
+
 - ✅ Commercial use
 - ✅ Modification
 - ✅ Distribution

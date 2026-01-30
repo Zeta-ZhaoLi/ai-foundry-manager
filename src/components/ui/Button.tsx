@@ -22,17 +22,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed';
+      'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variantStyles = {
       primary:
         'bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-700 hover:to-green-700 text-white focus:ring-cyan-500',
       secondary:
-        'bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 focus:ring-gray-600',
+        'bg-muted hover:bg-muted/80 text-foreground border border-border focus:ring-primary',
       danger:
         'bg-red-900 hover:bg-red-800 text-red-200 border border-red-800 focus:ring-red-700',
       ghost:
-        'bg-transparent hover:bg-gray-800 text-gray-300 border border-gray-700 focus:ring-gray-600',
+        'bg-transparent hover:bg-muted text-muted-foreground border border-border focus:ring-primary',
     };
 
     const sizeStyles = {

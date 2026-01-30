@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import i18n from '../../i18n';
 
 interface Props {
   children: ReactNode;
@@ -31,17 +32,19 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-200 p-6">
-          <div className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-lg p-6">
+        <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
+          <div className="max-w-md w-full bg-background border border-border rounded-lg p-6 shadow-lg">
             <h1 className="text-xl font-semibold text-red-400 mb-4">
-              出错了
+              {i18n.t('errorBoundary.title')}
             </h1>
-            <p className="text-sm text-gray-400 mb-4">
-              应用程序遇到了一个错误。请刷新页面重试。
+            <p className="text-sm text-muted-foreground mb-4">
+              {i18n.t('errorBoundary.description')}
             </p>
             {this.state.error && (
-              <details className="text-xs text-gray-500 bg-gray-950 p-3 rounded border border-gray-800">
-                <summary className="cursor-pointer mb-2">错误详情</summary>
+              <details className="text-xs text-muted-foreground bg-muted p-3 rounded border border-border">
+                <summary className="cursor-pointer mb-2">
+                  {i18n.t('errorBoundary.details')}
+                </summary>
                 <pre className="whitespace-pre-wrap">
                   {this.state.error.message}
                 </pre>
@@ -51,7 +54,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={() => window.location.reload()}
               className="mt-4 w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
             >
-              刷新页面
+              {i18n.t('errorBoundary.reload')}
             </button>
           </div>
         </div>

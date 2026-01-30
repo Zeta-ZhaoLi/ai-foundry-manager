@@ -227,40 +227,25 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     const derived = extractAzureResourceName(region.openaiEndpoint || '');
     const resourceName =
       deploymentResourceName.trim() || (derived || '').trim();
-    if (!resourceName)
-      return t(
-        'regions.deployMissingResourceName',
-        '请先填写 AOAI 资源名称（resourceName）'
-      );
-    if (!deploymentLocation.trim())
-      return t(
-        'regions.deployMissingLocation',
-        '请先填写 Azure 区域（location）'
-      );
-    if (regionModels.length === 0)
-      return t('regions.deployNoModels', '当前区域没有已选模型');
+    if (!resourceName) return t('regions.deployMissingResourceName');
+    if (!deploymentLocation.trim()) return t('regions.deployMissingLocation');
+    if (regionModels.length === 0) return t('regions.deployNoModels');
 
     const seen = new Set<string>();
     for (const row of selectedDeploymentRows) {
       if (!row.deploymentName.trim()) {
-        return t(
-          'regions.deployMissingDeploymentName',
-          'deploymentName 不能为空'
-        );
+        return t('regions.deployMissingDeploymentName');
       }
       if (seen.has(row.deploymentName.trim())) {
-        return t(
-          'regions.deployDuplicateDeploymentName',
-          'deploymentName 不能重复'
-        );
+        return t('regions.deployDuplicateDeploymentName');
       }
       seen.add(row.deploymentName.trim());
 
       if (!row.version.trim()) {
-        return t('regions.deployMissingVersion', '请为所有模型填写 version');
+        return t('regions.deployMissingVersion');
       }
       if (!Number.isInteger(row.capacity) || row.capacity <= 0) {
-        return t('regions.deployInvalidCapacity', 'capacity 必须是正整数');
+        return t('regions.deployInvalidCapacity');
       }
     }
 
@@ -281,9 +266,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     if (!deploymentLocation.trim() && region.name) patch.location = region.name;
     if (Object.keys(patch).length > 0) {
       onUpdateDeployment?.(patch);
-      toast.success(t('regions.deployAutoFilled', '已自动填充部署信息'));
+      toast.success(t('regions.deployAutoFilled'));
     } else {
-      toast.success(t('regions.deployNothingToFill', '暂无可自动填充的字段'));
+      toast.success(t('regions.deployNothingToFill'));
     }
   }, [
     deploymentLocation,
@@ -320,11 +305,11 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
     try {
       const json = stringifyAzureOpenAiMainTemplate(templateInput);
-      onCopy(json, `${displayRegionName} Deployment Code`);
-      toast.success(t('regions.deployCodeCopied', '部署代码已复制'));
+      onCopy(json, `${displayRegionName} - ${t('regions.deployTitle')}`);
+      toast.success(t('regions.deployCodeCopied'));
     } catch (e: any) {
       toast.error(
-        t('regions.deployFailed', '操作失败：{{msg}}', {
+        t('regions.deployFailed', {
           msg: e?.message || String(e),
         })
       );
@@ -403,21 +388,21 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   // 未启用区域收起时的简化视图
   if (isDisabled && !isExpanded) {
     return (
-      <div className="rounded-lg border border-gray-800 p-2.5 bg-background opacity-50">
+      <div className="rounded-lg border border-border p-2.5 bg-background opacity-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground font-medium">
               {regionIndex + 1}.
             </span>
             <span className="text-sm">{displayRegionName}</span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               ({t('regions.disabled')})
             </span>
           </div>
           <button
             type="button"
             onClick={() => setIsExpanded(true)}
-            className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
+            className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted"
           >
             {t('accounts.expand')}
           </button>
@@ -430,7 +415,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     <>
       <div
         className={clsx(
-          'rounded-lg border border-gray-800 p-2.5 bg-background relative',
+          'rounded-lg border border-border p-2.5 bg-background relative',
           isDisabled && 'opacity-50'
         )}
       >
@@ -475,7 +460,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 <input
                   className={clsx(
                     'w-full p-1.5 rounded-lg',
-                    'border border-gray-700 bg-background text-foreground text-sm',
+                    'border border-border bg-background text-foreground text-sm',
                     'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                   )}
                   value={displayRegionName}
@@ -486,7 +471,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   <input
                     className={clsx(
                       'flex-1 p-1.5 rounded-lg',
-                      'border border-gray-700 bg-background text-foreground text-sm',
+                      'border border-border bg-background text-foreground text-sm',
                       'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                     )}
                     value={region.name}
@@ -954,7 +939,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               <span className="inline-block w-3.5 text-center text-muted-foreground">
                 {deployCollapsed ? '▶' : '▼'}
               </span>
-              <span>{t('regions.deployTitle', '模型部署')}</span>
+              <span>{t('regions.deployTitle')}</span>
               {regionModels.length > 0 && (
                 <span className="text-muted-foreground ml-1">
                   ({regionModels.length})
@@ -968,7 +953,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 className="px-2 py-0.5 rounded-full border border-gray-700 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
                 disabled={privacyMode}
               >
-                {t('regions.deployAutoFill', '自动填充')}
+                {t('regions.deployAutoFill')}
               </button>
               <button
                 type="button"
@@ -981,7 +966,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                     : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
                 )}
               >
-                {t('regions.deployNow', '复制部署代码')}
+                {t('regions.deployNow')}
               </button>
             </div>
           </div>
@@ -991,10 +976,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">
-                    {t(
-                      'regions.deployResourceName',
-                      'resourceName (AOAI 资源名称)'
-                    )}
+                    {t('regions.deployResourceName')}
                   </label>
                   <input
                     className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -1008,7 +990,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">
-                    {t('regions.deployLocation', 'location (Azure 区域)')}
+                    {t('regions.deployLocation')}
                   </label>
                   <input
                     className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -1026,17 +1008,15 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 <table className="w-full min-w-[820px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-400 border-b border-gray-800">
+                      <th className="py-2 px-3">{t('regions.deployModel')}</th>
                       <th className="py-2 px-3">
-                        {t('regions.deployModel', 'model')}
+                        {t('regions.deployDeploymentName')}
                       </th>
                       <th className="py-2 px-3">
-                        {t('regions.deployDeploymentName', 'deploymentName')}
-                      </th>
-                      <th className="py-2 px-3">
-                        {t('regions.deployVersion', 'version')}
+                        {t('regions.deployVersion')}
                       </th>
                       <th className="py-2 px-3 w-[140px]">
-                        {t('regions.deployCapacity', 'capacity')}
+                        {t('regions.deployCapacity')}
                       </th>
                     </tr>
                   </thead>

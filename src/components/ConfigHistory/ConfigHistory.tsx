@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
-import { Dialog } from '../ui/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfigVersion, formatTimestamp } from '../../hooks/useConfigHistory';
@@ -116,121 +116,120 @@ export const ConfigHistory: React.FC<ConfigHistoryProps> = ({
 
   return (
     <>
-      <Dialog
-        open={open}
-        onOpenChange={onOpenChange}
-        title={t('configHistory.title', '配置版本历史')}
-      >
-        <div className="space-y-4">
-          {/* 操作按钮 */}
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              {t('configHistory.description', '查看和恢复之前的配置版本')}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={onSaveManual}>
-                {t('configHistory.saveNow', '立即保存')}
-              </Button>
-              {versions.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => setConfirmClearAll(true)}
-                >
-                  {t('configHistory.clearAll', '清空历史')}
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent size="lg" onClose={() => onOpenChange(false)}>
+          <DialogHeader>
+            <DialogTitle>{t('configHistory.title')}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* 操作按钮 */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {t('configHistory.description')}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={onSaveManual}>
+                  {t('configHistory.saveNow')}
                 </Button>
+                {versions.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => setConfirmClearAll(true)}
+                  >
+                    {t('configHistory.clearAll')}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* 版本列表 */}
+            <div className="max-h-80 overflow-y-auto space-y-2">
+              {versions.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  <ClockIcon className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
+                  <p>{t('configHistory.noVersions')}</p>
+                  <p className="text-xs mt-1">
+                    {t('configHistory.noVersionsHint')}
+                  </p>
+                </div>
+              ) : (
+                versions.map((version) => (
+                  <div
+                    key={version.id}
+                    className={clsx(
+                      'flex items-center justify-between p-3 rounded-lg border',
+                      'transition-colors',
+                      currentVersionId === version.id
+                        ? 'border-cyan-700 bg-cyan-900/20'
+                        : 'border-border bg-muted/50 hover:bg-muted/70'
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {version.description}
+                        </span>
+                        {version.isAutoSave && (
+                          <span className="px-1.5 py-0.5 text-xs bg-muted text-muted-foreground rounded">
+                            {t('configHistory.autoSave')}
+                          </span>
+                        )}
+                        {currentVersionId === version.id && (
+                          <span className="px-1.5 py-0.5 text-xs bg-cyan-700 text-cyan-200 rounded">
+                            {t('configHistory.current')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <ClockIcon className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {formatTimestamp(version.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(version.id)}
+                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-cyan-500 transition-colors"
+                        title={t('configHistory.restore')}
+                        disabled={currentVersionId === version.id}
+                      >
+                        <RestoreIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(version.id)}
+                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors"
+                        title={t('configHistory.delete')}
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
+
+            {/* 提示 */}
+            <p className="text-xs text-muted-foreground text-center">
+              {t('configHistory.hint')}
+            </p>
           </div>
-
-          {/* 版本列表 */}
-          <div className="max-h-80 overflow-y-auto space-y-2">
-            {versions.length === 0 ? (
-              <div className="py-8 text-center text-sm text-gray-500">
-                <ClockIcon className="w-12 h-12 mx-auto mb-2 text-gray-600" />
-                <p>{t('configHistory.noVersions', '暂无历史版本')}</p>
-                <p className="text-xs mt-1">
-                  {t('configHistory.noVersionsHint', '配置变更时会自动保存')}
-                </p>
-              </div>
-            ) : (
-              versions.map((version) => (
-                <div
-                  key={version.id}
-                  className={clsx(
-                    'flex items-center justify-between p-3 rounded-lg border',
-                    'transition-colors',
-                    currentVersionId === version.id
-                      ? 'border-cyan-700 bg-cyan-900/20'
-                      : 'border-gray-800 bg-gray-900/50 hover:bg-gray-800/50'
-                  )}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-200 truncate">
-                        {version.description}
-                      </span>
-                      {version.isAutoSave && (
-                        <span className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-400 rounded">
-                          {t('configHistory.autoSave', '自动')}
-                        </span>
-                      )}
-                      {currentVersionId === version.id && (
-                        <span className="px-1.5 py-0.5 text-xs bg-cyan-700 text-cyan-200 rounded">
-                          {t('configHistory.current', '当前')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <ClockIcon className="w-3 h-3 text-gray-500" />
-                      <span className="text-xs text-gray-500">
-                        {formatTimestamp(version.timestamp)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 ml-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRestore(version.id)}
-                      className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-cyan-400 transition-colors"
-                      title={t('configHistory.restore', '恢复')}
-                      disabled={currentVersionId === version.id}
-                    >
-                      <RestoreIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(version.id)}
-                      className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-red-400 transition-colors"
-                      title={t('configHistory.delete', '删除')}
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* 提示 */}
-          <p className="text-xs text-gray-500 text-center">
-            {t('configHistory.hint', '最多保留 20 个版本，自动保存最多 10 个')}
-          </p>
-        </div>
+        </DialogContent>
       </Dialog>
 
       {/* 恢复确认对话框 */}
       <ConfirmDialog
         open={confirmRestore !== null}
         onOpenChange={() => setConfirmRestore(null)}
-        title={t('configHistory.confirmRestore', '确认恢复')}
-        description={t(
-          'configHistory.confirmRestoreDesc',
-          '恢复此版本将覆盖当前配置，此操作无法撤销。确定要继续吗？'
-        )}
-        confirmText={t('configHistory.restore', '恢复')}
-        cancelText={t('common.cancel', '取消')}
+        title={t('configHistory.confirmRestore')}
+        description={t('configHistory.confirmRestoreDesc')}
+        confirmText={t('configHistory.restore')}
+        cancelText={t('common.cancel')}
         variant="warning"
         onConfirm={executeRestore}
       />
@@ -239,13 +238,10 @@ export const ConfigHistory: React.FC<ConfigHistoryProps> = ({
       <ConfirmDialog
         open={confirmDelete !== null}
         onOpenChange={() => setConfirmDelete(null)}
-        title={t('configHistory.confirmDelete', '确认删除')}
-        description={t(
-          'configHistory.confirmDeleteDesc',
-          '确定要删除此版本吗？此操作无法撤销。'
-        )}
-        confirmText={t('common.delete', '删除')}
-        cancelText={t('common.cancel', '取消')}
+        title={t('configHistory.confirmDelete')}
+        description={t('configHistory.confirmDeleteDesc')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={executeDelete}
       />
@@ -254,13 +250,10 @@ export const ConfigHistory: React.FC<ConfigHistoryProps> = ({
       <ConfirmDialog
         open={confirmClearAll}
         onOpenChange={setConfirmClearAll}
-        title={t('configHistory.confirmClearAll', '确认清空')}
-        description={t(
-          'configHistory.confirmClearAllDesc',
-          '确定要清空所有历史版本吗？此操作无法撤销。'
-        )}
-        confirmText={t('configHistory.clearAll', '清空历史')}
-        cancelText={t('common.cancel', '取消')}
+        title={t('configHistory.confirmClearAll')}
+        description={t('configHistory.confirmClearAllDesc')}
+        confirmText={t('configHistory.clearAll')}
+        cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={executeClearAll}
       />

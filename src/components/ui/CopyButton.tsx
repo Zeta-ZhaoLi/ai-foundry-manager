@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import clsx from 'clsx';
 import { Tooltip } from './Tooltip';
+import { useTranslation } from 'react-i18next';
 
 export interface CopyButtonProps {
   /** 要复制的文本 */
@@ -51,7 +52,11 @@ const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
     stroke="currentColor"
     strokeWidth={2.5}
   >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M4.5 12.75l6 6 9-13.5"
+    />
   </svg>
 );
 
@@ -66,6 +71,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   tooltipContent,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -125,11 +131,11 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   };
 
   const variantStyles = {
-    default:
-      'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700',
-    ghost: 'bg-transparent hover:bg-gray-800 text-gray-400 hover:text-gray-200',
+    default: 'bg-muted hover:bg-muted/80 text-foreground border border-border',
+    ghost:
+      'bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground',
     outline:
-      'bg-transparent hover:bg-gray-800 text-gray-400 border border-gray-700',
+      'bg-transparent hover:bg-muted text-muted-foreground border border-border hover:text-foreground',
   };
 
   const button = (
@@ -139,14 +145,17 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       disabled={disabled || !text}
       className={clsx(
         'inline-flex items-center justify-center gap-1.5 rounded-md transition-all duration-200',
-        'focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 focus:ring-offset-gray-900',
+        'focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 focus:ring-offset-background',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         sizeStyles[size],
         variantStyles[variant],
-        copied && 'bg-green-900/50 border-green-700 text-green-400',
+        copied &&
+          'bg-green-500/15 border-green-500/30 text-green-700 dark:text-green-300',
         className
       )}
-      aria-label={copied ? '已复制' : (tooltipContent || '复制')}
+      aria-label={
+        copied ? t('toast.copied') : tooltipContent || t('common.copy')
+      }
     >
       <span className="relative">
         {/* 复制图标 - 淡出 */}
@@ -162,13 +171,15 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
           className={clsx(
             iconSizes[size],
             'absolute inset-0 transition-all duration-200',
-            copied ? 'opacity-100 scale-100 text-green-400' : 'opacity-0 scale-75'
+            copied
+              ? 'opacity-100 scale-100 text-green-400'
+              : 'opacity-0 scale-75'
           )}
         />
       </span>
       {showText && (
         <span className="text-xs">
-          {copied ? '已复制' : '复制'}
+          {copied ? t('toast.copied') : t('common.copy')}
         </span>
       )}
     </button>

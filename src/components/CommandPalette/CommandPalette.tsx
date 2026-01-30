@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
@@ -197,9 +203,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   // 分类标签
   const categoryLabels: Record<string, string> = {
-    navigation: t('shortcuts.navigation', '导航'),
-    action: t('shortcuts.action', '操作'),
-    settings: t('shortcuts.settings', '设置'),
+    navigation: t('shortcuts.navigation'),
+    action: t('shortcuts.action'),
+    settings: t('shortcuts.settings'),
   };
 
   if (!open) return null;
@@ -223,7 +229,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={t('commandPalette.title', '命令面板')}
+        aria-label={t('commandPalette.title')}
       >
         {/* 搜索输入框 */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
@@ -234,13 +240,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={t('commandPalette.placeholder', '搜索命令...')}
+            placeholder={t('commandPalette.placeholder')}
             className={clsx(
               'flex-1 bg-transparent border-none outline-none',
               'text-gray-200 placeholder-gray-500',
               'text-sm'
             )}
-            aria-label={t('commandPalette.searchLabel', '搜索命令')}
+            aria-label={t('commandPalette.searchLabel')}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -259,7 +265,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         >
           {flatCommands.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-gray-500">
-              {t('commandPalette.noResults', '未找到匹配的命令')}
+              {t('commandPalette.noResults')}
             </div>
           ) : (
             <>
@@ -325,18 +331,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         <div className="flex items-center justify-between px-4 py-2 border-t border-gray-800 text-xs text-gray-500">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">↑</kbd>
-              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">↓</kbd>
-              {t('commandPalette.navigate', '导航')}
+              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">
+                ↑
+              </kbd>
+              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">
+                ↓
+              </kbd>
+              {t('commandPalette.navigate')}
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">↵</kbd>
-              {t('commandPalette.execute', '执行')}
+              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">
+                ↵
+              </kbd>
+              {t('commandPalette.execute')}
             </span>
           </div>
-          <span className="hidden sm:inline">
-            {t('commandPalette.hint', '输入关键字搜索命令')}
-          </span>
+          <span className="hidden sm:inline">{t('commandPalette.hint')}</span>
         </div>
       </div>
     </div>
