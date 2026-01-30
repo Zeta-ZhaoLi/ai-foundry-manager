@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { buildCopyString } from '../../utils/modelSeries';
+import { getMasterModelHeatmapClasses } from '../../utils/heatmap';
 
 export interface MasterModelDirectoryProps {
   masterText: string;
@@ -31,6 +32,15 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
     () => new Set(deployedModelsOrdered),
     [deployedModelsOrdered]
   );
+
+  const maxDeployedRegionCount = useMemo(() => {
+    let max = 0;
+    for (const m of masterModels) {
+      const c = deployedRegionCounts[m] || 0;
+      if (c > max) max = c;
+    }
+    return max;
+  }, [deployedRegionCounts, masterModels]);
 
   return (
     <section
@@ -184,31 +194,43 @@ export const MasterModelDirectory: React.FC<MasterModelDirectoryProps> = ({
                         key={`group-${groupIndex}-line-${lineIndex}`}
                         className="flex flex-wrap gap-1.5"
                       >
-                        {line.map((m) => (
-                          <span
-                            key={m}
-                            className={clsx(
-                              'px-2 py-0.5 rounded-full text-xs relative',
-                              'border border-slate-400/50',
-                              'bg-gradient-to-r from-cyan-500/20 to-indigo-500/20'
-                            )}
-                          >
-                            {m}
-                            <span
-                              className={clsx(
-                                'absolute -top-1 -right-1',
-                                'min-w-[16px] h-[16px] px-1',
-                                'rounded-full text-[10px] leading-[16px] text-center',
-                                'bg-cyan-500 text-black'
-                              )}
-                              title={t('masterModels.deployedRegions', {
-                                count: deployedRegionCounts[m] || 0,
-                              })}
-                            >
-                              {deployedRegionCounts[m] || 0}
-                            </span>
-                          </span>
-                        ))}
+                        {line.map((m) =>
+                          (() => {
+                            const count = deployedRegionCounts[m] || 0;
+                            const colors = getMasterModelHeatmapClasses(
+                              count,
+                              maxDeployedRegionCount
+                            );
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => onCopy(m, m)}
+                                title={t('common.clickToCopy')}
+                                className={clsx(
+                                  'px-2 py-0.5 rounded-full text-xs relative',
+                                  'border',
+                                  colors.pillColorClassName
+                                )}
+                              >
+                                {m}
+                                <span
+                                  className={clsx(
+                                    'absolute -top-1 -right-1',
+                                    'min-w-[16px] h-[16px] px-1',
+                                    'rounded-full text-[10px] leading-[16px] text-center',
+                                    colors.badgeColorClassName
+                                  )}
+                                  title={t('masterModels.deployedRegions', {
+                                    count,
+                                  })}
+                                >
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })()
+                        )}
                       </div>
                     ))}
                   </div>
