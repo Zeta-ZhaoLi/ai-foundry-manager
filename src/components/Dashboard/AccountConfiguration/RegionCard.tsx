@@ -20,7 +20,8 @@ import type {
 
 import {
   getFallbackModelDeploymentDefaults,
-  getTemplateModelDeploymentDefaultsMap,
+  getTemplateModelDeploymentByDeploymentNameMap,
+  getTemplateModelDeploymentEntriesByModelNameMap,
   stringifyAzureOpenAiMainTemplate,
 } from '../../../utils/armTemplate';
 
@@ -246,19 +247,39 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const deploymentResourceName = accountDeployment?.resourceName || '';
   const deploymentLocation = region.name || '';
 
-  const templateDefaultsMap = useMemo(
-    () => getTemplateModelDeploymentDefaultsMap(),
+  const templateDefaultsByModelNameMap = useMemo(
+    () => getTemplateModelDeploymentEntriesByModelNameMap(),
+    []
+  );
+  const templateByDeploymentNameMap = useMemo(
+    () => getTemplateModelDeploymentByDeploymentNameMap(),
     []
   );
 
   const selectedDeploymentRows = useMemo(() => {
     const modelMap = region.deployment?.models || {};
+    const redirectedModelNames = new Set<string>();
+    for (const selectedModel of regionModels) {
+      const match = templateByDeploymentNameMap.get(selectedModel);
+      if (match) redirectedModelNames.add(match.modelName);
+    }
+
     return regionModels.map((modelName) => {
       const cfg = modelMap[modelName] || {};
-      const fallback = getFallbackModelDeploymentDefaults(modelName);
-      const templateDefaults = templateDefaultsMap.get(modelName);
+      const deploymentMatch = templateByDeploymentNameMap.get(modelName);
+      const resolvedModelName = deploymentMatch?.modelName || modelName;
+      const fallback = getFallbackModelDeploymentDefaults(resolvedModelName);
+      const templateDefaults =
+        deploymentMatch ||
+        templateDefaultsByModelNameMap.get(resolvedModelName)?.[0];
+      const defaultEnabled = deploymentMatch
+        ? true
+        : !redirectedModelNames.has(resolvedModelName);
+
       return {
-        modelName,
+        sourceModel: modelName,
+        modelName: resolvedModelName,
+        enabled: cfg.enabled ?? defaultEnabled,
         deploymentName:
           cfg.deploymentName ??
           templateDefaults?.deploymentName ??
@@ -268,7 +289,12 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           cfg.capacity ?? templateDefaults?.capacity ?? fallback.capacity,
       };
     });
-  }, [region.deployment?.models, regionModels, templateDefaultsMap]);
+  }, [
+    region.deployment?.models,
+    regionModels,
+    templateByDeploymentNameMap,
+    templateDefaultsByModelNameMap,
+  ]);
 
   const validateDeployInputs = useCallback((): string | null => {
     const resourceName = deploymentResourceName.trim();
@@ -276,10 +302,24 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     if (!deploymentLocation.trim()) return t('regions.deployMissingLocation');
     if (regionModels.length === 0) return t('regions.deployNoModels');
 
+    const activeRows = selectedDeploymentRows.filter(
+      (row) => row.enabled !== false
+    );
+    if (activeRows.length === 0) return t('regions.deployNoEnabledModels');
+
     const seen = new Set<string>();
-    for (const row of selectedDeploymentRows) {
+    for (const row of activeRows) {
       if (!row.deploymentName.trim()) {
         return t('regions.deployMissingDeploymentName');
+      }
+      if (!row.deploymentName.trim().includes(row.modelName)) {
+        return t('regions.deployDeploymentNameMustContainModel');
+      }
+      const deploymentMatch = templateByDeploymentNameMap.get(
+        row.deploymentName.trim()
+      );
+      if (deploymentMatch && deploymentMatch.modelName !== row.modelName) {
+        return t('regions.deployDeploymentNameModelMismatch');
       }
       if (seen.has(row.deploymentName.trim())) {
         return t('regions.deployDuplicateDeploymentName');
@@ -300,6 +340,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     deploymentResourceName,
     regionModels.length,
     selectedDeploymentRows,
+    templateByDeploymentNameMap,
     t,
   ]);
 
@@ -316,12 +357,14 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     const templateInput = {
       resourceName,
       location,
-      modelDeployments: selectedDeploymentRows.map((row) => ({
-        deploymentName: row.deploymentName.trim(),
-        modelName: row.modelName,
-        version: row.version.trim(),
-        capacity: row.capacity,
-      })),
+      modelDeployments: selectedDeploymentRows
+        .filter((row) => row.enabled !== false)
+        .map((row) => ({
+          deploymentName: row.deploymentName.trim(),
+          modelName: row.modelName,
+          version: row.version.trim(),
+          capacity: row.capacity,
+        })),
     };
 
     try {
@@ -1051,6 +1094,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 <table className="w-full min-w-[820px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-400 border-b border-gray-800">
+                      <th className="py-2 px-3 w-[64px]">
+                        {t('regions.deployInclude')}
+                      </th>
                       <th className="py-2 px-3">{t('regions.deployModel')}</th>
                       <th className="py-2 px-3">
                         {t('regions.deployDeploymentName')}
@@ -1066,9 +1112,21 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   <tbody>
                     {selectedDeploymentRows.map((row) => (
                       <tr
-                        key={row.modelName}
+                        key={row.sourceModel}
                         className="border-b border-gray-900/60"
                       >
+                        <td className="py-2 px-3">
+                          <input
+                            type="checkbox"
+                            checked={row.enabled !== false}
+                            onChange={(e) =>
+                              onUpdateDeploymentModel?.(row.sourceModel, {
+                                enabled: e.target.checked,
+                              })
+                            }
+                            disabled={privacyMode}
+                          />
+                        </td>
                         <td className="py-2 px-3 font-mono text-xs text-gray-200">
                           {row.modelName}
                         </td>
@@ -1076,11 +1134,25 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                           <input
                             className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             value={row.deploymentName}
-                            onChange={(e) =>
-                              onUpdateDeploymentModel?.(row.modelName, {
-                                deploymentName: e.target.value,
-                              })
-                            }
+                            onChange={(e) => {
+                              const deploymentName = e.target.value;
+                              const patch: Partial<RegionDeploymentModelConfig> =
+                                {
+                                  deploymentName,
+                                };
+                              const templateMatch =
+                                templateByDeploymentNameMap.get(
+                                  deploymentName.trim()
+                                );
+                              if (
+                                templateMatch &&
+                                templateMatch.modelName === row.modelName
+                              ) {
+                                patch.version = templateMatch.version;
+                                patch.capacity = templateMatch.capacity;
+                              }
+                              onUpdateDeploymentModel?.(row.sourceModel, patch);
+                            }}
                             disabled={privacyMode}
                           />
                         </td>
@@ -1089,7 +1161,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                             className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             value={row.version}
                             onChange={(e) =>
-                              onUpdateDeploymentModel?.(row.modelName, {
+                              onUpdateDeploymentModel?.(row.sourceModel, {
                                 version: e.target.value,
                               })
                             }
@@ -1103,7 +1175,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                             value={String(row.capacity)}
                             onChange={(e) => {
                               const num = Number(e.target.value);
-                              onUpdateDeploymentModel?.(row.modelName, {
+                              onUpdateDeploymentModel?.(row.sourceModel, {
                                 capacity: Number.isFinite(num) ? num : 0,
                               });
                             }}

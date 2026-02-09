@@ -36,6 +36,7 @@ export interface AccountDeploymentConfig {
 }
 
 export interface RegionDeploymentModelConfig {
+  enabled?: boolean;
   deploymentName?: string;
   version?: string;
   capacity?: number;

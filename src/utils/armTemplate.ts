@@ -22,6 +22,19 @@ export interface TemplateModelDeploymentDefaults {
   capacity: number;
 }
 
+export interface TemplateModelDeploymentEntry
+  extends TemplateModelDeploymentDefaults {
+  modelName: string;
+}
+
+export interface TemplateModelDeploymentLookups {
+  defaultsByModelName: ReadonlyMap<
+    string,
+    readonly TemplateModelDeploymentEntry[]
+  >;
+  entryByDeploymentName: ReadonlyMap<string, TemplateModelDeploymentEntry>;
+}
+
 export const ARM_TEMPLATE_SCHEMA =
   'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#';
 
@@ -37,33 +50,91 @@ import foundryTemplateJson from '../../Azure-AI-Founryd-Deployment-Template.json
 
 const DEFAULT_DEPLOYMENT_CAPACITY = 1000;
 
+function toTemplateModelDeploymentEntry(
+  item: any
+): TemplateModelDeploymentEntry | undefined {
+  const modelName =
+    typeof item?.modelName === 'string' ? item.modelName.trim() : '';
+  const deploymentName =
+    typeof item?.deploymentName === 'string' ? item.deploymentName.trim() : '';
+  const version = typeof item?.version === 'string' ? item.version.trim() : '';
+  const capacity = item?.capacity;
+
+  if (!modelName || !deploymentName || !version) return undefined;
+  if (!Number.isInteger(capacity) || capacity <= 0) return undefined;
+
+  return {
+    modelName,
+    deploymentName,
+    version,
+    capacity,
+  };
+}
+
+export function buildTemplateModelDeploymentLookups(
+  items: unknown
+): TemplateModelDeploymentLookups {
+  const defaultsByModelName = new Map<string, TemplateModelDeploymentEntry[]>();
+  const entryByDeploymentName = new Map<string, TemplateModelDeploymentEntry>();
+  if (!Array.isArray(items)) {
+    return {
+      defaultsByModelName,
+      entryByDeploymentName,
+    };
+  }
+
+  for (const raw of items) {
+    const entry = toTemplateModelDeploymentEntry(raw);
+    if (!entry) continue;
+
+    if (!defaultsByModelName.has(entry.modelName)) {
+      defaultsByModelName.set(entry.modelName, []);
+    }
+    defaultsByModelName.get(entry.modelName)?.push(entry);
+
+    if (!entryByDeploymentName.has(entry.deploymentName)) {
+      entryByDeploymentName.set(entry.deploymentName, entry);
+    }
+  }
+
+  return {
+    defaultsByModelName,
+    entryByDeploymentName,
+  };
+}
+
+export function getTemplateModelDeploymentLookups(): TemplateModelDeploymentLookups {
+  const items = (foundryTemplateJson as any)?.variables?.modelDeployments;
+  return buildTemplateModelDeploymentLookups(items);
+}
+
+export function getTemplateModelDeploymentEntriesByModelNameMap(): ReadonlyMap<
+  string,
+  readonly TemplateModelDeploymentEntry[]
+> {
+  return getTemplateModelDeploymentLookups().defaultsByModelName;
+}
+
+export function getTemplateModelDeploymentByDeploymentNameMap(): ReadonlyMap<
+  string,
+  TemplateModelDeploymentEntry
+> {
+  return getTemplateModelDeploymentLookups().entryByDeploymentName;
+}
+
 export function getTemplateModelDeploymentDefaultsMap(): ReadonlyMap<
   string,
   TemplateModelDeploymentDefaults
 > {
   const defaults = new Map<string, TemplateModelDeploymentDefaults>();
-  const items = (foundryTemplateJson as any)?.variables?.modelDeployments;
-  if (!Array.isArray(items)) return defaults;
-
-  for (const item of items) {
-    const modelName =
-      typeof item?.modelName === 'string' ? item.modelName.trim() : '';
-    const deploymentName =
-      typeof item?.deploymentName === 'string'
-        ? item.deploymentName.trim()
-        : '';
-    const version =
-      typeof item?.version === 'string' ? item.version.trim() : '';
-    const capacity = item?.capacity;
-
-    if (!modelName || defaults.has(modelName)) continue;
-    if (!deploymentName || !version) continue;
-    if (!Number.isInteger(capacity) || capacity <= 0) continue;
-
+  const byModelName = getTemplateModelDeploymentEntriesByModelNameMap();
+  for (const [modelName, entries] of byModelName.entries()) {
+    const first = entries[0];
+    if (!first) continue;
     defaults.set(modelName, {
-      deploymentName,
-      version,
-      capacity,
+      deploymentName: first.deploymentName,
+      version: first.version,
+      capacity: first.capacity,
     });
   }
 

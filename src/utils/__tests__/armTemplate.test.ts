@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
   SAMPLE_ARM_TEMPLATE_INPUT,
+  buildTemplateModelDeploymentLookups,
   validateArmTemplateInput,
   buildAzureOpenAiArmTemplate,
   stringifyAzureOpenAiArmTemplate,
   buildAzureOpenAiMainTemplate,
   getFallbackModelDeploymentDefaults,
+  getTemplateModelDeploymentByDeploymentNameMap,
   getTemplateModelDeploymentDefaults,
+  getTemplateModelDeploymentEntriesByModelNameMap,
   getTemplateModelDeploymentDefaultsMap,
   stringifyAzureOpenAiMainTemplate,
 } from '../armTemplate';
@@ -87,6 +90,56 @@ describe('armTemplate', () => {
       version: '2025-08-07',
       capacity: 1000,
     });
+  });
+
+  it('provides deployment-name lookup from template', () => {
+    const byDeploymentName = getTemplateModelDeploymentByDeploymentNameMap();
+    expect(byDeploymentName.get('gpt-5.2-codex')).toEqual({
+      deploymentName: 'gpt-5.2-codex',
+      modelName: 'gpt-5.2-codex',
+      version: '2026-01-14',
+      capacity: 1000,
+    });
+  });
+
+  it('supports multiple deployment entries for one model', () => {
+    const lookups = buildTemplateModelDeploymentLookups([
+      {
+        deploymentName: 'gpt-5-2025-08-07',
+        modelName: 'gpt-5',
+        version: '2025-08-07',
+        capacity: 1000,
+      },
+      {
+        deploymentName: 'gpt-5-prod',
+        modelName: 'gpt-5',
+        version: '2025-09-01',
+        capacity: 2000,
+      },
+    ]);
+    expect(lookups.defaultsByModelName.get('gpt-5')).toEqual([
+      {
+        deploymentName: 'gpt-5-2025-08-07',
+        modelName: 'gpt-5',
+        version: '2025-08-07',
+        capacity: 1000,
+      },
+      {
+        deploymentName: 'gpt-5-prod',
+        modelName: 'gpt-5',
+        version: '2025-09-01',
+        capacity: 2000,
+      },
+    ]);
+    expect(lookups.entryByDeploymentName.get('gpt-5-prod')?.modelName).toBe(
+      'gpt-5'
+    );
+  });
+
+  it('keeps deterministic default as first entry for each model', () => {
+    const byModel = getTemplateModelDeploymentEntriesByModelNameMap();
+    const first = byModel.get('gpt-5')?.[0];
+    expect(first?.deploymentName).toBe('gpt-5-2025-08-07');
   });
 
   it('rejects duplicate deployment names', () => {

@@ -107,37 +107,33 @@ Deployment export MUST use the region deployment area code directly as template 
 
 ### Requirement: Template-Driven Deployment Row Defaults
 
-When a region deployment row is initialized without saved values, the system MUST treat `modelName` as fixed identity and resolve default `deploymentName`, `version`, and `capacity` from `Azure-AI-Founryd-Deployment-Template.json` by matching `modelName` against `variables.modelDeployments`.
+When a region deployment row is initialized without saved values, the system MUST keep `modelName` fixed by selected models and resolve default `deploymentName`, `version`, and `capacity` from `Azure-AI-Founryd-Deployment-Template.json`.
 
-#### Scenario: Matching model receives template defaults
+If a template contains multiple entries for the same `modelName`, the system MUST choose a deterministic default entry.
 
-**Given** a selected model has no saved deployment row values
+#### Scenario: Multiple deployment names exist for one model
 
-**And** `variables.modelDeployments` contains an entry whose `modelName` equals the selected model
+**Given** a selected model `modelName` has multiple template `modelDeployments` entries
 
-**When** the deployment rows are initialized
+**And** the row has no saved deployment values
 
-**Then** the row `modelName` MUST remain the selected model
+**When** deployment rows are initialized
 
-**And** the row `deploymentName` MUST default to the template entry `deploymentName`
+**Then** the system MUST pick one deterministic template entry for defaults
 
-**And** the row `version` MUST default to the template entry `version`
+**And** row `modelName` MUST remain unchanged
 
-**And** the row `capacity` MUST default to the template entry `capacity`
+#### Scenario: Exact deploymentName match syncs version and capacity
 
-#### Scenario: Model missing from template falls back safely
+**Given** a row has fixed `modelName`
 
-**Given** a selected model has no saved deployment row values
+**And** user-entered `deploymentName` exactly matches a template entry with the same `modelName`
 
-**And** no valid matching template entry exists for that `modelName`
+**When** deployment row values are processed
 
-**When** the deployment rows are initialized
+**Then** row `version` MUST be synchronized to the matched template entry `version`
 
-**Then** the system MUST fall back to legacy defaults
-
-**And** the row `deploymentName` MUST default to `modelName`
-
-**And** existing validation MUST still require users to provide any missing required values before copy/export
+**And** row `capacity` MUST be synchronized to the matched template entry `capacity`
 
 ---
 
@@ -176,4 +172,30 @@ The deployment `Resource Name` input MUST remain account-scoped and MUST be show
 **When** a region under that account exports deployment code
 
 **Then** the exported template `resourceName` MUST use the account-level `Resource Name`
+
+### Requirement: DeploymentName Model Integrity
+
+Deployment rows MUST prevent model identity drift via `deploymentName` edits.
+
+#### Scenario: DeploymentName cannot switch modelName
+
+**Given** a row with fixed `modelName`
+
+**And** `deploymentName` matches a template entry whose `modelName` differs from the row `modelName`
+
+**When** the user attempts copy/export
+
+**Then** the system MUST block copy/export with an actionable validation error
+
+**And** MUST NOT mutate row `modelName`
+
+#### Scenario: DeploymentName must include row modelName
+
+**Given** a deployment row has fixed `modelName`
+
+**When** the row `deploymentName` does not include that `modelName`
+
+**Then** the system MUST treat the row as invalid for copy/export
+
+**And** MUST show a validation error indicating `deploymentName` must include `modelName`
 

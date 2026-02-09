@@ -112,6 +112,279 @@ describe('deployment configuration contract', () => {
     expect(json.parameters.location.defaultValue).toBe('eastus2');
   });
 
+  it('syncs version and capacity when deploymentName matches same-model template entry', () => {
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: 'gpt-5.2',
+        deployment: {
+          models: {
+            'gpt-5.2': {
+              deploymentName: 'custom-gpt-5.2',
+              version: 'old-version',
+              capacity: 1,
+            },
+          },
+        },
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5.2']}
+          masterGroups={[['gpt-5.2']]}
+          masterGroupLines={[[['gpt-5.2']]]}
+          filteredModels={['gpt-5.2']}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={(openaiEndpoint) =>
+            setRegion((prev) => ({ ...prev, openaiEndpoint }))
+          }
+          onUpdateAnthropicEndpoint={(anthropicEndpoint) =>
+            setRegion((prev) => ({ ...prev, anthropicEndpoint }))
+          }
+          onUpdateApiKey={(apiKey) =>
+            setRegion((prev) => ({ ...prev, apiKey }))
+          }
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={(modelName, patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                models: {
+                  ...(prev.deployment?.models || {}),
+                  [modelName]: {
+                    ...(prev.deployment?.models?.[modelName] || {}),
+                    ...patch,
+                  },
+                },
+              },
+            }))
+          }
+          accountDeployment={{ resourceName: 'my-account-resource' }}
+        />
+      );
+    };
+
+    const { getByRole, getByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    fireEvent.change(getByDisplayValue('custom-gpt-5.2'), {
+      target: { value: 'gpt-5.2-2025-12-11' },
+    });
+
+    expect(getByDisplayValue('2025-12-11')).toBeTruthy();
+    expect(getByDisplayValue('1000')).toBeTruthy();
+  });
+
+  it('blocks export when deploymentName maps to a different modelName in template', () => {
+    const onCopy = vi.fn();
+
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: 'gpt-5.2',
+        deployment: {},
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5.2']}
+          masterGroups={[['gpt-5.2']]}
+          masterGroupLines={[[['gpt-5.2']]]}
+          filteredModels={['gpt-5.2']}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={(modelName, patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                models: {
+                  ...(prev.deployment?.models || {}),
+                  [modelName]: {
+                    ...(prev.deployment?.models?.[modelName] || {}),
+                    ...patch,
+                  },
+                },
+              },
+            }))
+          }
+          accountDeployment={{ resourceName: 'my-account-resource' }}
+        />
+      );
+    };
+
+    const { getByRole, getByDisplayValue, getByText } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    fireEvent.change(getByDisplayValue('gpt-5.2-2025-12-11'), {
+      target: { value: 'gpt-5.2-codex' },
+    });
+
+    expect(getByText('gpt-5.2')).toBeTruthy();
+
+    fireEvent.click(
+      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+    );
+
+    expect(onCopy).not.toHaveBeenCalled();
+  });
+
+  it('redirects deploymentName-like selected model to template modelName defaults', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: 'gpt-5.1-2025-11-13',
+      deployment: {},
+    };
+
+    const { getByRole, getByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5.1-2025-11-13']}
+          masterGroups={[['gpt-5.1-2025-11-13']]}
+          masterGroupLines={[[['gpt-5.1-2025-11-13']]]}
+          filteredModels={['gpt-5.1-2025-11-13']}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          accountDeployment={{ resourceName: 'my-account-resource' }}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    expect(getByDisplayValue('gpt-5.1-2025-11-13')).toBeTruthy();
+    expect(getByDisplayValue('2025-11-13')).toBeTruthy();
+    expect(getByDisplayValue('1000')).toBeTruthy();
+  });
+
+  it('defaults base model unchecked when both modelName and deploymentName variant are selected', () => {
+    const onCopy = vi.fn();
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: 'gpt-5.1,gpt-5.1-2025-11-13',
+        deployment: {},
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5.1', 'gpt-5.1-2025-11-13']}
+          masterGroups={[['gpt-5.1', 'gpt-5.1-2025-11-13']]}
+          masterGroupLines={[[['gpt-5.1', 'gpt-5.1-2025-11-13']]]}
+          filteredModels={['gpt-5.1', 'gpt-5.1-2025-11-13']}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={(modelName, patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                models: {
+                  ...(prev.deployment?.models || {}),
+                  [modelName]: {
+                    ...(prev.deployment?.models?.[modelName] || {}),
+                    ...patch,
+                  },
+                },
+              },
+            }))
+          }
+          accountDeployment={{ resourceName: 'my-account-resource' }}
+        />
+      );
+    };
+
+    const { container, getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    const rowCheckboxes = Array.from(
+      container.querySelectorAll('tbody input[type="checkbox"]')
+    ) as HTMLInputElement[];
+    expect(rowCheckboxes).toHaveLength(2);
+    expect(rowCheckboxes[0].checked).toBe(false);
+    expect(rowCheckboxes[1].checked).toBe(true);
+
+    fireEvent.click(
+      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    const copied = onCopy.mock.calls[0][0] as string;
+    const json = JSON.parse(copied) as any;
+    expect(json.variables.modelDeployments).toHaveLength(1);
+    expect(json.variables.modelDeployments[0].deploymentName).toBe(
+      'gpt-5.1-2025-11-13'
+    );
+  });
+
   it('editing Foundry project endpoint cross-fills other endpoint fields', () => {
     const RegionHarness = () => {
       const [region, setRegion] = useState<LocalRegion>({
