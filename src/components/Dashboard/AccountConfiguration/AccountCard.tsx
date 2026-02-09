@@ -380,12 +380,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   'border border-border bg-background text-foreground text-sm',
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
-                value={account.deployment?.resourceName || ''}
+                value={
+                  privacyMode ? '***' : account.deployment?.resourceName || ''
+                }
                 onChange={(e) =>
                   onUpdateDeployment?.({ resourceName: e.target.value })
                 }
                 placeholder="my-aoai"
-                disabled={!onUpdateDeployment}
+                disabled={privacyMode || !onUpdateDeployment}
               />
             </div>
 

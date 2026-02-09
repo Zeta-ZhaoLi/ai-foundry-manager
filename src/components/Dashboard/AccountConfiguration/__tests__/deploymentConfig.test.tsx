@@ -58,6 +58,50 @@ describe('deployment configuration contract', () => {
     expect(queryByText('Azure Deployment Config')).toBeNull();
   });
 
+  it('masks Resource Name and disables editing in privacy mode', () => {
+    const account: LocalAccount = {
+      id: 'acct-1',
+      name: 'Account 1',
+      note: 'Sensitive note',
+      enabled: true,
+      regions: [],
+      deployment: { resourceName: 'my-sensitive-resource' },
+    };
+
+    const { getByText } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountCard
+          account={account}
+          privacyMode
+          masterGroups={[]}
+          masterGroupLines={[]}
+          masterModels={[]}
+          filteredModels={[]}
+          onUpdateName={vi.fn()}
+          onUpdateNote={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeployment={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    const label = getByText('Resource Name');
+    const input = label.parentElement?.querySelector('input');
+    expect(input).toBeTruthy();
+    expect((input as HTMLInputElement).value).toBe('***');
+    expect((input as HTMLInputElement).disabled).toBe(true);
+  });
+
   it('uses account resourceName and template defaults for model rows', () => {
     const region: LocalRegion = {
       id: 'reg-1',
@@ -468,5 +512,56 @@ describe('deployment configuration contract', () => {
         'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/anthropic'
       )
     ).toBeTruthy();
+  });
+
+  it('locks down endpoint/api key reveal and copy in privacy mode', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: '',
+      foundryProjectEndpoint:
+        'https://foo.services.ai.azure.com/api/projects/foo-project',
+      openaiEndpoint: 'https://foo.openai.azure.com',
+      aiServicesEndpoint: 'https://foo.cognitiveservices.azure.com',
+      anthropicEndpoint: 'https://foo.services.ai.azure.com/anthropic',
+      apiKey: 'sk-secret-123',
+    };
+
+    const { queryAllByTitle, getByDisplayValue, getAllByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          privacyMode
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAiServicesEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          accountDeployment={{ resourceName: 'my-account-resource' }}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    expect(getByDisplayValue('***')).toBeTruthy();
+    expect(getByDisplayValue('https://***.openai.azure.com')).toBeTruthy();
+    expect(
+      getAllByDisplayValue('https://***.services.ai.azure.com').length
+    ).toBeGreaterThan(0);
+
+    expect(queryAllByTitle(i18n.t('common.copy')).length).toBe(0);
+    expect(queryAllByTitle(i18n.t('common.show')).length).toBe(0);
+    expect(queryAllByTitle(i18n.t('common.hide')).length).toBe(0);
   });
 });

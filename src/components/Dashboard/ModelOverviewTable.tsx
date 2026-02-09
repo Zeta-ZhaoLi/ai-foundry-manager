@@ -626,7 +626,11 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                         {getDisplayName(account, originalIndex)}
                       </div>
                       <div className="text-center font-mono text-xs text-muted-foreground">
-                        {account.accountId || '-'}
+                        {privacyMode
+                          ? account.accountId
+                            ? account.accountId.replace(/\d/g, 'X')
+                            : '-'
+                          : account.accountId || '-'}
                       </div>
                       <div className="text-center">
                         <span

@@ -591,57 +591,62 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             </label>
             <div className="flex items-center gap-1">
               <input
-                type={showApiKey ? 'text' : 'password'}
+                type={
+                  privacyMode ? 'password' : showApiKey ? 'text' : 'password'
+                }
                 className={clsx(
                   'flex-1 min-w-0 p-1.5 rounded-lg',
                   'border border-gray-700 bg-background text-foreground text-sm',
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
-                value={region.apiKey || ''}
+                value={privacyMode ? '***' : region.apiKey || ''}
                 onChange={(e) => onUpdateApiKey(e.target.value)}
                 placeholder={t('regions.apiKeyPlaceholder')}
+                disabled={privacyMode}
               />
               {/* 显示/隐藏按钮 */}
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
-                title={showApiKey ? t('common.hide') : t('common.show')}
-              >
-                {showApiKey ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
+              {!privacyMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+                  title={showApiKey ? t('common.hide') : t('common.show')}
+                >
+                  {showApiKey ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              )}
               {/* 复制按钮 */}
-              {region.apiKey && (
+              {!privacyMode && region.apiKey && (
                 <button
                   type="button"
                   onClick={() =>
@@ -694,7 +699,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 placeholder="https://xxx.services.ai.azure.com/api/projects/xxx"
                 disabled={privacyMode}
               />
-              {region.foundryProjectEndpoint && (
+              {!privacyMode && region.foundryProjectEndpoint && (
                 <button
                   type="button"
                   onClick={() =>
@@ -745,7 +750,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 placeholder="https://xxx.openai.azure.com"
                 disabled={privacyMode}
               />
-              {region.openaiEndpoint && (
+              {!privacyMode && region.openaiEndpoint && (
                 <button
                   type="button"
                   onClick={() =>
@@ -793,7 +798,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 placeholder="https://xxx.cognitiveservices.azure.com"
                 disabled={privacyMode}
               />
-              {region.aiServicesEndpoint && (
+              {!privacyMode && region.aiServicesEndpoint && (
                 <button
                   type="button"
                   onClick={() =>
@@ -844,7 +849,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 placeholder="https://xxx.services.ai.azure.com/anthropic"
                 disabled={privacyMode}
               />
-              {region.anthropicEndpoint && (
+              {!privacyMode && region.anthropicEndpoint && (
                 <button
                   type="button"
                   onClick={() =>
