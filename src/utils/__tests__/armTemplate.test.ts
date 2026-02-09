@@ -5,6 +5,9 @@ import {
   buildAzureOpenAiArmTemplate,
   stringifyAzureOpenAiArmTemplate,
   buildAzureOpenAiMainTemplate,
+  getFallbackModelDeploymentDefaults,
+  getTemplateModelDeploymentDefaults,
+  getTemplateModelDeploymentDefaultsMap,
   stringifyAzureOpenAiMainTemplate,
 } from '../armTemplate';
 
@@ -38,6 +41,8 @@ describe('armTemplate', () => {
     const template = buildAzureOpenAiMainTemplate(
       SAMPLE_ARM_TEMPLATE_INPUT
     ) as any;
+    expect(template.kind).toBeUndefined();
+    expect(template.resources[0].kind).toBe('AIServices');
     expect(template.parameters.resourceName.defaultValue).toBe(
       SAMPLE_ARM_TEMPLATE_INPUT.resourceName
     );
@@ -53,6 +58,35 @@ describe('armTemplate', () => {
   it('stringifies mainTemplate-based template to valid JSON', () => {
     const json = stringifyAzureOpenAiMainTemplate(SAMPLE_ARM_TEMPLATE_INPUT);
     expect(() => JSON.parse(json)).not.toThrow();
+  });
+
+  it('resolves template defaults by modelName', () => {
+    const defaults = getTemplateModelDeploymentDefaults('gpt-5.2-codex');
+    expect(defaults).toEqual({
+      deploymentName: 'gpt-5.2-codex',
+      version: '2026-01-14',
+      capacity: 1000,
+    });
+  });
+
+  it('returns fallback defaults when model is not in template', () => {
+    const defaults = getTemplateModelDeploymentDefaults('not-exists-model');
+    expect(defaults).toBeUndefined();
+    expect(getFallbackModelDeploymentDefaults('not-exists-model')).toEqual({
+      deploymentName: 'not-exists-model',
+      version: '',
+      capacity: 1000,
+    });
+  });
+
+  it('builds template defaults map with unique model names', () => {
+    const defaultsMap = getTemplateModelDeploymentDefaultsMap();
+    expect(defaultsMap.size).toBeGreaterThan(0);
+    expect(defaultsMap.get('gpt-5')).toEqual({
+      deploymentName: 'gpt-5-2025-08-07',
+      version: '2025-08-07',
+      capacity: 1000,
+    });
   });
 
   it('rejects duplicate deployment names', () => {

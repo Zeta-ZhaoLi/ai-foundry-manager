@@ -7,17 +7,19 @@ import { useToast } from '../../../hooks/useToast';
 import {
   convertOpenAIToAnthropicEndpoint,
   convertAnthropicToOpenAIEndpoint,
-  extractAzureResourceName,
   orderModelsByMaster,
 } from '../../../utils/common';
 import type {
   LocalRegion as ImportedLocalRegion,
   AccountDeploymentConfig,
-  RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 
-import { stringifyAzureOpenAiMainTemplate } from '../../../utils/armTemplate';
+import {
+  getFallbackModelDeploymentDefaults,
+  getTemplateModelDeploymentDefaultsMap,
+  stringifyAzureOpenAiMainTemplate,
+} from '../../../utils/armTemplate';
 
 export type LocalRegion = ImportedLocalRegion;
 
@@ -37,7 +39,6 @@ export interface RegionCardProps {
   onUpdateAnthropicEndpoint: (endpoint: string) => void;
   onUpdateApiKey: (apiKey: string) => void;
   accountDeployment?: AccountDeploymentConfig;
-  onUpdateDeployment?: (patch: Partial<RegionDeploymentConfig>) => void;
   onUpdateDeploymentModel?: (
     modelName: string,
     patch: Partial<RegionDeploymentModelConfig>
@@ -124,7 +125,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   onUpdateOpenaiEndpoint,
   onUpdateAnthropicEndpoint,
   onUpdateApiKey,
-  onUpdateDeployment,
+  accountDeployment,
   onUpdateDeploymentModel,
   onUpdateEnabled,
   onDelete,
@@ -141,12 +142,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   // 判断当前区域名是否为自定义（不在预设列表中）
   const isCustomRegion = !PRESET_REGIONS.some((r) => r.value === region.name);
   const [showCustomInput, setShowCustomInput] = useState(isCustomRegion);
-
-  // 获取当前区域的显示标签
-  const getRegionLabel = (value: string) => {
-    const found = PRESET_REGIONS.find((r) => r.value === value);
-    return found ? found.label : value;
-  };
 
   // Handle OpenAI endpoint change with auto-sync
   const handleOpenAIEndpointChange = (newValue: string) => {
@@ -207,26 +202,35 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   }, [filteredModels, masterGroupLines]);
 
   // =============== 模型部署（Azure Portal） ===============
-  const deploymentResourceName = region.deployment?.resourceName || '';
-  const deploymentLocation = region.deployment?.location || region.name || '';
+  const deploymentResourceName = accountDeployment?.resourceName || '';
+  const deploymentLocation = region.name || '';
+
+  const templateDefaultsMap = useMemo(
+    () => getTemplateModelDeploymentDefaultsMap(),
+    []
+  );
 
   const selectedDeploymentRows = useMemo(() => {
     const modelMap = region.deployment?.models || {};
     return regionModels.map((modelName) => {
       const cfg = modelMap[modelName] || {};
+      const fallback = getFallbackModelDeploymentDefaults(modelName);
+      const templateDefaults = templateDefaultsMap.get(modelName);
       return {
         modelName,
-        deploymentName: cfg.deploymentName ?? modelName,
-        version: cfg.version ?? '',
-        capacity: cfg.capacity ?? 1000,
+        deploymentName:
+          cfg.deploymentName ??
+          templateDefaults?.deploymentName ??
+          fallback.deploymentName,
+        version: cfg.version ?? templateDefaults?.version ?? fallback.version,
+        capacity:
+          cfg.capacity ?? templateDefaults?.capacity ?? fallback.capacity,
       };
     });
-  }, [region.deployment?.models, regionModels]);
+  }, [region.deployment?.models, regionModels, templateDefaultsMap]);
 
   const validateDeployInputs = useCallback((): string | null => {
-    const derived = extractAzureResourceName(region.openaiEndpoint || '');
-    const resourceName =
-      deploymentResourceName.trim() || (derived || '').trim();
+    const resourceName = deploymentResourceName.trim();
     if (!resourceName) return t('regions.deployMissingResourceName');
     if (!deploymentLocation.trim()) return t('regions.deployMissingLocation');
     if (regionModels.length === 0) return t('regions.deployNoModels');
@@ -253,30 +257,8 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   }, [
     deploymentLocation,
     deploymentResourceName,
-    region.openaiEndpoint,
     regionModels.length,
     selectedDeploymentRows,
-    t,
-  ]);
-
-  const handleAutoFillDeployInfo = useCallback(() => {
-    const derived = extractAzureResourceName(region.openaiEndpoint || '');
-    const patch: Partial<RegionDeploymentConfig> = {};
-    if (!deploymentResourceName.trim() && derived) patch.resourceName = derived;
-    if (!deploymentLocation.trim() && region.name) patch.location = region.name;
-    if (Object.keys(patch).length > 0) {
-      onUpdateDeployment?.(patch);
-      toast.success(t('regions.deployAutoFilled'));
-    } else {
-      toast.success(t('regions.deployNothingToFill'));
-    }
-  }, [
-    deploymentLocation,
-    deploymentResourceName,
-    onUpdateDeployment,
-    region.name,
-    region.openaiEndpoint,
-    toast,
     t,
   ]);
 
@@ -287,9 +269,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       return;
     }
 
-    const derived = extractAzureResourceName(region.openaiEndpoint || '');
-    const resourceName =
-      deploymentResourceName.trim() || (derived || '').trim();
+    const resourceName = deploymentResourceName.trim();
     const location = deploymentLocation.trim();
 
     const templateInput = {
@@ -319,7 +299,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     deploymentResourceName,
     displayRegionName,
     onCopy,
-    region.openaiEndpoint,
     selectedDeploymentRows,
     toast,
     t,
@@ -949,14 +928,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleAutoFillDeployInfo}
-                className="px-2 py-0.5 rounded-full border border-gray-700 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
-                disabled={privacyMode}
-              >
-                {t('regions.deployAutoFill')}
-              </button>
-              <button
-                type="button"
                 disabled={privacyMode || regionModels.length === 0}
                 onClick={handleDeploy}
                 className={clsx(
@@ -973,37 +944,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
           {!deployCollapsed && (
             <div className="mt-2 space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">
-                    {t('regions.deployResourceName')}
-                  </label>
-                  <input
-                    className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={deploymentResourceName}
-                    onChange={(e) =>
-                      onUpdateDeployment?.({ resourceName: e.target.value })
-                    }
-                    placeholder="my-aoai"
-                    disabled={privacyMode}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">
-                    {t('regions.deployLocation')}
-                  </label>
-                  <input
-                    className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={deploymentLocation}
-                    onChange={(e) =>
-                      onUpdateDeployment?.({ location: e.target.value })
-                    }
-                    placeholder="eastus2"
-                    disabled={privacyMode}
-                  />
-                </div>
-              </div>
-
               <div className="overflow-auto border border-gray-800 rounded-lg">
                 <table className="w-full min-w-[820px] text-sm">
                   <thead>

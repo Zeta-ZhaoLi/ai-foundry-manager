@@ -29,10 +29,8 @@ export interface LocalRegion {
 }
 
 export interface AccountDeploymentConfig {
-  /** Azure subscription id (GUID) */
-  subscriptionId?: string;
-  /** Target resource group name */
-  resourceGroup?: string;
+  /** Azure OpenAI account name (mapped to template resourceName) */
+  resourceName?: string;
 }
 
 export interface RegionDeploymentModelConfig {
@@ -42,10 +40,6 @@ export interface RegionDeploymentModelConfig {
 }
 
 export interface RegionDeploymentConfig {
-  /** Azure OpenAI account name (Microsoft.CognitiveServices/accounts name) */
-  resourceName?: string;
-  /** Azure region, e.g. eastus2 */
-  location?: string;
   /** Per-model deployment settings */
   models?: Record<string, RegionDeploymentModelConfig>;
 }
@@ -110,8 +104,24 @@ export function useLocalAzureAccounts() {
           ...rest
         } = acct as any;
 
+        const legacyResourceName =
+          typeof (rest as any)?.deployment?.resourceGroup === 'string'
+            ? (rest as any).deployment.resourceGroup
+            : undefined;
+
+        const normalizedDeployment = {
+          ...((rest as any).deployment || {}),
+          resourceName:
+            ((rest as any).deployment?.resourceName as string | undefined) ||
+            legacyResourceName,
+        };
+
+        delete (normalizedDeployment as any).subscriptionId;
+        delete (normalizedDeployment as any).resourceGroup;
+
         return {
           ...(rest as LocalAccount),
+          deployment: normalizedDeployment,
           regions: (acct.regions || []).map((reg) => ({
             ...reg,
             apiKey: reg.apiKey ? decryptData(reg.apiKey) : reg.apiKey,
@@ -536,30 +546,6 @@ export function useLocalAzureAccounts() {
     [saveAccounts]
   );
 
-  const updateRegionDeployment = useCallback(
-    (
-      accountId: string,
-      regionId: string,
-      patch: Partial<RegionDeploymentConfig>
-    ) => {
-      saveAccounts((prev) =>
-        prev.map((acct) =>
-          acct.id === accountId
-            ? {
-                ...acct,
-                regions: acct.regions.map((reg) =>
-                  reg.id === regionId
-                    ? { ...reg, deployment: { ...reg.deployment, ...patch } }
-                    : reg
-                ),
-              }
-            : acct
-        )
-      );
-    },
-    [saveAccounts]
-  );
-
   const updateRegionDeploymentModel = useCallback(
     (
       accountId: string,
@@ -811,7 +797,6 @@ export function useLocalAzureAccounts() {
     updateRegionOpenaiEndpoint,
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
-    updateRegionDeployment,
     updateRegionDeploymentModel,
     updateRegionEnabled,
     updateRegionOpenaiEndpointManualOverride,

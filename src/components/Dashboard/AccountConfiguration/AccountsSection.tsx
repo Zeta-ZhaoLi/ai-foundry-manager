@@ -24,7 +24,6 @@ import {
   AccountQuota,
   CurrencyType,
   AccountDeploymentConfig,
-  RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 import { useToast } from '../../../hooks/useToast';
@@ -94,11 +93,6 @@ export interface AccountsSectionProps {
     regionId: string,
     apiKey: string
   ) => void;
-  onUpdateRegionDeployment?: (
-    accountId: string,
-    regionId: string,
-    patch: Partial<RegionDeploymentConfig>
-  ) => void;
   onUpdateRegionDeploymentModel?: (
     accountId: string,
     regionId: string,
@@ -149,7 +143,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateRegionOpenaiEndpoint,
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
-  onUpdateRegionDeployment,
   onUpdateRegionDeploymentModel,
   onUpdateRegionEnabled,
   onReorderAccounts,
@@ -450,19 +443,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     }
                     onUpdateRegionApiKey={(regionId, apiKey) =>
                       onUpdateRegionApiKey(account.id, regionId, apiKey)
-                    }
-                    onUpdateRegionDeployment={
-                      onUpdateRegionDeployment
-                        ? (
-                            regionId: string,
-                            patch: Partial<RegionDeploymentConfig>
-                          ) =>
-                            onUpdateRegionDeployment(
-                              account.id,
-                              regionId,
-                              patch
-                            )
-                        : undefined
                     }
                     onUpdateRegionDeploymentModel={
                       onUpdateRegionDeploymentModel

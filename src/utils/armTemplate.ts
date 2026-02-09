@@ -16,6 +16,12 @@ export interface ArmTemplateValidation {
   errors: string[];
 }
 
+export interface TemplateModelDeploymentDefaults {
+  deploymentName: string;
+  version: string;
+  capacity: number;
+}
+
 export const ARM_TEMPLATE_SCHEMA =
   'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#';
 
@@ -25,9 +31,62 @@ export const AZURE_DEPLOYMENT_RESOURCE_API_VERSION = '2021-04-01';
 export const DEFAULT_OPENAI_ACCOUNT_SKU = 'S0';
 export const DEFAULT_DEPLOYMENT_SKU = 'GlobalStandard';
 
-// NOTE: mainTemplate.json lives at repo root and is treated as canonical.
+// NOTE: template lives at repo root and is treated as canonical.
 // It is imported at build time and used as a read-only base template.
-import mainTemplateJson from '../../mainTemplate.json';
+import foundryTemplateJson from '../../Azure-AI-Founryd-Deployment-Template.json';
+
+const DEFAULT_DEPLOYMENT_CAPACITY = 1000;
+
+export function getTemplateModelDeploymentDefaultsMap(): ReadonlyMap<
+  string,
+  TemplateModelDeploymentDefaults
+> {
+  const defaults = new Map<string, TemplateModelDeploymentDefaults>();
+  const items = (foundryTemplateJson as any)?.variables?.modelDeployments;
+  if (!Array.isArray(items)) return defaults;
+
+  for (const item of items) {
+    const modelName =
+      typeof item?.modelName === 'string' ? item.modelName.trim() : '';
+    const deploymentName =
+      typeof item?.deploymentName === 'string'
+        ? item.deploymentName.trim()
+        : '';
+    const version =
+      typeof item?.version === 'string' ? item.version.trim() : '';
+    const capacity = item?.capacity;
+
+    if (!modelName || defaults.has(modelName)) continue;
+    if (!deploymentName || !version) continue;
+    if (!Number.isInteger(capacity) || capacity <= 0) continue;
+
+    defaults.set(modelName, {
+      deploymentName,
+      version,
+      capacity,
+    });
+  }
+
+  return defaults;
+}
+
+export function getTemplateModelDeploymentDefaults(
+  modelName: string
+): TemplateModelDeploymentDefaults | undefined {
+  return getTemplateModelDeploymentDefaultsMap().get(modelName);
+}
+
+export function getFallbackModelDeploymentDefaults(modelName: string): {
+  deploymentName: string;
+  version: string;
+  capacity: number;
+} {
+  return {
+    deploymentName: modelName,
+    version: '',
+    capacity: DEFAULT_DEPLOYMENT_CAPACITY,
+  };
+}
 
 export function validateArmTemplateInput(
   input: ArmTemplateInput
@@ -160,7 +219,7 @@ export function stringifyAzureOpenAiArmTemplate(
 
 export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
   // Deep clone to avoid mutating the imported JSON module
-  const template: any = JSON.parse(JSON.stringify(mainTemplateJson));
+  const template: any = JSON.parse(JSON.stringify(foundryTemplateJson));
 
   template.parameters = template.parameters || {};
   template.parameters.resourceName = template.parameters.resourceName || {

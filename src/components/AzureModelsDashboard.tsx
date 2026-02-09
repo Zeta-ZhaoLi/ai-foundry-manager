@@ -58,7 +58,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     updateRegionOpenaiEndpoint,
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
-    updateRegionDeployment,
     updateRegionDeploymentModel,
     updateRegionEnabled,
     reorderAccounts,
@@ -500,7 +499,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onUpdateRegionOpenaiEndpoint={updateRegionOpenaiEndpoint}
         onUpdateRegionAnthropicEndpoint={updateRegionAnthropicEndpoint}
         onUpdateRegionApiKey={updateRegionApiKey}
-        onUpdateRegionDeployment={updateRegionDeployment}
         onUpdateRegionDeploymentModel={updateRegionDeploymentModel}
         onUpdateRegionEnabled={updateRegionEnabled}
         onReorderAccounts={reorderAccounts}

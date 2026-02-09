@@ -16,14 +16,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
-import { LocalRegion } from './RegionCard';
 import { SortableRegionCard } from './SortableRegionCard';
 import {
   AccountTier,
   AccountQuota,
   CurrencyType,
   AccountDeploymentConfig,
-  RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 import type { LocalAccount as ImportedLocalAccount } from '../../../hooks/useLocalAzureAccounts';
@@ -56,10 +54,6 @@ export interface AccountCardProps {
   onUpdateRegionOpenaiEndpoint: (regionId: string, endpoint: string) => void;
   onUpdateRegionAnthropicEndpoint: (regionId: string, endpoint: string) => void;
   onUpdateRegionApiKey: (regionId: string, apiKey: string) => void;
-  onUpdateRegionDeployment?: (
-    regionId: string,
-    patch: Partial<RegionDeploymentConfig>
-  ) => void;
   onUpdateRegionDeploymentModel?: (
     regionId: string,
     modelName: string,
@@ -107,7 +101,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateRegionOpenaiEndpoint,
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
-  onUpdateRegionDeployment,
   onUpdateRegionDeploymentModel,
   onUpdateRegionEnabled,
   onReorderRegions,
@@ -116,7 +109,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   const { t } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(account.enabled);
-  const [showAzureDeployConfig, setShowAzureDeployConfig] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -554,58 +546,33 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         {/* Azure Deployment (Real ARM Deploy) */}
         {!privacyMode && (
           <div className="mb-3 border-t border-gray-800 pt-3">
-            <button
-              type="button"
-              onClick={() => setShowAzureDeployConfig((prev) => !prev)}
-              className="flex items-center gap-2 text-sm font-medium mb-2 hover:text-cyan-400 transition-colors"
-            >
+            <div className="flex items-center gap-2 text-sm font-medium mb-2">
               <span className="text-lg">☁️</span>
               <span>{t('accounts.azureDeployConfig')}</span>
-              <span className="text-xs text-muted-foreground">
-                {showAzureDeployConfig ? '▼' : '▶'}
-              </span>
-            </button>
+            </div>
+            <div className="border border-gray-800 rounded-lg p-3 bg-slate-950/50">
+              <div className="text-xs text-muted-foreground mb-2">
+                {t('accounts.azureDeployHint')}
+              </div>
 
-            {showAzureDeployConfig && (
-              <div className="border border-gray-800 rounded-lg p-3 bg-slate-950/50">
-                <div className="text-xs text-muted-foreground mb-2">
-                  {t('accounts.azureDeployHint')}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1">
-                      {t('accounts.subscriptionId')}
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={account.deployment?.subscriptionId || ''}
-                      onChange={(e) =>
-                        onUpdateDeployment?.({ subscriptionId: e.target.value })
-                      }
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      disabled={!onUpdateDeployment}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1">
-                      {t('accounts.resourceGroup')}
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={account.deployment?.resourceGroup || ''}
-                      onChange={(e) =>
-                        onUpdateDeployment?.({ resourceGroup: e.target.value })
-                      }
-                      placeholder="rg-aoai-prod"
-                      disabled={!onUpdateDeployment}
-                    />
-                  </div>
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    {t('accounts.resourceName')}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={account.deployment?.resourceName || ''}
+                    onChange={(e) =>
+                      onUpdateDeployment?.({ resourceName: e.target.value })
+                    }
+                    placeholder="my-aoai"
+                    disabled={!onUpdateDeployment}
+                  />
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -669,12 +636,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                         onUpdateRegionApiKey(region.id, apiKey)
                       }
                       accountDeployment={account.deployment}
-                      onUpdateDeployment={
-                        onUpdateRegionDeployment
-                          ? (patch) =>
-                              onUpdateRegionDeployment(region.id, patch)
-                          : undefined
-                      }
                       onUpdateDeploymentModel={
                         onUpdateRegionDeploymentModel
                           ? (modelName, patch) =>
