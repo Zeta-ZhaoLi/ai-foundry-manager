@@ -52,6 +52,14 @@ export interface AccountCardProps {
   onUpdateRegionName: (regionId: string, name: string) => void;
   onUpdateRegionModelsText: (regionId: string, text: string) => void;
   onUpdateRegionOpenaiEndpoint: (regionId: string, endpoint: string) => void;
+  onUpdateRegionFoundryProjectEndpoint?: (
+    regionId: string,
+    endpoint: string
+  ) => void;
+  onUpdateRegionAiServicesEndpoint?: (
+    regionId: string,
+    endpoint: string
+  ) => void;
   onUpdateRegionAnthropicEndpoint: (regionId: string, endpoint: string) => void;
   onUpdateRegionApiKey: (regionId: string, apiKey: string) => void;
   onUpdateRegionDeploymentModel?: (
@@ -99,6 +107,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateRegionName,
   onUpdateRegionModelsText,
   onUpdateRegionOpenaiEndpoint,
+  onUpdateRegionFoundryProjectEndpoint,
+  onUpdateRegionAiServicesEndpoint,
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
   onUpdateRegionDeploymentModel,
@@ -358,6 +368,27 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               </div>
             </div>
 
+            {/* Resource Name - 账号级部署参数（紧跟额度） */}
+            <div className="md:col-span-2">
+              <label className="text-xs text-muted-foreground block mb-1">
+                {t('accounts.resourceName')}
+              </label>
+              <input
+                type="text"
+                className={clsx(
+                  'w-full p-1.5 rounded-lg',
+                  'border border-border bg-background text-foreground text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                )}
+                value={account.deployment?.resourceName || ''}
+                onChange={(e) =>
+                  onUpdateDeployment?.({ resourceName: e.target.value })
+                }
+                placeholder="my-aoai"
+                disabled={!onUpdateDeployment}
+              />
+            </div>
+
             {/* 自定义额度输入 - 仅在选择自定义时显示 */}
             {account.quota === 'custom' && (
               <div className="md:col-span-1">
@@ -383,7 +414,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             {/* 备注 - 剩余列 */}
             <div
               className={
-                account.quota === 'custom' ? 'md:col-span-3' : 'md:col-span-4'
+                account.quota === 'custom' ? 'md:col-span-1' : 'md:col-span-2'
               }
             >
               <label className="text-xs text-muted-foreground block mb-1">
@@ -543,39 +574,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           )}
         </div>
 
-        {/* Azure Deployment (Real ARM Deploy) */}
-        {!privacyMode && (
-          <div className="mb-3 border-t border-gray-800 pt-3">
-            <div className="flex items-center gap-2 text-sm font-medium mb-2">
-              <span className="text-lg">☁️</span>
-              <span>{t('accounts.azureDeployConfig')}</span>
-            </div>
-            <div className="border border-gray-800 rounded-lg p-3 bg-slate-950/50">
-              <div className="text-xs text-muted-foreground mb-2">
-                {t('accounts.azureDeployHint')}
-              </div>
-
-              <div className="grid grid-cols-1 gap-2">
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">
-                    {t('accounts.resourceName')}
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={account.deployment?.resourceName || ''}
-                    onChange={(e) =>
-                      onUpdateDeployment?.({ resourceName: e.target.value })
-                    }
-                    placeholder="my-aoai"
-                    disabled={!onUpdateDeployment}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Regions */}
         <div className="mb-1.5">
           <div className="flex items-center justify-between mb-1">
@@ -628,6 +626,24 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       }
                       onUpdateOpenaiEndpoint={(endpoint) =>
                         onUpdateRegionOpenaiEndpoint(region.id, endpoint)
+                      }
+                      onUpdateFoundryProjectEndpoint={
+                        onUpdateRegionFoundryProjectEndpoint
+                          ? (endpoint: string) =>
+                              onUpdateRegionFoundryProjectEndpoint(
+                                region.id,
+                                endpoint
+                              )
+                          : undefined
+                      }
+                      onUpdateAiServicesEndpoint={
+                        onUpdateRegionAiServicesEndpoint
+                          ? (endpoint: string) =>
+                              onUpdateRegionAiServicesEndpoint(
+                                region.id,
+                                endpoint
+                              )
+                          : undefined
                       }
                       onUpdateAnthropicEndpoint={(endpoint) =>
                         onUpdateRegionAnthropicEndpoint(region.id, endpoint)

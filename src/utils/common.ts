@@ -232,6 +232,24 @@ export function normalizeOpenAIEndpoint(url: string): string {
 }
 
 /**
+ * 规范化 Azure AI Services Endpoint
+ * 去除末尾斜杠
+ */
+export function normalizeAiServicesEndpoint(url: string): string {
+  if (!url) return url;
+  return url.replace(/\/+$/, '');
+}
+
+/**
+ * 规范化 Foundry Project Endpoint
+ * 去除末尾斜杠
+ */
+export function normalizeFoundryProjectEndpoint(url: string): string {
+  if (!url) return url;
+  return url.replace(/\/+$/, '');
+}
+
+/**
  * 规范化 Anthropic Endpoint
  * 去除末尾的 /v1/messages 路径和斜杠
  */
@@ -244,31 +262,88 @@ export function normalizeAnthropicEndpoint(url: string): string {
   return normalized;
 }
 
-/**
- * 从 Azure Endpoint 提取资源名称
- * 支持 OpenAI 和 Anthropic 两种格式
- */
-export function extractAzureResourceName(endpoint: string): string | null {
+export interface AzureEndpointIdentity {
+  resourceName: string;
+  projectId?: string;
+}
+
+export interface AzureEndpointSet {
+  foundryProjectEndpoint: string;
+  openaiEndpoint: string;
+  aiServicesEndpoint: string;
+  anthropicEndpoint: string;
+}
+
+export function parseAzureEndpointIdentity(
+  endpoint: string
+): AzureEndpointIdentity | null {
   if (!endpoint) return null;
 
   try {
     const url = new URL(endpoint);
     const hostname = url.hostname;
+    const path = url.pathname.replace(/\/+$/, '');
 
-    // Pattern 1: xxx.openai.azure.com
     const openaiMatch = hostname.match(/^([^.]+)\.openai\.azure\.com$/);
-    if (openaiMatch) return openaiMatch[1];
+    if (openaiMatch) {
+      return { resourceName: openaiMatch[1] };
+    }
 
-    // Pattern 2: xxx.services.ai.azure.com
-    const anthropicMatch = hostname.match(
-      /^([^.]+)\.services\.ai\.azure\.com$/
+    const aiServicesMatch = hostname.match(
+      /^([^.]+)\.cognitiveservices\.azure\.com$/
     );
-    if (anthropicMatch) return anthropicMatch[1];
+    if (aiServicesMatch) {
+      return { resourceName: aiServicesMatch[1] };
+    }
+
+    const servicesMatch = hostname.match(/^([^.]+)\.services\.ai\.azure\.com$/);
+    if (!servicesMatch) return null;
+
+    const resourceName = servicesMatch[1];
+    const projectMatch = path.match(/^\/api\/projects\/([^/]+)$/);
+    if (projectMatch) {
+      return {
+        resourceName,
+        projectId: projectMatch[1],
+      };
+    }
+
+    if (path === '/anthropic' || path.startsWith('/anthropic/')) {
+      return { resourceName };
+    }
 
     return null;
   } catch {
     return null;
   }
+}
+
+export function buildAzureEndpointSet(
+  identity: AzureEndpointIdentity
+): AzureEndpointSet {
+  const projectId = identity.projectId || identity.resourceName;
+  return {
+    foundryProjectEndpoint: `https://${identity.resourceName}.services.ai.azure.com/api/projects/${projectId}`,
+    openaiEndpoint: `https://${identity.resourceName}.openai.azure.com`,
+    aiServicesEndpoint: `https://${identity.resourceName}.cognitiveservices.azure.com`,
+    anthropicEndpoint: `https://${identity.resourceName}.services.ai.azure.com/anthropic`,
+  };
+}
+
+export function deriveAzureEndpointSetFromAny(
+  endpoint: string
+): AzureEndpointSet | null {
+  const identity = parseAzureEndpointIdentity(endpoint);
+  if (!identity) return null;
+  return buildAzureEndpointSet(identity);
+}
+
+/**
+ * 从 Azure Endpoint 提取资源名称
+ * 支持 OpenAI 和 Anthropic 两种格式
+ */
+export function extractAzureResourceName(endpoint: string): string | null {
+  return parseAzureEndpointIdentity(endpoint)?.resourceName || null;
 }
 
 /**
@@ -277,10 +352,8 @@ export function extractAzureResourceName(endpoint: string): string | null {
 export function convertOpenAIToAnthropicEndpoint(
   openaiEndpoint: string
 ): string | null {
-  const resourceName = extractAzureResourceName(openaiEndpoint);
-  if (!resourceName) return null;
-
-  return `https://${resourceName}.services.ai.azure.com/anthropic`;
+  const all = deriveAzureEndpointSetFromAny(openaiEndpoint);
+  return all?.anthropicEndpoint || null;
 }
 
 /**
@@ -289,8 +362,6 @@ export function convertOpenAIToAnthropicEndpoint(
 export function convertAnthropicToOpenAIEndpoint(
   anthropicEndpoint: string
 ): string | null {
-  const resourceName = extractAzureResourceName(anthropicEndpoint);
-  if (!resourceName) return null;
-
-  return `https://${resourceName}.openai.azure.com`;
+  const all = deriveAzureEndpointSetFromAny(anthropicEndpoint);
+  return all?.openaiEndpoint || null;
 }

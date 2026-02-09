@@ -1,8 +1,7 @@
 # endpoint-normalization Specification
 
-## Purpose
-TBD - created by archiving change 2025-12-14-fix-summary-calculation-and-endpoint-normalization. Update Purpose after archive.
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: OpenAI Endpoint Trailing Slash Removal
 
 All supported Azure AI Foundry endpoint inputs MUST remove trailing slashes before storage and conversion.
@@ -44,38 +43,3 @@ Anthropic Endpoint inputs MUST normalize to `/anthropic` base path and remove tr
 **When** normalization is applied
 
 **Then** the stored value MUST be `https://sample-resource.services.ai.azure.com/anthropic`
-
-### Requirement: Normalization Timing
-
-Endpoint 规范化 **SHALL** 在用户输入后立即应用。
-
-#### Scenario: 实时规范化
-
-**Given** 用户正在编辑 Endpoint 字段
-
-**When** 用户在输入框中粘贴或输入 URL
-
-**Then** 系统在保存到状态时自动应用规范化（用户可能看到输入值被修正）
-
----
-
-### Requirement: Preserve Valid URLs
-
-规范化 **MUST NOT** 破坏有效的 URL 结构。
-
-#### Scenario: 保留查询参数
-
-**Given** URL 包含查询参数
-
-**When** 用户输入 `https://example.com/api/?key=value`
-
-**Then** 规范化后保留查询参数：`https://example.com/api?key=value`（仅去除路径末尾斜杠，保留查询参数）
-
-#### Scenario: 处理空输入
-
-**Given** 用户清空 Endpoint 字段
-
-**When** 输入值为空字符串
-
-**Then** 系统保存空字符串，不报错
-

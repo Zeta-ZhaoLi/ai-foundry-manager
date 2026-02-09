@@ -5,6 +5,8 @@ import {
   parseModels,
   debounce,
   generateId,
+  normalizeAiServicesEndpoint,
+  normalizeFoundryProjectEndpoint,
   normalizeOpenAIEndpoint,
   normalizeAnthropicEndpoint,
 } from '../utils/common';
@@ -19,12 +21,12 @@ export interface LocalRegion {
   id: string;
   name: string;
   modelsText: string;
+  foundryProjectEndpoint?: string;
   openaiEndpoint?: string;
+  aiServicesEndpoint?: string;
   anthropicEndpoint?: string;
   apiKey?: string;
   enabled?: boolean; // 默认 true，控制是否参与统计
-  openaiEndpointManualOverride?: boolean; // OpenAI Endpoint 是否手动覆盖
-  anthropicEndpointManualOverride?: boolean; // Anthropic Endpoint 是否手动覆盖
   deployment?: RegionDeploymentConfig;
 }
 
@@ -506,6 +508,50 @@ export function useLocalAzureAccounts() {
     [saveAccounts]
   );
 
+  const updateRegionFoundryProjectEndpoint = useCallback(
+    (accountId: string, regionId: string, foundryProjectEndpoint: string) => {
+      const normalized = normalizeFoundryProjectEndpoint(
+        foundryProjectEndpoint
+      );
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId
+                    ? { ...reg, foundryProjectEndpoint: normalized }
+                    : reg
+                ),
+              }
+            : acct
+        )
+      );
+    },
+    [saveAccounts]
+  );
+
+  const updateRegionAiServicesEndpoint = useCallback(
+    (accountId: string, regionId: string, aiServicesEndpoint: string) => {
+      const normalized = normalizeAiServicesEndpoint(aiServicesEndpoint);
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === accountId
+            ? {
+                ...acct,
+                regions: acct.regions.map((reg) =>
+                  reg.id === regionId
+                    ? { ...reg, aiServicesEndpoint: normalized }
+                    : reg
+                ),
+              }
+            : acct
+        )
+      );
+    },
+    [saveAccounts]
+  );
+
   const updateRegionAnthropicEndpoint = useCallback(
     (accountId: string, regionId: string, anthropicEndpoint: string) => {
       // 规范化 Anthropic Endpoint（去除末尾的 /v1/messages 和斜杠）
@@ -622,48 +668,6 @@ export function useLocalAzureAccounts() {
                 ...acct,
                 regions: acct.regions.map((reg) =>
                   reg.id === regionId ? { ...reg, enabled } : reg
-                ),
-              }
-            : acct
-        )
-      );
-    },
-    [saveAccounts]
-  );
-
-  // 更新 OpenAI Endpoint 手动覆盖标志
-  const updateRegionOpenaiEndpointManualOverride = useCallback(
-    (accountId: string, regionId: string, override: boolean) => {
-      saveAccounts((prev) =>
-        prev.map((acct) =>
-          acct.id === accountId
-            ? {
-                ...acct,
-                regions: acct.regions.map((reg) =>
-                  reg.id === regionId
-                    ? { ...reg, openaiEndpointManualOverride: override }
-                    : reg
-                ),
-              }
-            : acct
-        )
-      );
-    },
-    [saveAccounts]
-  );
-
-  // 更新 Anthropic Endpoint 手动覆盖标志
-  const updateRegionAnthropicEndpointManualOverride = useCallback(
-    (accountId: string, regionId: string, override: boolean) => {
-      saveAccounts((prev) =>
-        prev.map((acct) =>
-          acct.id === accountId
-            ? {
-                ...acct,
-                regions: acct.regions.map((reg) =>
-                  reg.id === regionId
-                    ? { ...reg, anthropicEndpointManualOverride: override }
-                    : reg
                 ),
               }
             : acct
@@ -794,13 +798,13 @@ export function useLocalAzureAccounts() {
     updateRegionName,
     updateRegionModelsText,
     deleteRegion,
+    updateRegionFoundryProjectEndpoint,
     updateRegionOpenaiEndpoint,
+    updateRegionAiServicesEndpoint,
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
     updateRegionDeploymentModel,
     updateRegionEnabled,
-    updateRegionOpenaiEndpointManualOverride,
-    updateRegionAnthropicEndpointManualOverride,
     reorderAccounts,
     reorderRegions,
     renumberAllAccounts,

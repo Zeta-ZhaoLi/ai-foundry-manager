@@ -84,8 +84,6 @@
     "usageRate": "사용률",
     "accountId": "계정 ID",
     "accountIdTooltip": "시스템이 부여한 식별자(A=프리미엄, B=일반)",
-    "azureDeployConfig": "Azure 배포 구성",
-    "azureDeployHint": "Azure Portal에서 사용자 지정 배포를 엽니다(사전 로그인 권장).",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "모든 모델의 version을 입력하세요",
     "deployInvalidCapacity": "capacity는 양의 정수여야 합니다",
     "deployFailed": "배포 실패: {{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI 엔드포인트",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Anthropic 엔드포인트",
     "apiKey": "API 키",
     "apiKeyPlaceholder": "API 키",
@@ -126,9 +126,6 @@
     "unnamed": "이름 없음",
     "enableRegion": "리전 활성화(통계 포함)",
     "pasteModels": "붙여넣기 가져오기",
-    "endpointAutoSynced": "{{type}} 엔드포인트에서 자동 동기화",
-    "endpointManualOverride": "수동 편집됨 - 자동 동기화 비활성화",
-    "endpointAutoSyncHelp": "한쪽 엔드포인트를 입력하면 다른 쪽이 자동 생성됩니다. 수동 편집 시 자동 동기화가 꺼집니다.",
     "pasteSuccess": "{{count}}개 모델을 가져왔습니다",
     "pasteEmpty": "클립보드가 비었거나 유효한 모델이 없습니다",
     "pasteFailed": "클립보드를 읽지 못했습니다",

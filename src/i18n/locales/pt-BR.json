@@ -84,8 +84,6 @@
     "usageRate": "Uso",
     "accountId": "ID da conta",
     "accountIdTooltip": "Identificador atribuido pelo sistema (A=Premium, B=Padrao)",
-    "azureDeployConfig": "Config de implantacao Azure",
-    "azureDeployHint": "Abre o Azure Portal para implantacao personalizada (recomendado entrar antes).",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "Preencha version para todos os modelos",
     "deployInvalidCapacity": "capacity deve ser um inteiro positivo",
     "deployFailed": "Falha na implantacao: {{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "Endpoint OpenAI",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Endpoint Anthropic",
     "apiKey": "Chave API",
     "apiKeyPlaceholder": "Chave API",
@@ -126,9 +126,6 @@
     "unnamed": "Sem nome",
     "enableRegion": "Ativar regiao (incluir nas estatisticas)",
     "pasteModels": "Colar e importar",
-    "endpointAutoSynced": "Auto-sincronizado a partir do endpoint {{type}}",
-    "endpointManualOverride": "Editado manualmente - auto-sincronizacao desativada",
-    "endpointAutoSyncHelp": "Ao preencher um endpoint, o outro e gerado automaticamente. Edicoes manuais desativam a auto-sincronizacao.",
     "pasteSuccess": "{{count}} modelos importados",
     "pasteEmpty": "A area de transferencia esta vazia ou nao tem modelos validos",
     "pasteFailed": "Falha ao ler a area de transferencia",

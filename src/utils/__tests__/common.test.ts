@@ -8,6 +8,10 @@ import {
   generateId,
   isValidUrl,
   isValidApiKey,
+  normalizeAiServicesEndpoint,
+  normalizeFoundryProjectEndpoint,
+  parseAzureEndpointIdentity,
+  deriveAzureEndpointSetFromAny,
 } from '../common';
 
 describe('Common Utils', () => {
@@ -151,6 +155,47 @@ describe('Common Utils', () => {
       expect(isValidApiKey('a'.repeat(32))).toBe(true);
       expect(isValidApiKey('a'.repeat(31))).toBe(false);
       expect(isValidApiKey('')).toBe(false);
+    });
+  });
+
+  describe('Foundry endpoint conversion', () => {
+    it('parses resource and project from Foundry project endpoint', () => {
+      expect(
+        parseAzureEndpointIdentity(
+          'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/api/projects/616d30b6ef130dde-1161/'
+        )
+      ).toEqual({
+        resourceName: '616d30b6ef130dde-1161-resource',
+        projectId: '616d30b6ef130dde-1161',
+      });
+    });
+
+    it('builds full endpoint set from OpenAI endpoint', () => {
+      expect(
+        deriveAzureEndpointSetFromAny(
+          'https://616d30b6ef130dde-1161-resource.openai.azure.com'
+        )
+      ).toEqual({
+        foundryProjectEndpoint:
+          'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/api/projects/616d30b6ef130dde-1161-resource',
+        openaiEndpoint:
+          'https://616d30b6ef130dde-1161-resource.openai.azure.com',
+        aiServicesEndpoint:
+          'https://616d30b6ef130dde-1161-resource.cognitiveservices.azure.com',
+        anthropicEndpoint:
+          'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/anthropic',
+      });
+    });
+
+    it('normalizes trailing slash for Foundry and AI Services endpoints', () => {
+      expect(
+        normalizeFoundryProjectEndpoint(
+          'https://foo.services.ai.azure.com/api/projects/bar/'
+        )
+      ).toBe('https://foo.services.ai.azure.com/api/projects/bar');
+      expect(
+        normalizeAiServicesEndpoint('https://foo.cognitiveservices.azure.com/')
+      ).toBe('https://foo.cognitiveservices.azure.com');
     });
   });
 });

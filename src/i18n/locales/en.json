@@ -84,8 +84,6 @@
     "usageRate": "Usage",
     "accountId": "Account ID",
     "accountIdTooltip": "System-assigned identifier, A-series for premium, B-series for standard",
-    "azureDeployConfig": "Azure Deployment Config",
-    "azureDeployHint": "Open Azure Portal for Custom deployment (recommended to sign in first).",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "Please fill version for all models",
     "deployInvalidCapacity": "capacity must be a positive integer",
     "deployFailed": "Deployment failed: {{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI Endpoint",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Anthropic Endpoint",
     "apiKey": "API Key",
     "apiKeyPlaceholder": "API Key",
@@ -126,9 +126,6 @@
     "unnamed": "Unnamed",
     "enableRegion": "Enable Region (Include in Stats)",
     "pasteModels": "Paste Import",
-    "endpointAutoSynced": "Auto-synced from {{type}} Endpoint",
-    "endpointManualOverride": "Manually edited - auto-sync disabled",
-    "endpointAutoSyncHelp": "When entering either endpoint, the other is auto-generated. Manual edits disable auto-sync.",
     "pasteSuccess": "Imported {{count}} models",
     "pasteEmpty": "Clipboard is empty or has no valid models",
     "pasteFailed": "Failed to read clipboard",

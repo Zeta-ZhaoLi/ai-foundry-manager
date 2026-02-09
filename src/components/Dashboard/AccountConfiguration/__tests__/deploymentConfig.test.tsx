@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../../i18n';
 import { AccountCard } from '../AccountCard';
@@ -45,9 +46,16 @@ describe('deployment configuration contract', () => {
       </I18nextProvider>
     );
 
-    expect(getByText('Resource Name')).toBeTruthy();
+    const quotaLabel = getByText(/Quota|额度/i);
+    const resourceNameLabel = getByText('Resource Name');
+    expect(resourceNameLabel).toBeTruthy();
+    expect(
+      quotaLabel.compareDocumentPosition(resourceNameLabel) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(queryByText('Subscription ID')).toBeNull();
     expect(queryByText('Resource Group')).toBeNull();
+    expect(queryByText('Azure Deployment Config')).toBeNull();
   });
 
   it('uses account resourceName and template defaults for model rows', () => {
@@ -78,7 +86,6 @@ describe('deployment configuration contract', () => {
           onUpdateEnabled={vi.fn()}
           onDelete={vi.fn()}
           onCopy={onCopy}
-          onUpdateDeployment={vi.fn()}
           onUpdateDeploymentModel={vi.fn()}
         />
       </I18nextProvider>
@@ -103,5 +110,90 @@ describe('deployment configuration contract', () => {
       'my-account-resource'
     );
     expect(json.parameters.location.defaultValue).toBe('eastus2');
+  });
+
+  it('editing Foundry project endpoint cross-fills other endpoint fields', () => {
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: '',
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateFoundryProjectEndpoint={(foundryProjectEndpoint) =>
+            setRegion((prev) => ({ ...prev, foundryProjectEndpoint }))
+          }
+          onUpdateOpenaiEndpoint={(openaiEndpoint) =>
+            setRegion((prev) => ({ ...prev, openaiEndpoint }))
+          }
+          onUpdateAiServicesEndpoint={(aiServicesEndpoint) =>
+            setRegion((prev) => ({ ...prev, aiServicesEndpoint }))
+          }
+          onUpdateAnthropicEndpoint={(anthropicEndpoint) =>
+            setRegion((prev) => ({ ...prev, anthropicEndpoint }))
+          }
+          onUpdateApiKey={(apiKey) =>
+            setRegion((prev) => ({ ...prev, apiKey }))
+          }
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+          accountDeployment={{ resourceName: 'my-account-resource' }}
+        />
+      );
+    };
+
+    const { getByDisplayValue, getByPlaceholderText } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.change(
+      getByPlaceholderText(
+        'https://xxx.services.ai.azure.com/api/projects/xxx'
+      ),
+      {
+        target: {
+          value:
+            'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/api/projects/616d30b6ef130dde-1161/',
+        },
+      }
+    );
+
+    expect(
+      getByDisplayValue(
+        'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/api/projects/616d30b6ef130dde-1161'
+      )
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue(
+        'https://616d30b6ef130dde-1161-resource.openai.azure.com'
+      )
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue(
+        'https://616d30b6ef130dde-1161-resource.cognitiveservices.azure.com'
+      )
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue(
+        'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/anthropic'
+      )
+    ).toBeTruthy();
   });
 });

@@ -84,8 +84,6 @@
     "usageRate": "Uso",
     "accountId": "ID de cuenta",
     "accountIdTooltip": "Identificador asignado por el sistema (A=Premium, B=Estandar)",
-    "azureDeployConfig": "Config de despliegue Azure",
-    "azureDeployHint": "Abre Azure Portal para despliegue personalizado (se recomienda iniciar sesion primero).",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "Complete version para todos los modelos",
     "deployInvalidCapacity": "capacity debe ser un entero positivo",
     "deployFailed": "Fallo el despliegue: {{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "Endpoint OpenAI",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Endpoint Anthropic",
     "apiKey": "Clave API",
     "apiKeyPlaceholder": "Clave API",
@@ -126,9 +126,6 @@
     "unnamed": "Sin nombre",
     "enableRegion": "Habilitar region (incluir en estadisticas)",
     "pasteModels": "Pegar e importar",
-    "endpointAutoSynced": "Auto-sincronizado desde el endpoint {{type}}",
-    "endpointManualOverride": "Editado manualmente - auto-sincronizacion desactivada",
-    "endpointAutoSyncHelp": "Al ingresar un endpoint, el otro se genera automaticamente. Las ediciones manuales desactivan la auto-sincronizacion.",
     "pasteSuccess": "Se importaron {{count}} modelos",
     "pasteEmpty": "El portapapeles esta vacio o no contiene modelos validos",
     "pasteFailed": "No se pudo leer el portapapeles",

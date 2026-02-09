@@ -83,6 +83,16 @@ export interface AccountsSectionProps {
     regionId: string,
     endpoint: string
   ) => void;
+  onUpdateRegionFoundryProjectEndpoint?: (
+    accountId: string,
+    regionId: string,
+    endpoint: string
+  ) => void;
+  onUpdateRegionAiServicesEndpoint?: (
+    accountId: string,
+    regionId: string,
+    endpoint: string
+  ) => void;
   onUpdateRegionAnthropicEndpoint: (
     accountId: string,
     regionId: string,
@@ -141,6 +151,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateRegionName,
   onUpdateRegionModelsText,
   onUpdateRegionOpenaiEndpoint,
+  onUpdateRegionFoundryProjectEndpoint,
+  onUpdateRegionAiServicesEndpoint,
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
   onUpdateRegionDeploymentModel,
@@ -433,6 +445,26 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                         regionId,
                         endpoint
                       )
+                    }
+                    onUpdateRegionFoundryProjectEndpoint={
+                      onUpdateRegionFoundryProjectEndpoint
+                        ? (regionId: string, endpoint: string) =>
+                            onUpdateRegionFoundryProjectEndpoint(
+                              account.id,
+                              regionId,
+                              endpoint
+                            )
+                        : undefined
+                    }
+                    onUpdateRegionAiServicesEndpoint={
+                      onUpdateRegionAiServicesEndpoint
+                        ? (regionId: string, endpoint: string) =>
+                            onUpdateRegionAiServicesEndpoint(
+                              account.id,
+                              regionId,
+                              endpoint
+                            )
+                        : undefined
                     }
                     onUpdateRegionAnthropicEndpoint={(regionId, endpoint) =>
                       onUpdateRegionAnthropicEndpoint(

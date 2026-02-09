@@ -84,8 +84,6 @@
     "usageRate": "使用率",
     "accountId": "账号 ID",
     "accountIdTooltip": "系统自动分配的账号标识，A 系列为高级账号，B 系列为普通账号",
-    "azureDeployConfig": "Azure 部署配置",
-    "azureDeployHint": "用于跳转 Azure Portal 自定义部署（建议提前登录 Portal）。",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "请为所有模型填写 version",
     "deployInvalidCapacity": "capacity 必须是正整数",
     "deployFailed": "部署失败：{{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI Endpoint",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Anthropic Endpoint",
     "apiKey": "API Key",
     "apiKeyPlaceholder": "API 密钥",
@@ -126,9 +126,6 @@
     "unnamed": "未命名",
     "enableRegion": "启用区域（参与统计）",
     "pasteModels": "粘贴导入",
-    "endpointAutoSynced": "从 {{type}} Endpoint 自动同步",
-    "endpointManualOverride": "手动编辑 - 已禁用自动同步",
-    "endpointAutoSyncHelp": "输入任一 Endpoint 时，另一个将自动生成。手动修改后将停止自动同步。",
     "pasteSuccess": "已导入 {{count}} 个模型",
     "pasteEmpty": "剪贴板为空或没有有效的模型",
     "pasteFailed": "读取剪贴板失败",

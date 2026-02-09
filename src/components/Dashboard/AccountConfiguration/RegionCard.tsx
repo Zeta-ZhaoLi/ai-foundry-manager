@@ -5,8 +5,11 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { buildCopyString } from '../../../utils/modelSeries';
 import { useToast } from '../../../hooks/useToast';
 import {
-  convertOpenAIToAnthropicEndpoint,
-  convertAnthropicToOpenAIEndpoint,
+  deriveAzureEndpointSetFromAny,
+  normalizeAiServicesEndpoint,
+  normalizeFoundryProjectEndpoint,
+  normalizeOpenAIEndpoint,
+  normalizeAnthropicEndpoint,
   orderModelsByMaster,
 } from '../../../utils/common';
 import type {
@@ -36,6 +39,8 @@ export interface RegionCardProps {
   onUpdateName: (name: string) => void;
   onUpdateModelsText: (text: string) => void;
   onUpdateOpenaiEndpoint: (endpoint: string) => void;
+  onUpdateFoundryProjectEndpoint?: (endpoint: string) => void;
+  onUpdateAiServicesEndpoint?: (endpoint: string) => void;
   onUpdateAnthropicEndpoint: (endpoint: string) => void;
   onUpdateApiKey: (apiKey: string) => void;
   accountDeployment?: AccountDeploymentConfig;
@@ -123,6 +128,8 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   onUpdateName,
   onUpdateModelsText,
   onUpdateOpenaiEndpoint,
+  onUpdateFoundryProjectEndpoint,
+  onUpdateAiServicesEndpoint,
   onUpdateAnthropicEndpoint,
   onUpdateApiKey,
   accountDeployment,
@@ -143,30 +150,64 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const isCustomRegion = !PRESET_REGIONS.some((r) => r.value === region.name);
   const [showCustomInput, setShowCustomInput] = useState(isCustomRegion);
 
-  // Handle OpenAI endpoint change with auto-sync
-  const handleOpenAIEndpointChange = (newValue: string) => {
-    onUpdateOpenaiEndpoint(newValue);
+  const applyEndpointSet = useCallback(
+    (set: {
+      foundryProjectEndpoint: string;
+      openaiEndpoint: string;
+      aiServicesEndpoint: string;
+      anthropicEndpoint: string;
+    }) => {
+      onUpdateFoundryProjectEndpoint?.(set.foundryProjectEndpoint);
+      onUpdateOpenaiEndpoint(set.openaiEndpoint);
+      onUpdateAiServicesEndpoint?.(set.aiServicesEndpoint);
+      onUpdateAnthropicEndpoint(set.anthropicEndpoint);
+    },
+    [
+      onUpdateAiServicesEndpoint,
+      onUpdateAnthropicEndpoint,
+      onUpdateFoundryProjectEndpoint,
+      onUpdateOpenaiEndpoint,
+    ]
+  );
 
-    // If not manually overridden for Anthropic, auto-generate it
-    if (!region.anthropicEndpointManualOverride && newValue) {
-      const generated = convertOpenAIToAnthropicEndpoint(newValue);
-      if (generated) {
-        onUpdateAnthropicEndpoint(generated);
-      }
+  const handleFoundryProjectEndpointChange = (newValue: string) => {
+    const normalized = normalizeFoundryProjectEndpoint(newValue);
+    const generated = deriveAzureEndpointSetFromAny(normalized);
+    if (generated) {
+      applyEndpointSet(generated);
+      return;
     }
+    onUpdateFoundryProjectEndpoint?.(normalized);
   };
 
-  // Handle Anthropic endpoint change with auto-sync
-  const handleAnthropicEndpointChange = (newValue: string) => {
-    onUpdateAnthropicEndpoint(newValue);
-
-    // If not manually overridden for OpenAI, auto-generate it
-    if (!region.openaiEndpointManualOverride && newValue) {
-      const generated = convertAnthropicToOpenAIEndpoint(newValue);
-      if (generated) {
-        onUpdateOpenaiEndpoint(generated);
-      }
+  const handleOpenAIEndpointChange = (newValue: string) => {
+    const normalized = normalizeOpenAIEndpoint(newValue);
+    const generated = deriveAzureEndpointSetFromAny(normalized);
+    if (generated) {
+      applyEndpointSet(generated);
+      return;
     }
+    onUpdateOpenaiEndpoint(normalized);
+  };
+
+  const handleAiServicesEndpointChange = (newValue: string) => {
+    const normalized = normalizeAiServicesEndpoint(newValue);
+    const generated = deriveAzureEndpointSetFromAny(normalized);
+    if (generated) {
+      applyEndpointSet(generated);
+      return;
+    }
+    onUpdateAiServicesEndpoint?.(normalized);
+  };
+
+  const handleAnthropicEndpointChange = (newValue: string) => {
+    const normalized = normalizeAnthropicEndpoint(newValue);
+    const generated = deriveAzureEndpointSetFromAny(normalized);
+    if (generated) {
+      applyEndpointSet(generated);
+      return;
+    }
+    onUpdateAnthropicEndpoint(normalized);
   };
 
   const selectedModels = useMemo(
@@ -586,32 +627,64 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           </div>
         </div>
 
-        {/* 第二行: OpenAI Endpoint + Anthropic Endpoint */}
-        <div className="flex flex-col md:flex-row md:items-start gap-3 mb-2 pl-7">
-          {/* OpenAI Endpoint */}
-          <div className="flex-1 min-w-0">
-            <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
-              <span>{t('regions.openaiEndpoint')}</span>
-              {region.openaiEndpoint &&
-                region.anthropicEndpoint &&
-                !region.openaiEndpointManualOverride && (
-                  <span
-                    className="text-cyan-400"
-                    title={t('regions.endpointAutoSynced', {
-                      type: 'Anthropic',
-                    })}
-                  >
-                    🔄
-                  </span>
+        {/* 第二行: 4类 Endpoint 自动互转 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2 pl-7">
+          <div className="min-w-0">
+            <label className="text-xs text-muted-foreground block mb-1">
+              {t('regions.foundryProjectEndpoint')}
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                className={clsx(
+                  'flex-1 min-w-0 p-1.5 rounded-lg',
+                  'border border-gray-700 bg-background text-foreground text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
-              {region.openaiEndpointManualOverride && (
-                <span
-                  className="text-yellow-400"
-                  title={t('regions.endpointManualOverride')}
+                value={
+                  privacyMode
+                    ? maskEndpoint(region.foundryProjectEndpoint || '')
+                    : region.foundryProjectEndpoint || ''
+                }
+                onChange={(e) =>
+                  handleFoundryProjectEndpointChange(e.target.value)
+                }
+                placeholder="https://xxx.services.ai.azure.com/api/projects/xxx"
+                disabled={privacyMode}
+              />
+              {region.foundryProjectEndpoint && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onCopy(
+                      region.foundryProjectEndpoint || '',
+                      'Foundry Project Endpoint'
+                    )
+                  }
+                  className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+                  title={t('common.copy')}
                 >
-                  ✏️
-                </span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
               )}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <label className="text-xs text-muted-foreground block mb-1">
+              {t('regions.openaiEndpoint')}
             </label>
             <div className="flex items-center gap-1">
               <input
@@ -629,7 +702,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 placeholder="https://xxx.openai.azure.com"
                 disabled={privacyMode}
               />
-              {/* 复制按钮 */}
               {region.openaiEndpoint && (
                 <button
                   type="button"
@@ -658,28 +730,60 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             </div>
           </div>
 
-          {/* Anthropic Endpoint */}
-          <div className="flex-1 min-w-0">
-            <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
-              <span>{t('regions.anthropicEndpoint')}</span>
-              {region.anthropicEndpoint &&
-                region.openaiEndpoint &&
-                !region.anthropicEndpointManualOverride && (
-                  <span
-                    className="text-cyan-400"
-                    title={t('regions.endpointAutoSynced', { type: 'OpenAI' })}
-                  >
-                    🔄
-                  </span>
+          <div className="min-w-0">
+            <label className="text-xs text-muted-foreground block mb-1">
+              {t('regions.aiServicesEndpoint')}
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                className={clsx(
+                  'flex-1 min-w-0 p-1.5 rounded-lg',
+                  'border border-gray-700 bg-background text-foreground text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                 )}
-              {region.anthropicEndpointManualOverride && (
-                <span
-                  className="text-yellow-400"
-                  title={t('regions.endpointManualOverride')}
+                value={
+                  privacyMode
+                    ? maskEndpoint(region.aiServicesEndpoint || '')
+                    : region.aiServicesEndpoint || ''
+                }
+                onChange={(e) => handleAiServicesEndpointChange(e.target.value)}
+                placeholder="https://xxx.cognitiveservices.azure.com"
+                disabled={privacyMode}
+              />
+              {region.aiServicesEndpoint && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onCopy(
+                      region.aiServicesEndpoint || '',
+                      'Azure AI Services Endpoint'
+                    )
+                  }
+                  className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+                  title={t('common.copy')}
                 >
-                  ✏️
-                </span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
               )}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <label className="text-xs text-muted-foreground block mb-1">
+              {t('regions.anthropicEndpoint')}
             </label>
             <div className="flex items-center gap-1">
               <input
@@ -694,10 +798,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                     : region.anthropicEndpoint || ''
                 }
                 onChange={(e) => handleAnthropicEndpointChange(e.target.value)}
-                placeholder="https://xxx.services.ai.azure.com"
+                placeholder="https://xxx.services.ai.azure.com/anthropic"
                 disabled={privacyMode}
               />
-              {/* 复制按钮 */}
               {region.anthropicEndpoint && (
                 <button
                   type="button"

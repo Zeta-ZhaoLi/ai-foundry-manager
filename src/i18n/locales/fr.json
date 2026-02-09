@@ -84,8 +84,6 @@
     "usageRate": "Utilisation",
     "accountId": "ID du compte",
     "accountIdTooltip": "Identifiant attribue par le systeme (A=Premium, B=Standard)",
-    "azureDeployConfig": "Config deploiement Azure",
-    "azureDeployHint": "Ouvre Azure Portal pour un deploiement personnalise (connexion recommandee).",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "Veuillez renseigner version pour tous les modeles",
     "deployInvalidCapacity": "capacity doit etre un entier positif",
     "deployFailed": "Echec du deploiement : {{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "Endpoint OpenAI",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Endpoint Anthropic",
     "apiKey": "Cle API",
     "apiKeyPlaceholder": "Cle API",
@@ -126,9 +126,6 @@
     "unnamed": "Sans nom",
     "enableRegion": "Activer la region (inclure dans les stats)",
     "pasteModels": "Importer depuis le presse-papiers",
-    "endpointAutoSynced": "Synchronise automatiquement depuis l'endpoint {{type}}",
-    "endpointManualOverride": "Modifie manuellement - synchro auto desactivee",
-    "endpointAutoSyncHelp": "En saisissant un endpoint, l'autre est genere automatiquement. Les modifications manuelles desactivent la synchro auto.",
     "pasteSuccess": "{{count}} modeles importes",
     "pasteEmpty": "Presse-papiers vide ou aucun modele valide",
     "pasteFailed": "Impossible de lire le presse-papiers",

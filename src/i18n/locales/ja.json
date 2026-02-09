@@ -84,8 +84,6 @@
     "usageRate": "使用率",
     "accountId": "アカウントID",
     "accountIdTooltip": "システム割当の識別子（A系=プレミアム、B系=スタンダード）",
-    "azureDeployConfig": "Azure デプロイ設定",
-    "azureDeployHint": "Azure Portal でカスタムデプロイを開きます（事前ログイン推奨）。",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "すべてのモデルに version を入力してください",
     "deployInvalidCapacity": "capacity は正の整数である必要があります",
     "deployFailed": "デプロイに失敗しました: {{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI エンドポイント",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Anthropic エンドポイント",
     "apiKey": "API キー",
     "apiKeyPlaceholder": "API キー",
@@ -126,9 +126,6 @@
     "unnamed": "未命名",
     "enableRegion": "リージョンを有効化（統計に含める）",
     "pasteModels": "貼り付けインポート",
-    "endpointAutoSynced": "{{type}} エンドポイントから自動同期",
-    "endpointManualOverride": "手動編集済み - 自動同期は無効",
-    "endpointAutoSyncHelp": "どちらかのエンドポイントを入力すると、もう一方が自動生成されます。手動編集すると自動同期は無効になります。",
     "pasteSuccess": "{{count}} 件のモデルを取り込みました",
     "pasteEmpty": "クリップボードが空、または有効なモデルがありません",
     "pasteFailed": "クリップボードの読み取りに失敗しました",

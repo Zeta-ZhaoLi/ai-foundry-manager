@@ -55,7 +55,9 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     updateRegionName,
     updateRegionModelsText,
     deleteRegion,
+    updateRegionFoundryProjectEndpoint,
     updateRegionOpenaiEndpoint,
+    updateRegionAiServicesEndpoint,
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
     updateRegionDeploymentModel,
@@ -496,7 +498,11 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onDeleteRegion={deleteRegion}
         onUpdateRegionName={updateRegionName}
         onUpdateRegionModelsText={updateRegionModelsText}
+        onUpdateRegionFoundryProjectEndpoint={
+          updateRegionFoundryProjectEndpoint
+        }
         onUpdateRegionOpenaiEndpoint={updateRegionOpenaiEndpoint}
+        onUpdateRegionAiServicesEndpoint={updateRegionAiServicesEndpoint}
         onUpdateRegionAnthropicEndpoint={updateRegionAnthropicEndpoint}
         onUpdateRegionApiKey={updateRegionApiKey}
         onUpdateRegionDeploymentModel={updateRegionDeploymentModel}

@@ -84,8 +84,6 @@
     "usageRate": "Nutzung",
     "accountId": "Account-ID",
     "accountIdTooltip": "System-ID (A=Premium, B=Standard)",
-    "azureDeployConfig": "Azure-Deployment Konfig",
-    "azureDeployHint": "Oeffnet Azure Portal fuer Custom Deployment (Login empfohlen).",
     "resourceName": "Resource Name"
   },
   "regions": {
@@ -108,7 +106,9 @@
     "deployMissingVersion": "Bitte version fuer alle Modelle ausfuellen",
     "deployInvalidCapacity": "capacity muss eine positive Ganzzahl sein",
     "deployFailed": "Deployment fehlgeschlagen: {{msg}}",
+    "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI Endpoint",
+    "aiServicesEndpoint": "Azure AI Services Endpoint",
     "anthropicEndpoint": "Anthropic Endpoint",
     "apiKey": "API-Key",
     "apiKeyPlaceholder": "API-Key",
@@ -126,9 +126,6 @@
     "unnamed": "Unbenannt",
     "enableRegion": "Region aktivieren (in Stats)",
     "pasteModels": "Einfu gen (Import)",
-    "endpointAutoSynced": "Automatisch synchronisiert von {{type}} Endpoint",
-    "endpointManualOverride": "Manuell bearbeitet - Auto-Sync deaktiviert",
-    "endpointAutoSyncHelp": "Wenn Sie einen Endpoint eingeben, wird der andere automatisch erzeugt. Manuelle Aenderungen deaktivieren Auto-Sync.",
     "pasteSuccess": "{{count}} Modelle importiert",
     "pasteEmpty": "Zwischenablage ist leer oder enthaelt keine gueltigen Modelle",
     "pasteFailed": "Zwischenablage konnte nicht gelesen werden",
