@@ -36,21 +36,99 @@
   "variables": {
     "modelDeployments": [
       {
+        "deploymentName": "gpt-4o-2024-05-13",
+        "modelName": "gpt-4o-2024-05-13",
+        "version": "2024-05-13",
+        "capacity": 450
+      },
+      {
+        "deploymentName": "gpt-4o-2024-08-06",
+        "modelName": "gpt-4o-2024-08-06",
+        "version": "2024-08-06",
+        "capacity": 450
+      },
+      {
+        "deploymentName": "gpt-4o-2024-11-20",
+        "modelName": "gpt-4o-2024-11-20",
+        "version": "2024-11-20",
+        "capacity": 450
+      },
+      {
+        "deploymentName": "gpt-4o-mini-2024-07-18",
+        "modelName": "gpt-4o-mini-2024-07-18",
+        "version": "2024-07-18",
+        "capacity": 2000
+      },
+      {
+        "deploymentName": "gpt-4.1-2025-04-14",
+        "modelName": "gpt-4.1-2025-04-14",
+        "version": "2025-04-14",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-4.1-mini-2025-04-14",
+        "modelName": "gpt-4.1-mini-2025-04-14",
+        "version": "2025-04-14",
+        "capacity": 5000
+      },
+      {
+        "deploymentName": "gpt-4.1-nano-2025-04-14",
+        "modelName": "gpt-4.1-nano-2025-04-14",
+        "version": "2025-04-14",
+        "capacity": 5000
+      },
+      {
         "deploymentName": "gpt-5-2025-08-07",
         "modelName": "gpt-5",
         "version": "2025-08-07",
         "capacity": 1000
       },
       {
-        "deploymentName": "gpt-5-codex",
-        "modelName": "gpt-5-codex",
-        "version": "2025-09-15",
+        "deploymentName": "gpt-5-mini-2025-08-07",
+        "modelName": "gpt-5-mini-2025-08-07",
+        "version": "2025-08-07",
         "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-5-nano-2025-08-07",
+        "modelName": "gpt-5-nano-2025-08-07",
+        "version": "2025-08-07",
+        "capacity": 5000
       },
       {
         "deploymentName": "gpt-5.1-2025-11-13",
         "modelName": "gpt-5.1",
         "version": "2025-11-13",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-5.2-2025-12-11",
+        "modelName": "gpt-5.2",
+        "version": "2025-12-11",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-5-chat-latest",
+        "modelName": "gpt-5-chat-latest",
+        "version": "2025-10-03",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-5.1-chat-latest",
+        "modelName": "gpt-5.1-chat-latest",
+        "version": "2025-11-13",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-5.2-chat-latest",
+        "modelName": "gpt-5.2-chat-latest",
+        "version": "2025-12-11",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-5-codex",
+        "modelName": "gpt-5-codex",
+        "version": "2025-09-15",
         "capacity": 1000
       },
       {
@@ -69,12 +147,6 @@
         "deploymentName": "gpt-5.1-codex-mini",
         "modelName": "gpt-5.1-codex-mini",
         "version": "2025-11-13",
-        "capacity": 1000
-      },
-      {
-        "deploymentName": "gpt-5.2-2025-12-11",
-        "modelName": "gpt-5.2",
-        "version": "2025-12-11",
         "capacity": 1000
       },
       {
