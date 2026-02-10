@@ -14,7 +14,7 @@ import {
 } from '../../../utils/common';
 import type {
   LocalRegion as ImportedLocalRegion,
-  AccountDeploymentConfig,
+  RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 
@@ -44,7 +44,7 @@ export interface RegionCardProps {
   onUpdateAiServicesEndpoint?: (endpoint: string) => void;
   onUpdateAnthropicEndpoint: (endpoint: string) => void;
   onUpdateApiKey: (apiKey: string) => void;
-  accountDeployment?: AccountDeploymentConfig;
+  onUpdateDeployment?: (patch: Partial<RegionDeploymentConfig>) => void;
   onUpdateDeploymentModel?: (
     modelName: string,
     patch: Partial<RegionDeploymentModelConfig>
@@ -133,7 +133,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   onUpdateAiServicesEndpoint,
   onUpdateAnthropicEndpoint,
   onUpdateApiKey,
-  accountDeployment,
+  onUpdateDeployment,
   onUpdateDeploymentModel,
   onUpdateEnabled,
   onDelete,
@@ -244,7 +244,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   }, [filteredModels, masterGroupLines]);
 
   // =============== 模型部署（Azure Portal） ===============
-  const deploymentResourceName = accountDeployment?.resourceName || '';
+  const deploymentResourceName = region.deployment?.resourceName || '';
   const deploymentLocation = region.name || '';
 
   const templateDefaultsByModelNameMap = useMemo(
@@ -672,6 +672,26 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 </button>
               )}
             </div>
+          </div>
+
+          <div className="flex-1 min-w-0 pl-7 md:pl-0">
+            <label className="text-xs text-muted-foreground block mb-1">
+              {t('accounts.resourceName')}
+            </label>
+            <input
+              type="text"
+              className={clsx(
+                'w-full p-1.5 rounded-lg',
+                'border border-gray-700 bg-background text-foreground text-sm',
+                'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+              )}
+              value={privacyMode ? '***' : deploymentResourceName}
+              onChange={(e) =>
+                onUpdateDeployment?.({ resourceName: e.target.value })
+              }
+              placeholder="my-aoai"
+              disabled={privacyMode || !onUpdateDeployment}
+            />
           </div>
         </div>
 

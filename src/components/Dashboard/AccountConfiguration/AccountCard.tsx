@@ -21,7 +21,7 @@ import {
   AccountTier,
   AccountQuota,
   CurrencyType,
-  AccountDeploymentConfig,
+  RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 import type { LocalAccount as ImportedLocalAccount } from '../../../hooks/useLocalAzureAccounts';
@@ -45,7 +45,6 @@ export interface AccountCardProps {
   onUpdateQuota?: (quota: AccountQuota, customQuota?: number) => void;
   onUpdatePurchase?: (amount: number, currency: CurrencyType) => void;
   onUpdateUsedAmount?: (usedAmount: number) => void;
-  onUpdateDeployment?: (patch: Partial<AccountDeploymentConfig>) => void;
   onDelete: () => void;
   onAddRegion: () => void;
   onDeleteRegion: (regionId: string) => void;
@@ -62,6 +61,10 @@ export interface AccountCardProps {
   ) => void;
   onUpdateRegionAnthropicEndpoint: (regionId: string, endpoint: string) => void;
   onUpdateRegionApiKey: (regionId: string, apiKey: string) => void;
+  onUpdateRegionDeployment?: (
+    regionId: string,
+    patch: Partial<RegionDeploymentConfig>
+  ) => void;
   onUpdateRegionDeploymentModel?: (
     regionId: string,
     modelName: string,
@@ -100,7 +103,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateQuota,
   onUpdatePurchase,
   onUpdateUsedAmount,
-  onUpdateDeployment,
   onDelete,
   onAddRegion,
   onDeleteRegion,
@@ -111,6 +113,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateRegionAiServicesEndpoint,
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
+  onUpdateRegionDeployment,
   onUpdateRegionDeploymentModel,
   onUpdateRegionEnabled,
   onReorderRegions,
@@ -366,29 +369,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   ))}
                 </select>
               </div>
-            </div>
-
-            {/* Resource Name - 账号级部署参数（紧跟额度） */}
-            <div className="md:col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.resourceName')}
-              </label>
-              <input
-                type="text"
-                className={clsx(
-                  'w-full p-1.5 rounded-lg',
-                  'border border-border bg-background text-foreground text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                )}
-                value={
-                  privacyMode ? '***' : account.deployment?.resourceName || ''
-                }
-                onChange={(e) =>
-                  onUpdateDeployment?.({ resourceName: e.target.value })
-                }
-                placeholder="my-aoai"
-                disabled={privacyMode || !onUpdateDeployment}
-              />
             </div>
 
             {/* 自定义额度输入 - 仅在选择自定义时显示 */}
@@ -653,7 +633,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       onUpdateApiKey={(apiKey) =>
                         onUpdateRegionApiKey(region.id, apiKey)
                       }
-                      accountDeployment={account.deployment}
+                      onUpdateDeployment={
+                        onUpdateRegionDeployment
+                          ? (patch) =>
+                              onUpdateRegionDeployment(region.id, patch)
+                          : undefined
+                      }
                       onUpdateDeploymentModel={
                         onUpdateRegionDeploymentModel
                           ? (modelName, patch) =>

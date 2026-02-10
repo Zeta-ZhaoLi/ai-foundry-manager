@@ -7,19 +7,19 @@ TBD - created by archiving change harden-privacy-mode-redaction. Update Purpose 
 
 `Resource Name` MUST be treated as sensitive information in privacy mode.
 
-#### Scenario: Account resource name is masked
+#### Scenario: Region resource name is masked
 
-**Given** an account has deployment `resourceName` value `my-aoai-prod`
+**Given** a region has deployment `resourceName` value `my-aoai-prod`
 
 **And** privacy mode is enabled
 
-**When** the account info section is rendered
+**When** the region configuration section is rendered
 
-**Then** the `Resource Name` field MUST display a masked value
+**Then** the region `Resource Name` field MUST display a masked value
 
 **And** the actual `resourceName` MUST NOT be visible on screen
 
----
+**And** editing controls for region `Resource Name` MUST be disabled
 
 ### Requirement: Sensitive Field Interaction Lockdown
 

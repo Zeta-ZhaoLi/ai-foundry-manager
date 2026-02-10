@@ -30,11 +30,6 @@ export interface LocalRegion {
   deployment?: RegionDeploymentConfig;
 }
 
-export interface AccountDeploymentConfig {
-  /** Azure OpenAI account name (mapped to template resourceName) */
-  resourceName?: string;
-}
-
 export interface RegionDeploymentModelConfig {
   enabled?: boolean;
   deploymentName?: string;
@@ -43,6 +38,8 @@ export interface RegionDeploymentModelConfig {
 }
 
 export interface RegionDeploymentConfig {
+  /** Region-scoped Azure OpenAI resource name */
+  resourceName?: string;
   /** Per-model deployment settings */
   models?: Record<string, RegionDeploymentModelConfig>;
 }
@@ -73,7 +70,6 @@ export interface LocalAccount {
   purchaseAmount?: number; // 购买金额
   purchaseCurrency?: CurrencyType; // 货币类型 (默认 USD)
   usedAmount?: number; // 已使用额度
-  deployment?: AccountDeploymentConfig; // Azure 部署配置（真实 ARM 部署需要）
 }
 
 export interface AccountSummary {
@@ -104,29 +100,27 @@ export function useLocalAzureAccounts() {
         const {
           windowsServer: _windowsServer,
           linuxServer: _linuxServer,
+          deployment: legacyAccountDeployment,
           ...rest
         } = acct as any;
 
-        const legacyResourceName =
-          typeof (rest as any)?.deployment?.resourceGroup === 'string'
-            ? (rest as any).deployment.resourceGroup
-            : undefined;
-
-        const normalizedDeployment = {
-          ...((rest as any).deployment || {}),
-          resourceName:
-            ((rest as any).deployment?.resourceName as string | undefined) ||
-            legacyResourceName,
-        };
-
-        delete (normalizedDeployment as any).subscriptionId;
-        delete (normalizedDeployment as any).resourceGroup;
+        const legacyAccountResourceName =
+          (legacyAccountDeployment?.resourceName as string | undefined) ||
+          (typeof legacyAccountDeployment?.resourceGroup === 'string'
+            ? legacyAccountDeployment.resourceGroup
+            : undefined);
 
         return {
           ...(rest as LocalAccount),
-          deployment: normalizedDeployment,
           regions: (acct.regions || []).map((reg) => ({
             ...reg,
+            deployment: {
+              ...((reg as any).deployment || {}),
+              resourceName:
+                (
+                  (reg as any).deployment?.resourceName as string | undefined
+                )?.trim() || legacyAccountResourceName,
+            },
             apiKey: reg.apiKey ? decryptData(reg.apiKey) : reg.apiKey,
           })),
         };
@@ -142,6 +136,7 @@ export function useLocalAzureAccounts() {
         const {
           windowsServer: _windowsServer,
           linuxServer: _linuxServer,
+          deployment: _deployment,
           ...rest
         } = acct as any;
 
@@ -228,6 +223,14 @@ export function useLocalAzureAccounts() {
           const hadLegacyServerFields = (parsed as any[]).some(
             (acct) => acct?.windowsServer || acct?.linuxServer
           );
+          const hadLegacyAccountResourceName = (parsed as any[]).some(
+            (acct) => {
+              const deployment = acct?.deployment;
+              return Boolean(
+                deployment?.resourceName || deployment?.resourceGroup
+              );
+            }
+          );
 
           // 迁移：为没有 accountId 的账号分配 ID
           const migratedAccounts = migrateAccountsToV2(normalized);
@@ -235,7 +238,11 @@ export function useLocalAzureAccounts() {
           setAccounts(decrypted);
 
           // 如果发生了迁移（accountId 或 server 字段清理），保存更新后的数据
-          if (hadMissingAccountId || hadLegacyServerFields) {
+          if (
+            hadMissingAccountId ||
+            hadLegacyServerFields ||
+            hadLegacyAccountResourceName
+          ) {
             debouncedSaveRef.current(decrypted);
           }
           return;
@@ -392,19 +399,6 @@ export function useLocalAzureAccounts() {
     (id: string, usedAmount: number) => {
       saveAccounts((prev) =>
         prev.map((acct) => (acct.id === id ? { ...acct, usedAmount } : acct))
-      );
-    },
-    [saveAccounts]
-  );
-
-  const updateAccountDeployment = useCallback(
-    (id: string, patch: Partial<AccountDeploymentConfig>) => {
-      saveAccounts((prev) =>
-        prev.map((acct) =>
-          acct.id === id
-            ? { ...acct, deployment: { ...acct.deployment, ...patch } }
-            : acct
-        )
       );
     },
     [saveAccounts]
@@ -588,6 +582,35 @@ export function useLocalAzureAccounts() {
               }
             : acct
         )
+      );
+    },
+    [saveAccounts]
+  );
+
+  const updateRegionDeployment = useCallback(
+    (
+      accountId: string,
+      regionId: string,
+      patch: Partial<RegionDeploymentConfig>
+    ) => {
+      saveAccounts((prev) =>
+        prev.map((acct) => {
+          if (acct.id !== accountId) return acct;
+          return {
+            ...acct,
+            regions: acct.regions.map((reg) =>
+              reg.id === regionId
+                ? {
+                    ...reg,
+                    deployment: {
+                      ...reg.deployment,
+                      ...patch,
+                    },
+                  }
+                : reg
+            ),
+          };
+        })
       );
     },
     [saveAccounts]
@@ -793,7 +816,6 @@ export function useLocalAzureAccounts() {
     updateAccountQuota,
     updateAccountPurchase,
     updateAccountUsedAmount,
-    updateAccountDeployment,
     deleteAccount,
     addRegion,
     updateRegionName,
@@ -804,6 +826,7 @@ export function useLocalAzureAccounts() {
     updateRegionAiServicesEndpoint,
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
+    updateRegionDeployment,
     updateRegionDeploymentModel,
     updateRegionEnabled,
     reorderAccounts,

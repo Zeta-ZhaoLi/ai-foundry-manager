@@ -23,7 +23,7 @@ import {
   AccountTier,
   AccountQuota,
   CurrencyType,
-  AccountDeploymentConfig,
+  RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 import { useToast } from '../../../hooks/useToast';
@@ -61,9 +61,10 @@ export interface AccountsSectionProps {
     currency: CurrencyType
   ) => void;
   onUpdateAccountUsedAmount?: (accountId: string, usedAmount: number) => void;
-  onUpdateAccountDeployment?: (
+  onUpdateRegionDeployment?: (
     accountId: string,
-    patch: Partial<AccountDeploymentConfig>
+    regionId: string,
+    patch: Partial<RegionDeploymentConfig>
   ) => void;
   onDeleteAccount: (accountId: string) => void;
   onAddRegion: (accountId: string) => void;
@@ -144,7 +145,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateAccountQuota,
   onUpdateAccountPurchase,
   onUpdateAccountUsedAmount,
-  onUpdateAccountDeployment,
+  onUpdateRegionDeployment,
   onDeleteAccount,
   onAddRegion,
   onDeleteRegion,
@@ -422,10 +423,17 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                             onUpdateAccountUsedAmount(account.id, usedAmount)
                         : undefined
                     }
-                    onUpdateDeployment={
-                      onUpdateAccountDeployment
-                        ? (patch: Partial<AccountDeploymentConfig>) =>
-                            onUpdateAccountDeployment(account.id, patch)
+                    onUpdateRegionDeployment={
+                      onUpdateRegionDeployment
+                        ? (
+                            regionId: string,
+                            patch: Partial<RegionDeploymentConfig>
+                          ) =>
+                            onUpdateRegionDeployment(
+                              account.id,
+                              regionId,
+                              patch
+                            )
                         : undefined
                     }
                     onDelete={() => onDeleteAccount(account.id)}

@@ -11,7 +11,7 @@ import type {
 } from '../../../../hooks/useLocalAzureAccounts';
 
 describe('deployment configuration contract', () => {
-  it('shows Resource Name and hides Subscription ID/Resource Group in account deployment config', () => {
+  it('hides account-level Resource Name and legacy deployment fields', () => {
     const account: LocalAccount = {
       id: 'acct-1',
       name: 'Account 1',
@@ -20,7 +20,7 @@ describe('deployment configuration contract', () => {
       regions: [],
     };
 
-    const { queryByText, getByText } = render(
+    const { queryByText } = render(
       <I18nextProvider i18n={i18n}>
         <AccountCard
           account={account}
@@ -41,73 +41,72 @@ describe('deployment configuration contract', () => {
           onUpdateRegionApiKey={vi.fn()}
           onUpdateRegionEnabled={vi.fn()}
           onCopy={vi.fn()}
-          onUpdateDeployment={vi.fn()}
         />
       </I18nextProvider>
     );
 
-    const quotaLabel = getByText(/Quota|额度/i);
-    const resourceNameLabel = getByText('Resource Name');
-    expect(resourceNameLabel).toBeTruthy();
-    expect(
-      quotaLabel.compareDocumentPosition(resourceNameLabel) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    expect(queryByText('Resource Name')).toBeNull();
     expect(queryByText('Subscription ID')).toBeNull();
     expect(queryByText('Resource Group')).toBeNull();
     expect(queryByText('Azure Deployment Config')).toBeNull();
   });
 
-  it('masks Resource Name and disables editing in privacy mode', () => {
-    const account: LocalAccount = {
-      id: 'acct-1',
-      name: 'Account 1',
-      note: 'Sensitive note',
-      enabled: true,
-      regions: [],
-      deployment: { resourceName: 'my-sensitive-resource' },
+  it('shows region Resource Name after API Key and supports manual editing', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: '',
+      deployment: { resourceName: '' },
     };
+    const onUpdateDeployment = vi.fn();
 
     const { getByText } = render(
       <I18nextProvider i18n={i18n}>
-        <AccountCard
-          account={account}
-          privacyMode
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={[]}
           masterGroups={[]}
           masterGroupLines={[]}
-          masterModels={[]}
           filteredModels={[]}
           onUpdateName={vi.fn()}
-          onUpdateNote={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateDeployment={onUpdateDeployment}
           onUpdateEnabled={vi.fn()}
           onDelete={vi.fn()}
-          onAddRegion={vi.fn()}
-          onDeleteRegion={vi.fn()}
-          onUpdateRegionName={vi.fn()}
-          onUpdateRegionModelsText={vi.fn()}
-          onUpdateRegionOpenaiEndpoint={vi.fn()}
-          onUpdateRegionAnthropicEndpoint={vi.fn()}
-          onUpdateRegionApiKey={vi.fn()}
-          onUpdateRegionEnabled={vi.fn()}
           onCopy={vi.fn()}
-          onUpdateDeployment={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
         />
       </I18nextProvider>
     );
 
-    const label = getByText('Resource Name');
-    const input = label.parentElement?.querySelector('input');
+    const apiKeyLabel = getByText('API Key');
+    const resourceNameLabel = getByText('Resource Name');
+    expect(
+      apiKeyLabel.compareDocumentPosition(resourceNameLabel) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    const input = resourceNameLabel.parentElement?.querySelector('input');
     expect(input).toBeTruthy();
-    expect((input as HTMLInputElement).value).toBe('***');
-    expect((input as HTMLInputElement).disabled).toBe(true);
+    fireEvent.change(input as HTMLInputElement, {
+      target: { value: 'my-region-resource' },
+    });
+    expect(onUpdateDeployment).toHaveBeenCalledWith({
+      resourceName: 'my-region-resource',
+    });
   });
 
-  it('uses account resourceName and template defaults for model rows', () => {
+  it('uses region resourceName and template defaults for model rows', () => {
     const region: LocalRegion = {
       id: 'reg-1',
       name: 'eastus2',
       modelsText: 'gpt-5',
-      deployment: {},
+      deployment: { resourceName: 'my-account-resource' },
     };
 
     const onCopy = vi.fn();
@@ -126,7 +125,6 @@ describe('deployment configuration contract', () => {
           onUpdateOpenaiEndpoint={vi.fn()}
           onUpdateAnthropicEndpoint={vi.fn()}
           onUpdateApiKey={vi.fn()}
-          accountDeployment={{ resourceName: 'my-account-resource' }}
           onUpdateEnabled={vi.fn()}
           onDelete={vi.fn()}
           onCopy={onCopy}
@@ -163,6 +161,7 @@ describe('deployment configuration contract', () => {
         name: 'eastus2',
         modelsText: 'gpt-5.2',
         deployment: {
+          resourceName: 'my-account-resource',
           models: {
             'gpt-5.2': {
               deploymentName: 'custom-gpt-5.2',
@@ -213,7 +212,6 @@ describe('deployment configuration contract', () => {
               },
             }))
           }
-          accountDeployment={{ resourceName: 'my-account-resource' }}
         />
       );
     };
@@ -244,7 +242,7 @@ describe('deployment configuration contract', () => {
         id: 'reg-1',
         name: 'eastus2',
         modelsText: 'gpt-5.2',
-        deployment: {},
+        deployment: { resourceName: 'my-account-resource' },
       });
 
       return (
@@ -281,7 +279,6 @@ describe('deployment configuration contract', () => {
               },
             }))
           }
-          accountDeployment={{ resourceName: 'my-account-resource' }}
         />
       );
     };
@@ -314,7 +311,7 @@ describe('deployment configuration contract', () => {
       id: 'reg-1',
       name: 'eastus2',
       modelsText: 'gpt-5.1-2025-11-13',
-      deployment: {},
+      deployment: { resourceName: 'my-account-resource' },
     };
 
     const { getByRole, getByDisplayValue } = render(
@@ -332,7 +329,6 @@ describe('deployment configuration contract', () => {
           onUpdateOpenaiEndpoint={vi.fn()}
           onUpdateAnthropicEndpoint={vi.fn()}
           onUpdateApiKey={vi.fn()}
-          accountDeployment={{ resourceName: 'my-account-resource' }}
           onUpdateEnabled={vi.fn()}
           onDelete={vi.fn()}
           onCopy={vi.fn()}
@@ -357,7 +353,7 @@ describe('deployment configuration contract', () => {
         id: 'reg-1',
         name: 'eastus2',
         modelsText: 'gpt-5.1,gpt-5.1-2025-11-13',
-        deployment: {},
+        deployment: { resourceName: 'my-account-resource' },
       });
 
       return (
@@ -394,7 +390,6 @@ describe('deployment configuration contract', () => {
               },
             }))
           }
-          accountDeployment={{ resourceName: 'my-account-resource' }}
         />
       );
     };
@@ -469,7 +464,6 @@ describe('deployment configuration contract', () => {
           onDelete={vi.fn()}
           onCopy={vi.fn()}
           onUpdateDeploymentModel={vi.fn()}
-          accountDeployment={{ resourceName: 'my-account-resource' }}
         />
       );
     };
@@ -525,9 +519,10 @@ describe('deployment configuration contract', () => {
       aiServicesEndpoint: 'https://foo.cognitiveservices.azure.com',
       anthropicEndpoint: 'https://foo.services.ai.azure.com/anthropic',
       apiKey: 'sk-secret-123',
+      deployment: { resourceName: 'my-sensitive-resource' },
     };
 
-    const { queryAllByTitle, getByDisplayValue, getAllByDisplayValue } = render(
+    const { queryAllByTitle, getByText, getAllByDisplayValue } = render(
       <I18nextProvider i18n={i18n}>
         <RegionCard
           region={region}
@@ -545,7 +540,6 @@ describe('deployment configuration contract', () => {
           onUpdateAiServicesEndpoint={vi.fn()}
           onUpdateAnthropicEndpoint={vi.fn()}
           onUpdateApiKey={vi.fn()}
-          accountDeployment={{ resourceName: 'my-account-resource' }}
           onUpdateEnabled={vi.fn()}
           onDelete={vi.fn()}
           onCopy={vi.fn()}
@@ -554,11 +548,18 @@ describe('deployment configuration contract', () => {
       </I18nextProvider>
     );
 
-    expect(getByDisplayValue('***')).toBeTruthy();
-    expect(getByDisplayValue('https://***.openai.azure.com')).toBeTruthy();
+    expect(getAllByDisplayValue('***').length).toBeGreaterThanOrEqual(2);
+    expect(getAllByDisplayValue('https://***.openai.azure.com').length).toBe(1);
     expect(
       getAllByDisplayValue('https://***.services.ai.azure.com').length
     ).toBeGreaterThan(0);
+
+    const resourceNameLabel = getByText('Resource Name');
+    const resourceNameInput = resourceNameLabel.parentElement?.querySelector(
+      'input'
+    ) as HTMLInputElement;
+    expect(resourceNameInput.value).toBe('***');
+    expect(resourceNameInput.disabled).toBe(true);
 
     expect(queryAllByTitle(i18n.t('common.copy')).length).toBe(0);
     expect(queryAllByTitle(i18n.t('common.show')).length).toBe(0);

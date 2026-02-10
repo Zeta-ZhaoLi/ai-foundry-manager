@@ -27,7 +27,7 @@ If required inputs are missing, the system MUST not generate deployment code and
 
 #### Scenario: Missing region resourceName
 
-**Given** the region deployment config cannot determine a `resourceName`
+**Given** a region deployment config has no `region.deployment.resourceName`
 
 **When** the user clicks "Copy Deployment Code"
 
@@ -67,9 +67,9 @@ The deployment code export MUST be copyable via a single UI action.
 
 ### Requirement: Deployment Configuration Field Contract
 
-The deployment configuration UI for export MUST remove `Subscription ID`, replace `Resource Group` with `Resource Name`, and map `Resource Name` to template `parameters.resourceName.defaultValue`.
+The deployment configuration UI for export MUST remove `Subscription ID`, replace `Resource Group` with `Resource Name`, and map region `Resource Name` to template `parameters.resourceName.defaultValue`.
 
-#### Scenario: User configures deployment metadata
+#### Scenario: User configures deployment metadata in region card
 
 **Given** the user opens deployment configuration for a region
 
@@ -79,15 +79,17 @@ The deployment configuration UI for export MUST remove `Subscription ID`, replac
 
 **And** `Resource Group` MUST NOT be shown
 
-**And** `Resource Name` MUST be shown as the field used for template `resourceName`
+**And** `Resource Name` MUST be shown as a region-level input immediately after `API Key`
 
-#### Scenario: Export maps resource name to template
+**And** `Resource Name` MUST be manually editable by the user
 
-**Given** the user provides deployment `Resource Name`
+#### Scenario: Export maps region resource name to template
+
+**Given** the user provides deployment `Resource Name` in a region
 
 **When** the user clicks "Copy Deployment Code"
 
-**Then** exported template `parameters.resourceName.defaultValue` MUST equal that `Resource Name`
+**Then** exported template `parameters.resourceName.defaultValue` MUST equal that region `Resource Name`
 
 ---
 
@@ -151,27 +153,23 @@ Model deployment rows MUST NOT include `resourceName (AOAI 资源名称)` as a p
 
 ### Requirement: Account-Level Resource Name Input Placement
 
-The deployment `Resource Name` input MUST remain account-scoped and MUST be shown in account information immediately after quota fields.
+Deployment `Resource Name` ownership MUST be region-scoped and MUST NOT be configured at account scope.
 
-#### Scenario: Resource name displayed in account info
+#### Scenario: Account card does not host resource name
 
 **Given** the user opens an account card
 
 **When** account info fields are rendered
 
-**Then** a `Resource Name` input MUST be visible in account information
+**Then** account-level `Resource Name` input MUST NOT be present
 
-**And** it MUST be positioned after quota-related fields
+#### Scenario: Region deployment uses region resource name
 
-**And** region-level deployment sections MUST NOT require separate `resourceName` input
+**Given** an account has multiple regions with different `Resource Name` values
 
-#### Scenario: Region deployment uses account resource name
+**When** each region exports deployment code
 
-**Given** an account has `Resource Name` configured
-
-**When** a region under that account exports deployment code
-
-**Then** the exported template `resourceName` MUST use the account-level `Resource Name`
+**Then** each exported template `resourceName` MUST use that specific region's `Resource Name`
 
 ### Requirement: DeploymentName Model Integrity
 
@@ -198,4 +196,32 @@ Deployment rows MUST prevent model identity drift via `deploymentName` edits.
 **Then** the system MUST treat the row as invalid for copy/export
 
 **And** MUST show a validation error indicating `deploymentName` must include `modelName`
+
+### Requirement: Legacy Resource Name Migration Compatibility
+
+When loading legacy configs that only contain account-level `deployment.resourceName`, the system MUST migrate values to each region so existing deployments continue to work.
+
+#### Scenario: Fan out legacy account resource name to regions
+
+**Given** a stored account has `deployment.resourceName = "legacy-aoai"`
+
+**And** regions do not have `region.deployment.resourceName`
+
+**When** the configuration is loaded and normalized
+
+**Then** each region MUST receive `region.deployment.resourceName = "legacy-aoai"`
+
+**And** export validation MUST pass for `resourceName` if other required fields are valid
+
+#### Scenario: Preserve explicit region-level values
+
+**Given** a stored account has legacy account-level `deployment.resourceName`
+
+**And** one or more regions already have `region.deployment.resourceName`
+
+**When** the configuration is loaded and normalized
+
+**Then** existing region-level `resourceName` values MUST be preserved
+
+**And** migration MUST NOT overwrite those region values
 
