@@ -2,6 +2,7 @@ export interface ArmModelDeployment {
   deploymentName: string;
   modelName: string;
   version: string;
+  modelFormat: string;
   capacity: number;
 }
 
@@ -19,6 +20,7 @@ export interface ArmTemplateValidation {
 export interface TemplateModelDeploymentDefaults {
   deploymentName: string;
   version: string;
+  modelFormat: string;
   capacity: number;
 }
 
@@ -49,6 +51,7 @@ export const DEFAULT_DEPLOYMENT_SKU = 'GlobalStandard';
 import foundryTemplateJson from '../../Azure-AI-Founryd-Deployment-Template.json';
 
 const DEFAULT_DEPLOYMENT_CAPACITY = 1000;
+const DEFAULT_MODEL_FORMAT = 'OpenAI';
 
 function toTemplateModelDeploymentEntry(
   item: any
@@ -58,15 +61,20 @@ function toTemplateModelDeploymentEntry(
   const deploymentName =
     typeof item?.deploymentName === 'string' ? item.deploymentName.trim() : '';
   const version = typeof item?.version === 'string' ? item.version.trim() : '';
+  const modelFormat =
+    typeof item?.modelFormat === 'string' ? item.modelFormat.trim() : '';
   const capacity = item?.capacity;
 
-  if (!modelName || !deploymentName || !version) return undefined;
+  if (!modelName || !deploymentName || !version || !modelFormat) {
+    return undefined;
+  }
   if (!Number.isInteger(capacity) || capacity <= 0) return undefined;
 
   return {
     modelName,
     deploymentName,
     version,
+    modelFormat,
     capacity,
   };
 }
@@ -134,6 +142,7 @@ export function getTemplateModelDeploymentDefaultsMap(): ReadonlyMap<
     defaults.set(modelName, {
       deploymentName: first.deploymentName,
       version: first.version,
+      modelFormat: first.modelFormat,
       capacity: first.capacity,
     });
   }
@@ -150,11 +159,13 @@ export function getTemplateModelDeploymentDefaults(
 export function getFallbackModelDeploymentDefaults(modelName: string): {
   deploymentName: string;
   version: string;
+  modelFormat: string;
   capacity: number;
 } {
   return {
     deploymentName: modelName,
     version: '',
+    modelFormat: DEFAULT_MODEL_FORMAT,
     capacity: DEFAULT_DEPLOYMENT_CAPACITY,
   };
 }
@@ -172,6 +183,7 @@ export function validateArmTemplateInput(
     const name = d.deploymentName.trim();
     const model = d.modelName.trim();
     const version = d.version.trim();
+    const modelFormat = d.modelFormat.trim();
 
     if (!name) errors.push('deploymentName is required');
     if (name) {
@@ -181,6 +193,9 @@ export function validateArmTemplateInput(
 
     if (!model) errors.push(`modelName is required${name ? ` (${name})` : ''}`);
     if (!version) errors.push(`version is required${name ? ` (${name})` : ''}`);
+    if (!modelFormat) {
+      errors.push(`modelFormat is required${name ? ` (${name})` : ''}`);
+    }
     if (!Number.isInteger(d.capacity) || d.capacity <= 0) {
       errors.push(
         `capacity must be a positive integer${name ? ` (${name})` : ''}`
@@ -210,6 +225,7 @@ export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
         deploymentName: d.deploymentName,
         modelName: d.modelName,
         version: d.version,
+        modelFormat: d.modelFormat,
         capacity: d.capacity,
       })),
     },
@@ -262,7 +278,8 @@ export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
                 },
                 properties: {
                   model: {
-                    format: 'OpenAI',
+                    format:
+                      "[variables('modelDeployments')[copyIndex()].modelFormat]",
                     name: "[variables('modelDeployments')[copyIndex()].modelName]",
                     version:
                       "[variables('modelDeployments')[copyIndex()].version]",
@@ -308,6 +325,7 @@ export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
     deploymentName: d.deploymentName,
     modelName: d.modelName,
     version: d.version,
+    modelFormat: d.modelFormat,
     capacity: d.capacity,
   }));
 
@@ -329,54 +347,63 @@ export const SAMPLE_ARM_TEMPLATE_INPUT: ArmTemplateInput = {
       deploymentName: 'gpt-4o-mini',
       modelName: 'gpt-4o-mini',
       version: '2024-07-18',
+      modelFormat: 'OpenAI',
       capacity: 20000,
     },
     {
       deploymentName: 'gpt-image-1',
       modelName: 'gpt-image-1',
       version: '2025-04-15',
+      modelFormat: 'OpenAI',
       capacity: 60,
     },
     {
       deploymentName: 'o3',
       modelName: 'o3',
       version: '2025-04-16',
+      modelFormat: 'OpenAI',
       capacity: 10000,
     },
     {
       deploymentName: 'gpt-4.1',
       modelName: 'gpt-4.1',
       version: '2025-04-14',
+      modelFormat: 'OpenAI',
       capacity: 5000,
     },
     {
       deploymentName: 'gpt-4o-2024-05-13',
       modelName: 'gpt-4o',
       version: '2024-05-13',
+      modelFormat: 'OpenAI',
       capacity: 20000,
     },
     {
       deploymentName: 'gpt-5-chat',
       modelName: 'gpt-5-chat',
       version: '2025-08-07',
+      modelFormat: 'OpenAI',
       capacity: 5000,
     },
     {
       deploymentName: 'gpt-5-mini',
       modelName: 'gpt-5-mini',
       version: '2025-08-07',
+      modelFormat: 'OpenAI',
       capacity: 10000,
     },
     {
       deploymentName: 'gpt-5-nano',
       modelName: 'gpt-5-nano',
       version: '2025-08-07',
+      modelFormat: 'OpenAI',
       capacity: 1000,
     },
     {
       deploymentName: 'gpt-5',
       modelName: 'gpt-5',
       version: '2025-08-07',
+      modelFormat: 'OpenAI',
       capacity: 10000,
     },
   ],

@@ -285,6 +285,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           templateDefaults?.deploymentName ??
           fallback.deploymentName,
         version: cfg.version ?? templateDefaults?.version ?? fallback.version,
+        modelFormat:
+          cfg.modelFormat ??
+          templateDefaults?.modelFormat ??
+          fallback.modelFormat,
         capacity:
           cfg.capacity ?? templateDefaults?.capacity ?? fallback.capacity,
       };
@@ -336,6 +340,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       if (!row.version.trim()) {
         return t('regions.deployMissingVersion');
       }
+      if (!row.modelFormat.trim()) {
+        return t('regions.deployMissingModelFormat');
+      }
       if (!Number.isInteger(row.capacity) || row.capacity <= 0) {
         return t('regions.deployInvalidCapacity');
       }
@@ -370,6 +377,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           deploymentName: row.deploymentName.trim(),
           modelName: row.modelName,
           version: row.version.trim(),
+          modelFormat: row.modelFormat.trim(),
           capacity: row.capacity,
         })),
     };
@@ -1123,7 +1131,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           {!deployCollapsed && (
             <div className="mt-2 space-y-2">
               <div className="overflow-auto border border-gray-800 rounded-lg">
-                <table className="w-full min-w-[820px] text-sm">
+                <table className="w-full min-w-[980px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-400 border-b border-gray-800">
                       <th className="py-2 px-3 w-[64px]">
@@ -1135,6 +1143,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                       </th>
                       <th className="py-2 px-3">
                         {t('regions.deployVersion')}
+                      </th>
+                      <th className="py-2 px-3">
+                        {t('regions.deployModelFormat')}
                       </th>
                       <th className="py-2 px-3 w-[140px]">
                         {t('regions.deployCapacity')}
@@ -1182,6 +1193,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                                   row.modelName.trim().toLowerCase()
                               ) {
                                 patch.version = templateMatch.version;
+                                patch.modelFormat = templateMatch.modelFormat;
                                 patch.capacity = templateMatch.capacity;
                               }
                               onUpdateDeploymentModel?.(row.sourceModel, patch);
@@ -1199,6 +1211,19 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                               })
                             }
                             placeholder="2024-07-18"
+                            disabled={privacyMode}
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <input
+                            className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            value={row.modelFormat}
+                            onChange={(e) =>
+                              onUpdateDeploymentModel?.(row.sourceModel, {
+                                modelFormat: e.target.value,
+                              })
+                            }
+                            placeholder="OpenAI"
                             disabled={privacyMode}
                           />
                         </td>

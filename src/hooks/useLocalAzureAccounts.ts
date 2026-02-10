@@ -34,6 +34,7 @@ export interface RegionDeploymentModelConfig {
   enabled?: boolean;
   deploymentName?: string;
   version?: string;
+  modelFormat?: string;
   capacity?: number;
 }
 

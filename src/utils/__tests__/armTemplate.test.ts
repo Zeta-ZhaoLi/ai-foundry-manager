@@ -68,6 +68,7 @@ describe('armTemplate', () => {
     expect(defaults).toEqual({
       deploymentName: 'gpt-5.2-codex',
       version: '2026-01-14',
+      modelFormat: 'OpenAI',
       capacity: 1000,
     });
   });
@@ -78,6 +79,7 @@ describe('armTemplate', () => {
     expect(getFallbackModelDeploymentDefaults('not-exists-model')).toEqual({
       deploymentName: 'not-exists-model',
       version: '',
+      modelFormat: 'OpenAI',
       capacity: 1000,
     });
   });
@@ -88,6 +90,7 @@ describe('armTemplate', () => {
     expect(defaultsMap.get('gpt-5')).toEqual({
       deploymentName: 'gpt-5-2025-08-07',
       version: '2025-08-07',
+      modelFormat: 'OpenAI',
       capacity: 1000,
     });
   });
@@ -98,6 +101,7 @@ describe('armTemplate', () => {
       deploymentName: 'gpt-5.2-codex',
       modelName: 'gpt-5.2-codex',
       version: '2026-01-14',
+      modelFormat: 'OpenAI',
       capacity: 1000,
     });
   });
@@ -108,12 +112,14 @@ describe('armTemplate', () => {
         deploymentName: 'gpt-5-2025-08-07',
         modelName: 'gpt-5',
         version: '2025-08-07',
+        modelFormat: 'OpenAI',
         capacity: 1000,
       },
       {
         deploymentName: 'gpt-5-prod',
         modelName: 'gpt-5',
         version: '2025-09-01',
+        modelFormat: 'OpenAI',
         capacity: 2000,
       },
     ]);
@@ -122,12 +128,14 @@ describe('armTemplate', () => {
         deploymentName: 'gpt-5-2025-08-07',
         modelName: 'gpt-5',
         version: '2025-08-07',
+        modelFormat: 'OpenAI',
         capacity: 1000,
       },
       {
         deploymentName: 'gpt-5-prod',
         modelName: 'gpt-5',
         version: '2025-09-01',
+        modelFormat: 'OpenAI',
         capacity: 2000,
       },
     ]);
@@ -152,6 +160,7 @@ describe('armTemplate', () => {
             SAMPLE_ARM_TEMPLATE_INPUT.modelDeployments[0].deploymentName,
           modelName: 'x',
           version: '2020-01-01',
+          modelFormat: 'OpenAI',
           capacity: 1,
         },
       ],

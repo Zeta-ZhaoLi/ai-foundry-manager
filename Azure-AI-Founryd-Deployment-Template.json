@@ -37,151 +37,309 @@
     "modelDeployments": [
       {
         "deploymentName": "gpt-4o-2024-05-13",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-4o",
         "version": "2024-05-13",
         "capacity": 450
       },
       {
         "deploymentName": "gpt-4o-2024-08-06",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-4o",
         "version": "2024-08-06",
         "capacity": 450
       },
       {
         "deploymentName": "gpt-4o-2024-11-20",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-4o",
         "version": "2024-11-20",
         "capacity": 450
       },
       {
         "deploymentName": "gpt-4o-mini-2024-07-18",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-4o-mini",
         "version": "2024-07-18",
         "capacity": 2000
       },
       {
         "deploymentName": "gpt-4.1-2025-04-14",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-4.1",
         "version": "2025-04-14",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-4.1-mini-2025-04-14",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-4.1-mini",
         "version": "2025-04-14",
         "capacity": 5000
       },
       {
         "deploymentName": "gpt-4.1-nano-2025-04-14",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-4.1-nano",
         "version": "2025-04-14",
         "capacity": 5000
       },
       {
         "deploymentName": "gpt-5-2025-08-07",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5",
         "version": "2025-08-07",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5-mini-2025-08-07",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5-mini",
         "version": "2025-08-07",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5-nano-2025-08-07",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5-nano",
         "version": "2025-08-07",
         "capacity": 5000
       },
       {
         "deploymentName": "gpt-5.1-2025-11-13",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.1",
         "version": "2025-11-13",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5.2-2025-12-11",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.2",
         "version": "2025-12-11",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5-chat-latest",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5-chat",
         "version": "2025-10-03",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5.1-chat-latest",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.1-chat",
         "version": "2025-11-13",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5.2-chat-latest",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.2-chat",
         "version": "2025-12-11",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5-codex",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5-codex",
         "version": "2025-09-15",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5.1-codex",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.1-codex",
         "version": "2025-11-13",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5.1-codex-max",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.1-codex-max",
         "version": "2025-12-04",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5.1-codex-mini",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.1-codex-mini",
         "version": "2025-11-13",
         "capacity": 1000
       },
       {
         "deploymentName": "gpt-5.2-codex",
+        "modelFormat": "OpenAI",
         "modelName": "gpt-5.2-codex",
         "version": "2026-01-14",
         "capacity": 1000
       },
       {
+        "deploymentName": "o1-2024-12-17",
+        "modelFormat": "OpenAI",
+        "modelName": "o1",
+        "version": "2024-12-17",
+        "capacity": 3000
+      },
+      {
+        "deploymentName": "o1-mini-2024-09-12",
+        "modelFormat": "OpenAI",
+        "modelName": "o1-mini",
+        "version": "2024-09-12",
+        "capacity": 5000
+      },
+      {
+        "deploymentName": "o3-2025-04-16",
+        "modelFormat": "OpenAI",
+        "modelName": "o3",
+        "version": "2025-04-16",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "o3-mini-2025-01-31",
+        "modelFormat": "OpenAI",
+        "modelName": "o3-mini",
+        "version": "2025-01-31",
+        "capacity": 5000
+      },
+      {
+        "deploymentName": "o3-pro-2025-06-10",
+        "modelFormat": "OpenAI",
+        "modelName": "o3-pro",
+        "version": "2025-06-10",
+        "capacity": 1600
+      },
+      {
+        "deploymentName": "o3-deep-research-2025-06-26",
+        "modelFormat": "OpenAI",
+        "modelName": "o3-deep-research",
+        "version": "2025-06-26",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "o4-mini-2025-04-16",
+        "modelFormat": "OpenAI",
+        "modelName": "o4-mini",
+        "version": "2025-04-16",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-audio-2025-08-28",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-audio",
+        "version": "2025-08-28",
+        "capacity": 3000
+      },
+      {
+        "deploymentName": "gpt-audio-mini-2025-10-06",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-audio-mini",
+        "version": "2025-10-06",
+        "capacity": 100
+      },
+      {
+        "deploymentName": "gpt-audio-mini-2025-12-15",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-audio-mini",
+        "version": "2025-12-15",
+        "capacity": 20
+      },
+      {
+        "deploymentName": "gpt-4o-audio-preview-2024-12-17",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-audio-preview",
+        "version": "2024-12-17",
+        "capacity": 3000
+      },
+      {
+        "deploymentName": "gpt-4o-mini-audio-preview-2024-12-17",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-mini-audio-preview",
+        "version": "2024-12-17",
+        "capacity": 3000
+      },
+      {
+        "deploymentName": "gpt-realtime-2025-08-28",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-realtime",
+        "version": "2025-08-28",
+        "capacity": 100
+      },
+      {
+        "deploymentName": "gpt-realtime-mini-2025-10-06",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-realtime-mini",
+        "version": "2025-10-06",
+        "capacity": 100
+      },
+      {
+        "deploymentName": "gpt-realtime-mini-2025-12-15",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-realtime-mini",
+        "version": "2025-12-15",
+        "capacity": 200
+      },
+      {
         "deploymentName": "text-embedding-ada-002",
+        "modelFormat": "OpenAI",
         "modelName": "text-embedding-ada-002",
         "version": "2",
         "capacity": 1000
       },
       {
         "deploymentName": "text-embedding-3-small",
+        "modelFormat": "OpenAI",
         "modelName": "text-embedding-3-small",
         "version": "1",
         "capacity": 1000
       },
       {
         "deploymentName": "text-embedding-3-large",
+        "modelFormat": "OpenAI",
         "modelName": "text-embedding-3-large",
         "version": "1",
         "capacity": 1000
       },
       {
         "deploymentName": "sora-2",
+        "modelFormat": "OpenAI",
         "modelName": "sora-2",
         "version": "2025-10-06",
         "capacity": 60
       },
       {
+        "deploymentName": "deepseek-v3.2-speciale",
+        "modelFormat": "DeepSeek",
+        "modelName": "DeepSeek-V3.2-Speciale",
+        "version": "1",
+        "capacity": 1000
+      },
+      {
         "deploymentName": "deepseek-v3.2-251201",
+        "modelFormat": "DeepSeek",
         "modelName": "DeepSeek-V3.2",
+        "version": "1",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "deepseek-v3.1-terminus",
+        "modelFormat": "DeepSeek",
+        "modelName": "DeepSeek-V3.1",
+        "version": "1",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "deepseek-r1-250528",
+        "modelFormat": "DeepSeek",
+        "modelName": "DeepSeek-R1-0528",
+        "version": "1",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "deepseek-v3-250324",
+        "modelFormat": "DeepSeek",
+        "modelName": "DeepSeek-V3-0324",
         "version": "1",
         "capacity": 1000
       }
@@ -231,7 +389,7 @@
       },
       "properties": {
         "model": {
-          "format": "OpenAI",
+          "format": "[variables('modelDeployments')[copyIndex('modelDeploymentLoop')].modelFormat]",
           "name": "[variables('modelDeployments')[copyIndex('modelDeploymentLoop')].modelName]",
           "version": "[variables('modelDeployments')[copyIndex('modelDeploymentLoop')].version]"
         },
