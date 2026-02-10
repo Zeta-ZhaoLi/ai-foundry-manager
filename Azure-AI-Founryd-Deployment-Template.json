@@ -154,6 +154,12 @@
         "modelName": "gpt-5.2-codex",
         "version": "2026-01-14",
         "capacity": 1000
+      },
+      {
+        "deploymentName": "sora-2",
+        "modelName": "sora-2",
+        "version": "2025-10-06",
+        "capacity": 60
       }
     ]
   },
