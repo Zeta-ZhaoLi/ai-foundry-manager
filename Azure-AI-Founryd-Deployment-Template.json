@@ -156,6 +156,24 @@
         "capacity": 1000
       },
       {
+        "deploymentName": "text-embedding-ada-002",
+        "modelName": "text-embedding-ada-002",
+        "version": "2",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "text-embedding-3-small",
+        "modelName": "text-embedding-3-small",
+        "version": "1",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "text-embedding-3-large",
+        "modelName": "text-embedding-3-large",
+        "version": "1",
+        "capacity": 1000
+      },
+      {
         "deploymentName": "sora-2",
         "modelName": "sora-2",
         "version": "2025-10-06",

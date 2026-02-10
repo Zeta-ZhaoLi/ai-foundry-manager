@@ -84,7 +84,7 @@
     "usageRate": "使用率",
     "accountId": "账号 ID",
     "accountIdTooltip": "系统自动分配的账号标识，A 系列为高级账号，B 系列为普通账号",
-    "resourceName": "Resource Name"
+    "resourceName": "资源名称"
   },
   "regions": {
     "regionList": "区域列表",
@@ -96,9 +96,9 @@
     "deployCodeCopied": "部署代码已复制",
     "deployInclude": "加入",
     "deployModel": "模型",
-    "deployDeploymentName": "deploymentName",
-    "deployVersion": "version",
-    "deployCapacity": "capacity",
+    "deployDeploymentName": "部署名称",
+    "deployVersion": "版本",
+    "deployCapacity": "容量",
     "deployMissingResourceName": "请先填写 AOAI 资源名称（resourceName）",
     "deployMissingLocation": "请先设置有效的区域代码（location）",
     "deployNoModels": "当前区域没有已选模型",

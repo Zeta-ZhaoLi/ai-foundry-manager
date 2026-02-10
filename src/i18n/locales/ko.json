@@ -84,7 +84,7 @@
     "usageRate": "사용률",
     "accountId": "계정 ID",
     "accountIdTooltip": "시스템이 부여한 식별자(A=프리미엄, B=일반)",
-    "resourceName": "Resource Name"
+    "resourceName": "리소스 이름"
   },
   "regions": {
     "regionList": "리전 목록",
@@ -96,9 +96,9 @@
     "deployCodeCopied": "배포 코드를 복사했습니다",
     "deployInclude": "포함",
     "deployModel": "모델",
-    "deployDeploymentName": "deploymentName",
-    "deployVersion": "version",
-    "deployCapacity": "capacity",
+    "deployDeploymentName": "배포 이름",
+    "deployVersion": "버전",
+    "deployCapacity": "용량",
     "deployMissingResourceName": "AOAI resourceName을 입력하세요",
     "deployMissingLocation": "Azure location을 입력하세요",
     "deployNoModels": "이 리전에 선택된 모델이 없습니다",

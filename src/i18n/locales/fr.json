@@ -84,7 +84,7 @@
     "usageRate": "Utilisation",
     "accountId": "ID du compte",
     "accountIdTooltip": "Identifiant attribue par le systeme (A=Premium, B=Standard)",
-    "resourceName": "Resource Name"
+    "resourceName": "Nom de ressource"
   },
   "regions": {
     "regionList": "Liste des regions",
@@ -96,9 +96,9 @@
     "deployCodeCopied": "Code de deploiement copie",
     "deployInclude": "Inclure",
     "deployModel": "Modele",
-    "deployDeploymentName": "deploymentName",
-    "deployVersion": "version",
-    "deployCapacity": "capacity",
+    "deployDeploymentName": "Nom de deploiement",
+    "deployVersion": "Version",
+    "deployCapacity": "Capacite",
     "deployMissingResourceName": "Veuillez renseigner le nom AOAI (resourceName)",
     "deployMissingLocation": "Veuillez renseigner la region Azure (location)",
     "deployNoModels": "Aucun modele selectionne dans cette region",

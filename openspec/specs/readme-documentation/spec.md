@@ -29,58 +29,19 @@ The README SHALL accurately describe the project as a standalone localStorage-ba
 
 ### Requirement: Comprehensive Feature Documentation
 
-The README SHALL document all major features implemented in the project, organized by category.
+The README SHALL document major currently available features and SHALL avoid describing removed or non-shipped features as active capabilities.
 
-**Files:**
-- `README.md`
+#### Scenario: README reflects current feature set only
 
-#### Scenario: Account management features documented
+**Given** the current implementation after cleanup
 
-**Given** the project has account management capabilities
-**When** a user reads the Features section
-**Then** the README SHALL list account ID system (A-series premium, B-series standard)
-**And** the README SHALL list drag-and-drop reordering
-**And** the README SHALL list account tier classification
-**And** the README SHALL list quota tracking with progress bars
-**And** the README SHALL list cost calculation features
+**When** a user reads the Features and Usage sections
 
-#### Scenario: Server management features documented
+**Then** documented features MUST match behaviors available in the app
 
-**Given** the project has server credentials management
-**When** a user reads the Features section
-**Then** the README SHALL list Windows and Linux server support
-**And** the README SHALL list numeric server IDs with spinners
-**And** the README SHALL list server badges with platform colors
-**And** the README SHALL list encrypted credential storage
+**And** removed/deprecated capabilities MUST NOT be presented as active functionality
 
-#### Scenario: Model management features documented
-
-**Given** the project has model configuration capabilities
-**When** a user reads the Features section
-**Then** the README SHALL list master model directory
-**And** the README SHALL list click-to-select model assignment
-**And** the README SHALL list model search with account filtering
-**And** the README SHALL list model coverage visualization
-**And** the README SHALL list copy-to-clipboard functionality
-
-#### Scenario: Configuration features documented
-
-**Given** the project has configuration management
-**When** a user reads the Features section
-**Then** the README SHALL list import/export functionality
-**And** the README SHALL list configuration history (20 versions)
-**And** the README SHALL list privacy mode
-**And** the README SHALL list encrypted data storage
-
-#### Scenario: UI features documented
-
-**Given** the project has comprehensive UI features
-**When** a user reads the Features section
-**Then** the README SHALL list bilingual support (Chinese/English)
-**And** the README SHALL list theme modes (Dark/Light/System)
-**And** the README SHALL list command palette
-**And** the README SHALL list keyboard shortcuts
-**And** the README SHALL list responsive design
+---
 
 ### Requirement: Getting Started Guide
 
@@ -166,39 +127,19 @@ The README SHALL clearly explain how and where data is stored.
 
 ### Requirement: Professional Formatting
 
-The README SHALL follow professional documentation standards with proper structure and formatting.
+The README SHALL remain well-structured, readable, and organized for quick onboarding, without rigid line-count constraints.
 
-**Files:**
-- `README.md`
+#### Scenario: README uses practical structure for scanning
 
-#### Scenario: Proper sections included
+**Given** a user opens `README.md`
 
-**Given** a user reads the README
-**When** they navigate through sections
-**Then** the README SHALL include Overview section
-**And** the README SHALL include Features section
-**And** the README SHALL include Getting Started section
-**And** the README SHALL include Tech Stack section
-**And** the README SHALL include Data Storage section
-**And** the README SHALL include Development section
-**And** the README SHALL include License section
-**And** the README SHALL include Author section
+**When** they scan sections for setup and capabilities
 
-#### Scenario: Code blocks properly formatted
+**Then** the README MUST include clear headings for overview, features, setup, and development
 
-**Given** the README contains code examples
-**When** a user views installation commands
-**Then** code blocks SHALL use proper markdown syntax (```bash)
-**And** code blocks SHALL include syntax highlighting hints
-**And** commands SHALL be copy-pasteable
+**And** command examples MUST be copy-pasteable code blocks with language hints
 
-#### Scenario: Length appropriate for comprehensiveness
-
-**Given** the README aims to be comprehensive
-**When** measuring the documentation
-**Then** the README SHALL be 300-400 lines
-**And** content SHALL be organized with clear headings
-**And** sections SHALL use proper heading hierarchy
+**And** documentation quality MUST be evaluated by clarity/accuracy rather than fixed total line count
 
 ### Requirement: Metadata and Attribution
 
@@ -279,4 +220,34 @@ The canonical `README.md` MUST list the supported UI languages.
 **When** they reach the internationalization/language feature bullets
 
 **Then** the README MUST list `zh`, `en`, `ja`, `fr`, `de`, `es`, `pt-BR`, and `ko` as supported UI languages
+
+### Requirement: Optional/Internal Capability Labeling
+
+When the repository contains technical modules not surfaced as primary UI features, the README MUST label them clearly as optional/internal to avoid user confusion.
+
+#### Scenario: Optional integrations are explicitly labeled
+
+**Given** a capability exists in code but is not part of the primary UI workflow
+
+**When** README references that capability
+
+**Then** the README MUST mark it as optional/internal
+
+**And** MUST NOT imply it is required for core usage
+
+---
+
+### Requirement: Localized README Synchronization
+
+All localized README variants MUST stay aligned with canonical README section structure and current feature claims.
+
+#### Scenario: Canonical README update propagates to localized variants
+
+**Given** `README.md` is reorganized and refreshed for current implementation
+
+**When** documentation updates are finalized
+
+**Then** `README.zh-CN.md`, `README.ja.md`, `README.fr.md`, `README.de.md`, `README.es.md`, `README.pt-BR.md`, and `README.ko.md` MUST be updated to match section hierarchy and core capability statements
+
+**And** each localized README MUST retain a language index block linking to all README variants
 

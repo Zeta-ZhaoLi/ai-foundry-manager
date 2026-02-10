@@ -85,7 +85,7 @@ describe('deployment configuration contract', () => {
     );
 
     const apiKeyLabel = getByText('API Key');
-    const resourceNameLabel = getByText('Resource Name');
+    const resourceNameLabel = getByText(i18n.t('accounts.resourceName'));
     expect(
       apiKeyLabel.compareDocumentPosition(resourceNameLabel) &
         Node.DOCUMENT_POSITION_FOLLOWING
@@ -554,7 +554,7 @@ describe('deployment configuration contract', () => {
       getAllByDisplayValue('https://***.services.ai.azure.com').length
     ).toBeGreaterThan(0);
 
-    const resourceNameLabel = getByText('Resource Name');
+    const resourceNameLabel = getByText(i18n.t('accounts.resourceName'));
     const resourceNameInput = resourceNameLabel.parentElement?.querySelector(
       'input'
     ) as HTMLInputElement;

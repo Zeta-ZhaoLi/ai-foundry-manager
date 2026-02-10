@@ -1,58 +1,6 @@
 # i18n-language-expansion Specification
 
-## Purpose
-TBD - created by archiving change 2026-01-30-expand-localization-fix-theme-modes-add-header-github-link. Update Purpose after archive.
-## Requirements
-### Requirement: Support Additional UI Languages
-
-The application MUST support selecting the following UI languages:
-
-- `zh`
-- `en`
-- `ja`
-- `fr`
-- `de`
-- `es`
-- `pt-BR`
-- `ko`
-
-#### Scenario: Language options are available
-
-**Given** the user opens the application
-
-**When** the language selector is opened
-
-**Then** the UI MUST present options for `zh`, `en`, `ja`, `fr`, `de`, `es`, `pt-BR`, and `ko`
-
----
-
-### Requirement: Language Selection Persistence
-
-The application MUST persist the selected UI language to localStorage key `ai-foundry-manager:lang`.
-
-#### Scenario: Selected language persists across reload
-
-**Given** the user selects language `ja`
-
-**When** the user reloads the page
-
-**Then** the application MUST initialize in language `ja`
-
----
-
-### Requirement: Safe Fallback for Unknown Stored Language
-
-If localStorage contains an unsupported language code, the application MUST fall back to a supported default.
-
-#### Scenario: Unknown language falls back
-
-**Given** localStorage key `ai-foundry-manager:lang` is set to `xx`
-
-**When** the application initializes i18n
-
-**Then** the application MUST fall back to a supported language
-
----
+## MODIFIED Requirements
 
 ### Requirement: Locale Keyset Completeness
 
@@ -67,6 +15,8 @@ All supported locale files MUST contain the full translation keyset used by the 
 **Then** the test MUST fail if any locale is missing any translation key path present in the canonical keyset
 
 ---
+
+## ADDED Requirements
 
 ### Requirement: Core Workflow Labels Use Localization Keys
 
@@ -91,4 +41,3 @@ User-facing labels in core workflows MUST use localization keys instead of hardc
 **Then** that label MUST be replaced with an i18n key
 
 **And** missing keys MUST be added to all supported locale files
-

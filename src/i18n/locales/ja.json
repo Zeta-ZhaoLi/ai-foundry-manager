@@ -84,7 +84,7 @@
     "usageRate": "使用率",
     "accountId": "アカウントID",
     "accountIdTooltip": "システム割当の識別子（A系=プレミアム、B系=スタンダード）",
-    "resourceName": "Resource Name"
+    "resourceName": "リソース名"
   },
   "regions": {
     "regionList": "リージョン一覧",
@@ -96,9 +96,9 @@
     "deployCodeCopied": "デプロイコードをコピーしました",
     "deployInclude": "含める",
     "deployModel": "モデル",
-    "deployDeploymentName": "deploymentName",
-    "deployVersion": "version",
-    "deployCapacity": "capacity",
+    "deployDeploymentName": "デプロイ名",
+    "deployVersion": "バージョン",
+    "deployCapacity": "容量",
     "deployMissingResourceName": "AOAI リソース名（resourceName）を入力してください",
     "deployMissingLocation": "Azure location を入力してください",
     "deployNoModels": "このリージョンに選択済みモデルがありません",

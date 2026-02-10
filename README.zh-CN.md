@@ -1,42 +1,130 @@
 # Azure AI Foundry Manager
 
-语言: [English](README.md) | [中文](README.zh-CN.md) | [日本語](README.ja.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [한국어](README.ko.md)
+Languages: [English](README.md) | [中文](README.zh-CN.md) | [日本語](README.ja.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [한국어](README.ko.md)
 
-> 一个本地优先、纯前端的 Azure OpenAI / Azure AI Foundry 配置管理面板：多账号、多区域、模型目录、复制导出。所有数据仅存储在浏览器 localStorage 中。
+一个本地优先的 Azure AI Foundry/OpenAI 配置管理面板，用于管理账号、区域、模型选择与部署模板导出。
 
-## 功能
+## 概览
 
-- 账号与区域：按账号/区域组织部署信息与模型选择
-- 全局模型目录：维护主模型清单，并按空行分组
-- 一键复制/导出：按账号/区域/目录复制模型列表（带逗号）
-- 配置导入/导出：导出加密 JSON；支持导入恢复
-- 配置历史：最多 20 条历史记录
-- 隐私模式：一键隐藏敏感信息
-- 多语言界面：zh, en, ja, fr, de, es, pt-BR, ko
-- 主题：深色 / 浅色 / 跟随系统
-- 命令面板：`Ctrl/Cmd + K`
+- 纯前端应用（React + Vite），无需后端
+- 所有数据保存在浏览器 `localStorage`
+- 敏感信息在本地存储前会加密
+- 面向多账号、多区域的模型配置场景
+
+## 核心功能
+
+### 账号与区域管理
+
+- 管理账号的类别、额度与使用信息
+- 每个账号可配置多个区域
+- 每个区域配置 Foundry/OpenAI/AI Services/Anthropic Endpoint
+- 每个区域独立配置 API Key 与 Resource Name
+- 支持账号/区域启用开关与拖拽排序
+
+### 模型管理
+
+- 维护全局主模型目录
+- 在区域内点击选择模型，支持搜索与筛选
+- 提供覆盖率图表和模型统计视图
+- 支持一键复制模型列表
+
+### 部署模板导出
+
+- 区域级模型部署表格
+- 可编辑部署字段：加入、模型、部署名称、版本、容量
+- 支持校验后复制 ARM 部署模板
+
+### 效率与隐私
+
+- 命令面板与快捷键
+- 隐私模式（遮罩敏感信息）
+- 配置 JSON 导入/导出
+- 深色/浅色/跟随系统主题与多语言 UI
 
 ## 快速开始
 
-前置条件：Node.js 18+、npm。
+### 环境要求
+
+- Node.js 18+
+- npm
+
+### 安装
 
 ```bash
 git clone https://github.com/Zeta-ZhaoLi/ai-foundry-manager.git
 cd ai-foundry-manager
 npm install
+```
+
+### 启动开发
+
+```bash
 npm run dev
 ```
+
+默认地址：`http://localhost:5174`
+
+### 构建与预览
+
+```bash
+npm run build
+npm run preview
+```
+
+## 使用流程
+
+1. 在 **Global Model Directory** 维护主模型列表。
+2. 新增账号，并在账号下新增区域。
+3. 为每个区域填写 Endpoint / API Key / Resource Name。
+4. 选择区域模型并调整部署表格参数。
+5. 按需复制模型列表或部署模板。
+
+## 数据与安全
+
+- 本地存储键：
+  - `ai-foundry-manager:accounts`
+  - `ai-foundry-manager:master-models`
+  - `ai-foundry-manager:theme`
+  - `ai-foundry-manager:lang`
+- 敏感字段（如 API Key）会在本地加密后保存。
+- 隐私模式可在共享屏幕时隐藏敏感信息。
+
+## 可选/内部集成说明
+
+- 仓库中可能包含本地开发使用的可选/内部集成相关配置。
+- 日常核心使用不依赖任何后端服务。
+
+## 支持的 UI 语言
+
+- `zh`, `en`, `ja`, `fr`, `de`, `es`, `pt-BR`, `ko`
 
 ## 开发命令
 
 ```bash
 npm run dev
-npm run test
 npm run lint
+npm run test
 npm run build
 ```
 
-## 链接
+## 项目结构（主要）
 
+```text
+src/
+  components/      UI 与仪表盘模块
+  hooks/           本地状态与持久化 hooks
+  i18n/            多语言资源与初始化
+  utils/           通用工具
+  contexts/        React 上下文
+openspec/          变更提案与规格文档
+```
+
+## 许可证
+
+MIT License，见 `LICENSE`。
+
+## 作者
+
+- 赵利利 (ZetaTechs)
 - 仓库: https://github.com/Zeta-ZhaoLi/ai-foundry-manager
-- Issues: https://github.com/Zeta-ZhaoLi/ai-foundry-manager/issues
+- 问题反馈: https://github.com/Zeta-ZhaoLi/ai-foundry-manager/issues
