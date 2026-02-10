@@ -309,22 +309,29 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
     const seen = new Set<string>();
     for (const row of activeRows) {
-      if (!row.deploymentName.trim()) {
+      const deploymentName = row.deploymentName.trim();
+      const rowModelName = row.modelName.trim();
+      if (!deploymentName) {
         return t('regions.deployMissingDeploymentName');
       }
-      if (!row.deploymentName.trim().includes(row.modelName)) {
-        return t('regions.deployDeploymentNameMustContainModel');
-      }
-      const deploymentMatch = templateByDeploymentNameMap.get(
-        row.deploymentName.trim()
-      );
-      if (deploymentMatch && deploymentMatch.modelName !== row.modelName) {
+      const deploymentMatch = templateByDeploymentNameMap.get(deploymentName);
+      const sameModelByTemplate =
+        deploymentMatch &&
+        deploymentMatch.modelName.trim().toLowerCase() ===
+          rowModelName.toLowerCase();
+      if (deploymentMatch && !sameModelByTemplate) {
         return t('regions.deployDeploymentNameModelMismatch');
       }
-      if (seen.has(row.deploymentName.trim())) {
+      if (
+        !deploymentName.toLowerCase().includes(rowModelName.toLowerCase()) &&
+        !sameModelByTemplate
+      ) {
+        return t('regions.deployDeploymentNameMustContainModel');
+      }
+      if (seen.has(deploymentName)) {
         return t('regions.deployDuplicateDeploymentName');
       }
-      seen.add(row.deploymentName.trim());
+      seen.add(deploymentName);
 
       if (!row.version.trim()) {
         return t('regions.deployMissingVersion');
@@ -1171,7 +1178,8 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                                 );
                               if (
                                 templateMatch &&
-                                templateMatch.modelName === row.modelName
+                                templateMatch.modelName.trim().toLowerCase() ===
+                                  row.modelName.trim().toLowerCase()
                               ) {
                                 patch.version = templateMatch.version;
                                 patch.capacity = templateMatch.capacity;

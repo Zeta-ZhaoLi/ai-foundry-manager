@@ -234,6 +234,146 @@ describe('deployment configuration contract', () => {
     expect(getByDisplayValue('1000')).toBeTruthy();
   });
 
+  it('allows export when deploymentName includes modelName case-insensitively', () => {
+    const onCopy = vi.fn();
+
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: 'gpt-5.2',
+        deployment: { resourceName: 'my-account-resource' },
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5.2']}
+          masterGroups={[['gpt-5.2']]}
+          masterGroupLines={[[['gpt-5.2']]]}
+          filteredModels={['gpt-5.2']}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={(modelName, patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                models: {
+                  ...(prev.deployment?.models || {}),
+                  [modelName]: {
+                    ...(prev.deployment?.models?.[modelName] || {}),
+                    ...patch,
+                  },
+                },
+              },
+            }))
+          }
+        />
+      );
+    };
+
+    const { getByRole, getByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    fireEvent.change(getByDisplayValue('gpt-5.2-2025-12-11'), {
+      target: { value: 'GPT-5.2-custom' },
+    });
+
+    fireEvent.click(
+      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows template deploymentName/modelName combination with case differences', () => {
+    const onCopy = vi.fn();
+
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: 'DeepSeek-V3.2',
+        deployment: { resourceName: 'my-account-resource' },
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['DeepSeek-V3.2']}
+          masterGroups={[['DeepSeek-V3.2']]}
+          masterGroupLines={[[['DeepSeek-V3.2']]]}
+          filteredModels={['DeepSeek-V3.2']}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={(modelName, patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                models: {
+                  ...(prev.deployment?.models || {}),
+                  [modelName]: {
+                    ...(prev.deployment?.models?.[modelName] || {}),
+                    ...patch,
+                  },
+                },
+              },
+            }))
+          }
+        />
+      );
+    };
+
+    const { getByRole, getByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    fireEvent.change(getByDisplayValue('deepseek-v3.2-251201'), {
+      target: { value: 'deepseek-v3.2-251201' },
+    });
+
+    fireEvent.click(
+      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+  });
+
   it('blocks export when deploymentName maps to a different modelName in template', () => {
     const onCopy = vi.fn();
 
