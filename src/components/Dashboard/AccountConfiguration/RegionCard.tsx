@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
@@ -139,6 +145,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   onDelete,
   onCopy,
 }) => {
+  type DeploymentBulkCycleState = 'none' | 'invert' | 'all';
   const { t } = useTranslation();
   const toast = useToast();
   const [collapsed, setCollapsed] = useState(true);
@@ -146,6 +153,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isExpanded, setIsExpanded] = useState(region.enabled !== false);
+  const [deploymentBulkCycleState, setDeploymentBulkCycleState] =
+    useState<DeploymentBulkCycleState>('none');
+  const deploymentBulkCheckboxRef = useRef<HTMLInputElement>(null);
 
   // 判断当前区域名是否为自定义（不在预设列表中）
   const isCustomRegion = !PRESET_REGIONS.some((r) => r.value === region.name);
@@ -403,6 +413,42 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     t,
     validateDeployInputs,
   ]);
+
+  const applyDeploymentBulkSelection = useCallback(
+    (action: DeploymentBulkCycleState) => {
+      if (!onUpdateDeploymentModel) return;
+
+      for (const row of selectedDeploymentRows) {
+        let enabled = row.enabled !== false;
+        if (action === 'all') {
+          enabled = true;
+        } else if (action === 'none') {
+          enabled = false;
+        } else {
+          enabled = !enabled;
+        }
+        onUpdateDeploymentModel(row.sourceModel, { enabled });
+      }
+    },
+    [onUpdateDeploymentModel, selectedDeploymentRows]
+  );
+
+  const handleDeploymentBulkCycle = useCallback(() => {
+    const nextState: DeploymentBulkCycleState =
+      deploymentBulkCycleState === 'none'
+        ? 'invert'
+        : deploymentBulkCycleState === 'invert'
+          ? 'all'
+          : 'none';
+    applyDeploymentBulkSelection(nextState);
+    setDeploymentBulkCycleState(nextState);
+  }, [applyDeploymentBulkSelection, deploymentBulkCycleState]);
+
+  useEffect(() => {
+    if (!deploymentBulkCheckboxRef.current) return;
+    deploymentBulkCheckboxRef.current.indeterminate =
+      deploymentBulkCycleState === 'invert';
+  }, [deploymentBulkCycleState]);
 
   const toggleModel = (modelId: string) => {
     const set = new Set(parseModels(region.modelsText));
@@ -1134,8 +1180,22 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 <table className="w-full min-w-[980px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-400 border-b border-gray-800">
-                      <th className="py-2 px-3 w-[64px]">
-                        {t('regions.deployInclude')}
+                      <th className="py-2 px-3 w-[96px]">
+                        <label className="inline-flex items-center gap-1.5">
+                          <input
+                            ref={deploymentBulkCheckboxRef}
+                            type="checkbox"
+                            checked={deploymentBulkCycleState === 'all'}
+                            onChange={handleDeploymentBulkCycle}
+                            disabled={
+                              privacyMode ||
+                              selectedDeploymentRows.length === 0 ||
+                              !onUpdateDeploymentModel
+                            }
+                            aria-label={t('regions.deployInclude')}
+                          />
+                          <span>{t('regions.deployInclude')}</span>
+                        </label>
                       </th>
                       <th className="py-2 px-3">{t('regions.deployModel')}</th>
                       <th className="py-2 px-3">

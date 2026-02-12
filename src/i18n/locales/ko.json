@@ -94,7 +94,7 @@
     "deployTitle": "모델 배포",
     "deployNow": "배포 코드 복사",
     "deployCodeCopied": "배포 코드를 복사했습니다",
-    "deployInclude": "포함",
+    "deployInclude": "선택",
     "deployModel": "모델",
     "deployDeploymentName": "배포 이름",
     "deployVersion": "버전",

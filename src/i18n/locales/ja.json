@@ -94,7 +94,7 @@
     "deployTitle": "モデルデプロイ",
     "deployNow": "デプロイコードをコピー",
     "deployCodeCopied": "デプロイコードをコピーしました",
-    "deployInclude": "含める",
+    "deployInclude": "選択",
     "deployModel": "モデル",
     "deployDeploymentName": "デプロイ名",
     "deployVersion": "バージョン",

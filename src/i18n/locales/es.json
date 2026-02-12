@@ -94,7 +94,7 @@
     "deployTitle": "Despliegue de modelos",
     "deployNow": "Copiar codigo de despliegue",
     "deployCodeCopied": "Codigo de despliegue copiado",
-    "deployInclude": "Incluir",
+    "deployInclude": "Seleccionar",
     "deployModel": "Modelo",
     "deployDeploymentName": "Nombre de despliegue",
     "deployVersion": "Version",

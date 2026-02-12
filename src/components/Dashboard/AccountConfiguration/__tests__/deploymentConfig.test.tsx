@@ -651,6 +651,104 @@ describe('deployment configuration contract', () => {
     expect(json.variables.modelDeployments[0].modelFormat).toBe('DeepSeek');
   });
 
+  it('cycles deployment bulk checkbox as invert -> select all -> select none', () => {
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: 'gpt-5,gpt-5.1',
+        deployment: {
+          resourceName: 'my-account-resource',
+          models: {
+            'gpt-5': { enabled: true },
+            'gpt-5.1': { enabled: false },
+          },
+        },
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5', 'gpt-5.1']}
+          masterGroups={[['gpt-5', 'gpt-5.1']]}
+          masterGroupLines={[[['gpt-5', 'gpt-5.1']]]}
+          filteredModels={['gpt-5', 'gpt-5.1']}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={(modelName, patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                models: {
+                  ...(prev.deployment?.models || {}),
+                  [modelName]: {
+                    ...(prev.deployment?.models?.[modelName] || {}),
+                    ...patch,
+                  },
+                },
+              },
+            }))
+          }
+        />
+      );
+    };
+
+    const { container, getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    const bulkCheckbox = getByRole('checkbox', {
+      name: /选择|Select/i,
+    }) as HTMLInputElement;
+    const getRowCheckboxes = () =>
+      Array.from(
+        container.querySelectorAll('tbody input[type="checkbox"]')
+      ) as HTMLInputElement[];
+
+    let rowCheckboxes = getRowCheckboxes();
+    expect(rowCheckboxes).toHaveLength(2);
+    expect(rowCheckboxes[0].checked).toBe(true);
+    expect(rowCheckboxes[1].checked).toBe(false);
+
+    fireEvent.click(bulkCheckbox);
+    rowCheckboxes = getRowCheckboxes();
+    expect(rowCheckboxes[0].checked).toBe(false);
+    expect(rowCheckboxes[1].checked).toBe(true);
+    expect(bulkCheckbox.indeterminate).toBe(true);
+    expect(bulkCheckbox.checked).toBe(false);
+
+    fireEvent.click(bulkCheckbox);
+    rowCheckboxes = getRowCheckboxes();
+    expect(rowCheckboxes[0].checked).toBe(true);
+    expect(rowCheckboxes[1].checked).toBe(true);
+    expect(bulkCheckbox.checked).toBe(true);
+    expect(bulkCheckbox.indeterminate).toBe(false);
+
+    fireEvent.click(bulkCheckbox);
+    rowCheckboxes = getRowCheckboxes();
+    expect(rowCheckboxes[0].checked).toBe(false);
+    expect(rowCheckboxes[1].checked).toBe(false);
+    expect(bulkCheckbox.checked).toBe(false);
+    expect(bulkCheckbox.indeterminate).toBe(false);
+  });
+
   it('blocks export when enabled row modelFormat is empty', () => {
     const onCopy = vi.fn();
 
