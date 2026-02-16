@@ -201,7 +201,7 @@
         "modelFormat": "OpenAI",
         "modelName": "o3-mini",
         "version": "2025-01-31",
-        "capacity": 5000
+        "capacity": 500
       },
       {
         "deploymentName": "o3-pro-2025-06-10",
