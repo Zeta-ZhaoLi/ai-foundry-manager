@@ -281,6 +281,69 @@
         "capacity": 200
       },
       {
+        "deploymentName": "gpt-4o-transcribe",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-transcribe",
+        "version": "2025-03-20",
+        "capacity": 400
+      },
+      {
+        "deploymentName": "gpt-4o-mini-transcribe-2025-12-15",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-mini-transcribe",
+        "version": "2025-12-15",
+        "capacity": 600
+      },
+      {
+        "deploymentName": "gpt-4o-mini-transcribe-2025-03-20",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-mini-transcribe",
+        "version": "2025-03-20",
+        "capacity": 600
+      },
+      {
+        "deploymentName": "gpt-4o-transcribe-diarize",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-transcribe-diarize",
+        "version": "2025-10-15",
+        "capacity": 400
+      },
+      {
+        "deploymentName": "gpt-4o-mini-tts-2025-12-15",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-mini-tts",
+        "version": "2025-12-15",
+        "capacity": 600
+      },
+      {
+        "deploymentName": "gpt-4o-mini-tts-2025-03-20",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-mini-tts",
+        "version": "2025-03-20",
+        "capacity": 600
+      },
+      {
+        "deploymentName": "gpt-image-1.5",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-image-1.5",
+        "version": "2025-12-16",
+        "capacity": 9
+      },
+      {
+        "deploymentName": "gpt-image-1",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-image-1",
+        "version": "2025-04-15",
+        "capacity": 9
+      },
+      {
+        "deploymentName": "gpt-image-1-mini",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-image-1-mini",
+        "version": "2025-10-06",
+        "capacity": 12
+      },
+      {
         "deploymentName": "text-embedding-ada-002",
         "modelFormat": "OpenAI",
         "modelName": "text-embedding-ada-002",
