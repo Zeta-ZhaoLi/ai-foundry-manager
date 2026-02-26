@@ -239,6 +239,13 @@
         "capacity": 3000
       },
       {
+        "deploymentName": "gpt-audio-1.5",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-audio-1.5",
+        "version": "2026-02-23",
+        "capacity": 3000
+      },
+      {
         "deploymentName": "gpt-audio-mini-2025-10-06",
         "modelFormat": "OpenAI",
         "modelName": "gpt-audio-mini",
@@ -272,6 +279,13 @@
         "modelName": "gpt-realtime",
         "version": "2025-08-28",
         "capacity": 10
+      }, 
+      {
+        "deploymentName": "gpt-realtime-1.5",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-realtime-1.5",
+        "version": "2026-02-23",
+        "capacity": 100
       },
       {
         "deploymentName": "gpt-realtime-mini-2025-10-06",
