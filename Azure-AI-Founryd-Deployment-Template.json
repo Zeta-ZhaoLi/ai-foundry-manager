@@ -145,14 +145,14 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-5-codex",
         "version": "2025-09-15",
-        "capacity": 1000
+        "capacity": 10000
       },
       {
         "deploymentName": "gpt-5.1-codex",
         "modelFormat": "OpenAI",
         "modelName": "gpt-5.1-codex",
         "version": "2025-11-13",
-        "capacity": 100000
+        "capacity": 10000
       },
       {
         "deploymentName": "gpt-5.1-codex-max",
