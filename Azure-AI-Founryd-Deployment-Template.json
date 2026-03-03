@@ -285,7 +285,7 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-1.5",
         "version": "2026-02-23",
-        "capacity": 100
+        "capacity": 10
       },
       {
         "deploymentName": "gpt-realtime-mini-2025-10-06",
