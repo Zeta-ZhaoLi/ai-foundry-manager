@@ -120,6 +120,20 @@
         "capacity": 10000
       },
       {
+        "deploymentName": "gpt-5.4-2026-03-05",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-5.4",
+        "version": "2026-03-05",
+        "capacity": 10000
+      },
+      {
+        "deploymentName": "gpt-5.4-pro-2026-03-05",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-5.4-pro",
+        "version": "2026-03-05",
+        "capacity": 1600
+      },
+      {
         "deploymentName": "gpt-5-chat-latest",
         "modelFormat": "OpenAI",
         "modelName": "gpt-5-chat",
