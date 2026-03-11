@@ -201,7 +201,7 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-5.3-codex",
         "version": "2026-02-24",
-        "capacity": 1000
+        "capacity": 10000
       },
       {
         "deploymentName": "o1-2024-12-17",
