@@ -214,10 +214,14 @@ function buildFoundryProjectResource() {
     type: 'Microsoft.CognitiveServices/accounts/projects',
     apiVersion: AZURE_FOUNDRY_PROJECT_API_VERSION,
     name: "[format('{0}/{1}', parameters('resourceName'), parameters('projectName'))]",
+    location: "[parameters('location')]",
     dependsOn: [
       "[resourceId('Microsoft.CognitiveServices/accounts', parameters('resourceName'))]",
     ],
-    properties: {},
+    properties: {
+      displayName: "[parameters('projectName')]",
+      description: 'AI project',
+    },
   };
 }
 

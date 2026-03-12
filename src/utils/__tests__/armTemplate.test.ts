@@ -40,6 +40,15 @@ describe('armTemplate', () => {
           resource.type === 'Microsoft.CognitiveServices/accounts/projects'
       )
     ).toBe(true);
+    const projectResource = template.resources.find(
+      (resource: any) =>
+        resource.type === 'Microsoft.CognitiveServices/accounts/projects'
+    );
+    expect(projectResource.location).toBe("[parameters('location')]");
+    expect(projectResource.properties).toEqual({
+      displayName: "[parameters('projectName')]",
+      description: 'AI project',
+    });
   });
 
   it('stringifies to valid JSON', () => {
@@ -72,6 +81,11 @@ describe('armTemplate', () => {
     expect(template.resources[1].name).toBe(
       "[format('{0}/{1}', parameters('resourceName'), parameters('projectName'))]"
     );
+    expect(template.resources[1].location).toBe("[parameters('location')]");
+    expect(template.resources[1].properties).toEqual({
+      displayName: "[parameters('projectName')]",
+      description: 'AI project',
+    });
   });
 
   it('stringifies mainTemplate-based template to valid JSON', () => {
