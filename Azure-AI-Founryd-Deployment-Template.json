@@ -369,21 +369,21 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-image-1.5",
         "version": "2025-12-16",
-        "capacity": 3
+        "capacity": 20
       },
       {
         "deploymentName": "gpt-image-1",
         "modelFormat": "OpenAI",
         "modelName": "gpt-image-1",
         "version": "2025-04-15",
-        "capacity": 3
+        "capacity": 20
       },
       {
         "deploymentName": "gpt-image-1-mini",
         "modelFormat": "OpenAI",
         "modelName": "gpt-image-1-mini",
         "version": "2025-10-06",
-        "capacity": 4
+        "capacity": 40
       },
       {
         "deploymentName": "text-embedding-ada-002",
