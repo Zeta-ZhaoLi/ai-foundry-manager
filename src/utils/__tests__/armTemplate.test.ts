@@ -27,12 +27,19 @@ describe('armTemplate', () => {
     ) as any;
     expect(template.$schema).toContain('deploymentTemplate');
     expect(template.parameters.resourceName.type).toBe('String');
+    expect(template.parameters.projectName.type).toBe('String');
     expect(template.parameters.location.type).toBe('String');
     expect(Array.isArray(template.variables.modelDeployments)).toBe(true);
     expect(Array.isArray(template.resources)).toBe(true);
     expect(template.resources[0].type).toBe(
       'Microsoft.CognitiveServices/accounts'
     );
+    expect(
+      template.resources.some(
+        (resource: any) =>
+          resource.type === 'Microsoft.CognitiveServices/accounts/projects'
+      )
+    ).toBe(true);
   });
 
   it('stringifies to valid JSON', () => {
@@ -49,12 +56,21 @@ describe('armTemplate', () => {
     expect(template.parameters.resourceName.defaultValue).toBe(
       SAMPLE_ARM_TEMPLATE_INPUT.resourceName
     );
+    expect(template.parameters.projectName.defaultValue).toBe(
+      SAMPLE_ARM_TEMPLATE_INPUT.projectName
+    );
     expect(template.parameters.location.defaultValue).toBe(
       SAMPLE_ARM_TEMPLATE_INPUT.location
     );
     expect(Array.isArray(template.variables.modelDeployments)).toBe(true);
     expect(template.variables.modelDeployments.length).toBe(
       SAMPLE_ARM_TEMPLATE_INPUT.modelDeployments.length
+    );
+    expect(template.resources[1].type).toBe(
+      'Microsoft.CognitiveServices/accounts/projects'
+    );
+    expect(template.resources[1].name).toBe(
+      "[format('{0}/{1}', parameters('resourceName'), parameters('projectName'))]"
     );
   });
 
@@ -69,7 +85,7 @@ describe('armTemplate', () => {
       deploymentName: 'gpt-5.2-codex',
       version: '2026-01-14',
       modelFormat: 'OpenAI',
-      capacity: 1000,
+      capacity: 10000,
     });
   });
 
@@ -91,7 +107,7 @@ describe('armTemplate', () => {
       deploymentName: 'gpt-5-2025-08-07',
       version: '2025-08-07',
       modelFormat: 'OpenAI',
-      capacity: 1000,
+      capacity: 30000,
     });
   });
 
@@ -102,7 +118,7 @@ describe('armTemplate', () => {
       modelName: 'gpt-5.2-codex',
       version: '2026-01-14',
       modelFormat: 'OpenAI',
-      capacity: 1000,
+      capacity: 10000,
     });
   });
 
@@ -168,5 +184,16 @@ describe('armTemplate', () => {
     const result = validateArmTemplateInput(bad);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes('must be unique'))).toBe(true);
+  });
+
+  it('requires projectName for template generation', () => {
+    const bad = {
+      ...SAMPLE_ARM_TEMPLATE_INPUT,
+      projectName: '',
+    };
+
+    const result = validateArmTemplateInput(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('projectName is required');
   });
 });

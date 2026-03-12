@@ -8,6 +8,7 @@ export interface ArmModelDeployment {
 
 export interface ArmTemplateInput {
   resourceName: string;
+  projectName: string;
   location: string;
   modelDeployments: ArmModelDeployment[];
 }
@@ -42,6 +43,7 @@ export const ARM_TEMPLATE_SCHEMA =
 
 export const AZURE_OPENAI_ACCOUNT_API_VERSION = '2024-10-01';
 export const AZURE_DEPLOYMENT_RESOURCE_API_VERSION = '2021-04-01';
+export const AZURE_FOUNDRY_PROJECT_API_VERSION = '2025-09-01';
 
 export const DEFAULT_OPENAI_ACCOUNT_SKU = 'S0';
 export const DEFAULT_DEPLOYMENT_SKU = 'GlobalStandard';
@@ -176,6 +178,7 @@ export function validateArmTemplateInput(
   const errors: string[] = [];
 
   if (!input.resourceName.trim()) errors.push('resourceName is required');
+  if (!input.projectName.trim()) errors.push('projectName is required');
   if (!input.location.trim()) errors.push('location is required');
 
   const seen = new Set<string>();
@@ -206,6 +209,18 @@ export function validateArmTemplateInput(
   return { valid: errors.length === 0, errors };
 }
 
+function buildFoundryProjectResource() {
+  return {
+    type: 'Microsoft.CognitiveServices/accounts/projects',
+    apiVersion: AZURE_FOUNDRY_PROJECT_API_VERSION,
+    name: "[format('{0}/{1}', parameters('resourceName'), parameters('projectName'))]",
+    dependsOn: [
+      "[resourceId('Microsoft.CognitiveServices/accounts', parameters('resourceName'))]",
+    ],
+    properties: {},
+  };
+}
+
 export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
   return {
     $schema: ARM_TEMPLATE_SCHEMA,
@@ -213,6 +228,10 @@ export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
     parameters: {
       resourceName: {
         defaultValue: input.resourceName,
+        type: 'String',
+      },
+      projectName: {
+        defaultValue: input.projectName,
         type: 'String',
       },
       location: {
@@ -249,6 +268,7 @@ export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
           publicNetworkAccess: 'Enabled',
         },
       },
+      buildFoundryProjectResource(),
       {
         type: 'Microsoft.Resources/deployments',
         apiVersion: AZURE_DEPLOYMENT_RESOURCE_API_VERSION,
@@ -313,11 +333,15 @@ export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
   template.parameters.resourceName = template.parameters.resourceName || {
     type: 'String',
   };
+  template.parameters.projectName = template.parameters.projectName || {
+    type: 'String',
+  };
   template.parameters.location = template.parameters.location || {
     type: 'String',
   };
 
   template.parameters.resourceName.defaultValue = input.resourceName;
+  template.parameters.projectName.defaultValue = input.projectName;
   template.parameters.location.defaultValue = input.location;
 
   template.variables = template.variables || {};
@@ -328,6 +352,22 @@ export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
     modelFormat: d.modelFormat,
     capacity: d.capacity,
   }));
+
+  template.resources = Array.isArray(template.resources) ? template.resources : [];
+  const projectResource = buildFoundryProjectResource();
+  const existingProjectIndex = template.resources.findIndex(
+    (resource: any) =>
+      resource?.type === 'Microsoft.CognitiveServices/accounts/projects'
+  );
+  if (existingProjectIndex >= 0) {
+    template.resources[existingProjectIndex] = projectResource;
+  } else {
+    const accountIndex = template.resources.findIndex(
+      (resource: any) => resource?.type === 'Microsoft.CognitiveServices/accounts'
+    );
+    const insertIndex = accountIndex >= 0 ? accountIndex + 1 : 0;
+    template.resources.splice(insertIndex, 0, projectResource);
+  }
 
   return template;
 }
@@ -341,6 +381,7 @@ export function stringifyAzureOpenAiMainTemplate(
 
 export const SAMPLE_ARM_TEMPLATE_INPUT: ArmTemplateInput = {
   resourceName: 'assd655566',
+  projectName: 'assd655566',
   location: 'eastus2',
   modelDeployments: [
     {

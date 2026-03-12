@@ -285,6 +285,20 @@ export interface GenerateRegionIdentityResult {
   error?: 'invalid_account_email' | 'generation_failed';
 }
 
+export interface EffectiveFoundryProjectIdentity {
+  resourceName: string;
+  projectId: string;
+  foundryProjectEndpoint: string;
+}
+
+export interface EffectiveFoundryProjectIdentityResult {
+  ok: boolean;
+  identity?: EffectiveFoundryProjectIdentity;
+  error?: 'missing_resource_name' | 'invalid_foundry_project_endpoint';
+}
+
+const RESOURCE_NAME_SUFFIX = '-resource';
+
 export function parseAzureEndpointIdentity(
   endpoint: string
 ): AzureEndpointIdentity | null {
@@ -329,10 +343,20 @@ export function parseAzureEndpointIdentity(
   }
 }
 
+export function getDefaultProjectIdFromResourceName(resourceName: string): string {
+  const trimmed = resourceName.trim();
+  if (!trimmed) return '';
+  const stripped = trimmed.endsWith(RESOURCE_NAME_SUFFIX)
+    ? trimmed.slice(0, -RESOURCE_NAME_SUFFIX.length)
+    : trimmed;
+  return stripped || trimmed;
+}
+
 export function buildAzureEndpointSet(
   identity: AzureEndpointIdentity
 ): AzureEndpointSet {
-  const projectId = identity.projectId || identity.resourceName;
+  const projectId =
+    identity.projectId || getDefaultProjectIdFromResourceName(identity.resourceName);
   return {
     foundryProjectEndpoint: `https://${identity.resourceName}.services.ai.azure.com/api/projects/${projectId}`,
     openaiEndpoint: `https://${identity.resourceName}.openai.azure.com`,
@@ -355,6 +379,54 @@ export function deriveAzureEndpointSetFromAny(
  */
 export function extractAzureResourceName(endpoint: string): string | null {
   return parseAzureEndpointIdentity(endpoint)?.resourceName || null;
+}
+
+export function resolveEffectiveFoundryProjectIdentity(
+  resourceName: string,
+  foundryProjectEndpoint = ''
+): EffectiveFoundryProjectIdentityResult {
+  const normalizedResourceName = resourceName.trim();
+  const normalizedEndpoint = normalizeFoundryProjectEndpoint(
+    foundryProjectEndpoint
+  ).trim();
+
+  if (normalizedEndpoint) {
+    const parsed = parseAzureEndpointIdentity(normalizedEndpoint);
+    if (!parsed?.projectId) {
+      return {
+        ok: false,
+        error: 'invalid_foundry_project_endpoint',
+      };
+    }
+    return {
+      ok: true,
+      identity: {
+        resourceName: normalizedResourceName || parsed.resourceName,
+        projectId: parsed.projectId,
+        foundryProjectEndpoint: normalizedEndpoint,
+      },
+    };
+  }
+
+  if (!normalizedResourceName) {
+    return {
+      ok: false,
+      error: 'missing_resource_name',
+    };
+  }
+
+  const projectId = getDefaultProjectIdFromResourceName(normalizedResourceName);
+  return {
+    ok: true,
+    identity: {
+      resourceName: normalizedResourceName,
+      projectId,
+      foundryProjectEndpoint: buildAzureEndpointSet({
+        resourceName: normalizedResourceName,
+        projectId,
+      }).foundryProjectEndpoint,
+    },
+  };
 }
 
 function isValidEmailAccountName(accountName: string): boolean {

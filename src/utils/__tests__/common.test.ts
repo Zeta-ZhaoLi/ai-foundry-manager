@@ -13,6 +13,8 @@ import {
   parseAzureEndpointIdentity,
   deriveAzureEndpointSetFromAny,
   extractAzureResourceName,
+  getDefaultProjectIdFromResourceName,
+  resolveEffectiveFoundryProjectIdentity,
   generateRegionIdentityBundleFromAccountEmail,
 } from '../common';
 
@@ -187,13 +189,46 @@ describe('Common Utils', () => {
         )
       ).toEqual({
         foundryProjectEndpoint:
-          'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/api/projects/616d30b6ef130dde-1161-resource',
+          'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/api/projects/616d30b6ef130dde-1161',
         openaiEndpoint:
           'https://616d30b6ef130dde-1161-resource.openai.azure.com',
         aiServicesEndpoint:
           'https://616d30b6ef130dde-1161-resource.cognitiveservices.azure.com',
         anthropicEndpoint:
           'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/anthropic',
+      });
+    });
+
+    it('derives default projectId by stripping trailing resource suffix', () => {
+      expect(
+        getDefaultProjectIdFromResourceName('bakarahmed24-2561-resource')
+      ).toBe('bakarahmed24-2561');
+      expect(getDefaultProjectIdFromResourceName('sample')).toBe('sample');
+    });
+
+    it('resolves effective Foundry project identity from resource name when endpoint is empty', () => {
+      expect(
+        resolveEffectiveFoundryProjectIdentity('bakarahmed24-2561-resource', '')
+      ).toEqual({
+        ok: true,
+        identity: {
+          resourceName: 'bakarahmed24-2561-resource',
+          projectId: 'bakarahmed24-2561',
+          foundryProjectEndpoint:
+            'https://bakarahmed24-2561-resource.services.ai.azure.com/api/projects/bakarahmed24-2561',
+        },
+      });
+    });
+
+    it('rejects invalid explicit Foundry project endpoint when resolving export identity', () => {
+      expect(
+        resolveEffectiveFoundryProjectIdentity(
+          'sample-1234-resource',
+          'https://example.com/api/projects/not-azure'
+        )
+      ).toEqual({
+        ok: false,
+        error: 'invalid_foundry_project_endpoint',
       });
     });
 

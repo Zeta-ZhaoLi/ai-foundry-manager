@@ -207,17 +207,25 @@ The system SHALL provide conversion helpers that parse any supported endpoint in
 
 **And** generate OpenAI, Foundry project, and Anthropic endpoints using that resource
 
-#### Scenario: Default projectId derivation
+#### Scenario: Default projectId strips trailing resource suffix
 
-**Given** the user enters `https://sample-resource.openai.azure.com`
+**Given** the user enters `https://bakarahmed24-2561-resource.openai.azure.com`
 
 **When** the system generates Foundry project endpoint
 
-**Then** it MUST use `sample-resource` as the default `projectId`
+**Then** it MUST use `bakarahmed24-2561` as the default `projectId`
 
-**And** produce `https://sample-resource.services.ai.azure.com/api/projects/sample-resource`
+**And** produce `https://bakarahmed24-2561-resource.services.ai.azure.com/api/projects/bakarahmed24-2561`
 
----
+#### Scenario: Default projectId falls back to resource name when no suffix exists
+
+**Given** the user enters `https://sample.cognitiveservices.azure.com`
+
+**When** the system generates Foundry project endpoint
+
+**Then** it MUST use `sample` as the default `projectId`
+
+**And** produce `https://sample.services.ai.azure.com/api/projects/sample`
 
 ### Requirement: Foundry Endpoint Resource Name Autofill
 

@@ -111,6 +111,7 @@
     "deployMissingVersion": "Preencha version para todos os modelos",
     "deployMissingModelFormat": "Preencha modelFormat para todos os modelos",
     "deployInvalidCapacity": "capacity deve ser um inteiro positivo",
+    "deployInvalidFoundryProjectEndpoint": "Foundry Project Endpoint deve ser uma URL valida do Azure Foundry Project",
     "deployFailed": "Falha na implantacao: {{msg}}",
     "autoGenerate": "Auto Generate",
     "generateRequiresEmailAccountName": "Account name must be a valid email address to auto-generate region values",

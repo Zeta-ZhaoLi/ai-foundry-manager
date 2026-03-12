@@ -19,6 +19,7 @@ import {
   normalizeOpenAIEndpoint,
   normalizeAnthropicEndpoint,
   orderModelsByMaster,
+  resolveEffectiveFoundryProjectIdentity,
 } from '../../../utils/common';
 import type {
   GeneratedRegionIdentityBundle,
@@ -432,6 +433,18 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     const resourceName = deploymentResourceName.trim();
     if (!resourceName) return t('regions.deployMissingResourceName');
     if (!deploymentLocation.trim()) return t('regions.deployMissingLocation');
+
+    const effectiveFoundryProject = resolveEffectiveFoundryProjectIdentity(
+      resourceName,
+      region.foundryProjectEndpoint || ''
+    );
+    if (
+      !effectiveFoundryProject.ok &&
+      effectiveFoundryProject.error === 'invalid_foundry_project_endpoint'
+    ) {
+      return t('regions.deployInvalidFoundryProjectEndpoint');
+    }
+
     if (regionModels.length === 0) return t('regions.deployNoModels');
 
     const activeRows = selectedDeploymentRows.filter(
@@ -495,9 +508,19 @@ export const RegionCard: React.FC<RegionCardProps> = ({
 
     const resourceName = deploymentResourceName.trim();
     const location = deploymentLocation.trim();
+    const effectiveFoundryProject = resolveEffectiveFoundryProjectIdentity(
+      resourceName,
+      region.foundryProjectEndpoint || ''
+    );
+
+    if (!effectiveFoundryProject.ok || !effectiveFoundryProject.identity) {
+      toast.error(t('regions.deployFailed', { msg: 'project identity invalid' }));
+      return;
+    }
 
     const templateInput = {
       resourceName,
+      projectName: effectiveFoundryProject.identity.projectId,
       location,
       modelDeployments: selectedDeploymentRows
         .filter((row) => row.enabled !== false)
@@ -526,6 +549,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     deploymentResourceName,
     displayRegionName,
     onCopy,
+    region.foundryProjectEndpoint,
     selectedDeploymentRows,
     toast,
     t,

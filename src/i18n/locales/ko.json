@@ -111,6 +111,7 @@
     "deployMissingVersion": "모든 모델의 version을 입력하세요",
     "deployMissingModelFormat": "모든 모델의 modelFormat을 입력하세요",
     "deployInvalidCapacity": "capacity는 양의 정수여야 합니다",
+    "deployInvalidFoundryProjectEndpoint": "Foundry Project Endpoint는 유효한 Azure Foundry Project URL이어야 합니다",
     "deployFailed": "배포 실패: {{msg}}",
     "autoGenerate": "Auto Generate",
     "generateRequiresEmailAccountName": "Account name must be a valid email address to auto-generate region values",

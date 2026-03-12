@@ -111,6 +111,7 @@
     "deployMissingVersion": "请为所有模型填写 version",
     "deployMissingModelFormat": "请为所有模型填写 modelFormat",
     "deployInvalidCapacity": "capacity 必须是正整数",
+    "deployInvalidFoundryProjectEndpoint": "Foundry Project Endpoint 必须是有效的 Azure Foundry Project 地址",
     "deployFailed": "部署失败：{{msg}}",
     "autoGenerate": "自动生成",
     "generateRequiresEmailAccountName": "账号名称必须是有效邮箱地址，才能自动生成",

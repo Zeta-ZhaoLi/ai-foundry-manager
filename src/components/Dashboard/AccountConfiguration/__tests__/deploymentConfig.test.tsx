@@ -430,7 +430,7 @@ describe('deployment configuration contract', () => {
     expect(getByDisplayValue('gpt-5-2025-08-07')).toBeTruthy();
     expect(getByDisplayValue('2025-08-07')).toBeTruthy();
     expect(getByDisplayValue('OpenAI')).toBeTruthy();
-    expect(getByDisplayValue('1000')).toBeTruthy();
+    expect(getByDisplayValue('30000')).toBeTruthy();
 
     fireEvent.click(
       getByRole('button', { name: /复制部署代码|Copy deployment code/i })
@@ -442,8 +442,111 @@ describe('deployment configuration contract', () => {
     expect(json.parameters.resourceName.defaultValue).toBe(
       'my-account-resource'
     );
+    expect(json.parameters.projectName.defaultValue).toBe('my-account');
     expect(json.parameters.location.defaultValue).toBe('eastus2');
     expect(json.variables.modelDeployments[0].modelFormat).toBe('OpenAI');
+    expect(json.resources[1].type).toBe(
+      'Microsoft.CognitiveServices/accounts/projects'
+    );
+  });
+
+  it('uses explicit valid Foundry project endpoint projectId during export', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: 'gpt-5',
+      foundryProjectEndpoint:
+        'https://sample-1234-resource.services.ai.azure.com/api/projects/sample-custom-project',
+      deployment: { resourceName: 'sample-1234-resource' },
+    };
+
+    const onCopy = vi.fn();
+    const { getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5']}
+          masterGroups={[['gpt-5']]}
+          masterGroupLines={[[['gpt-5']]]}
+          filteredModels={['gpt-5']}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    const copied = onCopy.mock.calls[0][0] as string;
+    const json = JSON.parse(copied) as any;
+    expect(json.parameters.projectName.defaultValue).toBe(
+      'sample-custom-project'
+    );
+  });
+
+  it('blocks export when Foundry project endpoint is non-empty but invalid', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: 'gpt-5',
+      foundryProjectEndpoint: 'https://example.com/api/projects/not-azure',
+      deployment: { resourceName: 'sample-1234-resource' },
+    };
+
+    const onCopy = vi.fn();
+    const { getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={['gpt-5']}
+          masterGroups={[['gpt-5']]}
+          masterGroupLines={[[['gpt-5']]]}
+          filteredModels={['gpt-5']}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /模型部署|Model Deployment/i })
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+    );
+
+    expect(onCopy).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(
+      i18n.t('regions.deployInvalidFoundryProjectEndpoint')
+    );
   });
 
   it('syncs version, modelFormat, and capacity when deploymentName matches same-model template entry', () => {

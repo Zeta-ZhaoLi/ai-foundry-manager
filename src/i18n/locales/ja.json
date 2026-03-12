@@ -111,6 +111,7 @@
     "deployMissingVersion": "すべてのモデルに version を入力してください",
     "deployMissingModelFormat": "すべてのモデルに modelFormat を入力してください",
     "deployInvalidCapacity": "capacity は正の整数である必要があります",
+    "deployInvalidFoundryProjectEndpoint": "Foundry Project Endpoint は有効な Azure Foundry Project URL である必要があります",
     "deployFailed": "デプロイに失敗しました: {{msg}}",
     "autoGenerate": "Auto Generate",
     "generateRequiresEmailAccountName": "Account name must be a valid email address to auto-generate region values",
