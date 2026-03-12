@@ -222,21 +222,21 @@
         "modelFormat": "OpenAI",
         "modelName": "o3",
         "version": "2025-04-16",
-        "capacity": 1000
+        "capacity": 10000
       },
       {
         "deploymentName": "o3-mini-2025-01-31",
         "modelFormat": "OpenAI",
         "modelName": "o3-mini",
         "version": "2025-01-31",
-        "capacity": 500
+        "capacity": 50000
       },
       {
         "deploymentName": "o3-pro-2025-06-10",
         "modelFormat": "OpenAI",
         "modelName": "o3-pro",
         "version": "2025-06-10",
-        "capacity": 1600
+        "capacity": 16000
       },
       {
         "deploymentName": "o3-deep-research-2025-06-26",
@@ -250,21 +250,21 @@
         "modelFormat": "OpenAI",
         "modelName": "o4-mini",
         "version": "2025-04-16",
-        "capacity": 1000
+        "capacity": 10000
       },
       {
         "deploymentName": "gpt-audio-2025-08-28",
         "modelFormat": "OpenAI",
         "modelName": "gpt-audio",
         "version": "2025-08-28",
-        "capacity": 3000
+        "capacity": 30000
       },
       {
         "deploymentName": "gpt-audio-1.5",
         "modelFormat": "OpenAI",
         "modelName": "gpt-audio-1.5",
         "version": "2026-02-23",
-        "capacity": 3000
+        "capacity": 30000
       },
       {
         "deploymentName": "gpt-audio-mini-2025-10-06",
@@ -299,28 +299,28 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime",
         "version": "2025-08-28",
-        "capacity": 10
+        "capacity": 100
       }, 
       {
         "deploymentName": "gpt-realtime-1.5",
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-1.5",
         "version": "2026-02-23",
-        "capacity": 10
+        "capacity": 100
       },
       {
         "deploymentName": "gpt-realtime-mini-2025-10-06",
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-mini",
         "version": "2025-10-06",
-        "capacity": 10
+        "capacity": 100
       },
       {
         "deploymentName": "gpt-realtime-mini-2025-12-15",
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-mini",
         "version": "2025-12-15",
-        "capacity": 20
+        "capacity": 200
       },
       {
         "deploymentName": "gpt-4o-transcribe",
@@ -390,7 +390,7 @@
         "modelFormat": "OpenAI",
         "modelName": "text-embedding-ada-002",
         "version": "2",
-        "capacity": 1000
+        "capacity": 10000
       },
       {
         "deploymentName": "text-embedding-3-small",
