@@ -12,6 +12,7 @@ import { buildCopyString } from '../../../utils/modelSeries';
 import { useToast } from '../../../hooks/useToast';
 import {
   deriveAzureEndpointSetFromAny,
+  extractAzureResourceName,
   normalizeAiServicesEndpoint,
   normalizeFoundryProjectEndpoint,
   normalizeOpenAIEndpoint,
@@ -186,6 +187,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     const generated = deriveAzureEndpointSetFromAny(normalized);
     if (generated) {
       applyEndpointSet(generated);
+      const resourceName = extractAzureResourceName(normalized);
+      if (resourceName) {
+        onUpdateDeployment?.({ resourceName });
+      }
       return;
     }
     onUpdateFoundryProjectEndpoint?.(normalized);

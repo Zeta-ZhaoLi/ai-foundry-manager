@@ -12,6 +12,7 @@ import {
   normalizeFoundryProjectEndpoint,
   parseAzureEndpointIdentity,
   deriveAzureEndpointSetFromAny,
+  extractAzureResourceName,
 } from '../common';
 
 describe('Common Utils', () => {
@@ -168,6 +169,14 @@ describe('Common Utils', () => {
         resourceName: '616d30b6ef130dde-1161-resource',
         projectId: '616d30b6ef130dde-1161',
       });
+    });
+
+    it('extracts resource name from Foundry host when projectId differs', () => {
+      expect(
+        extractAzureResourceName(
+          'https://pedrolaureanoferreira68-resource.services.ai.azure.com/api/projects/pedrolaureanoferreira68-6863'
+        )
+      ).toBe('pedrolaureanoferreira68-resource');
     });
 
     it('builds full endpoint set from OpenAI endpoint', () => {

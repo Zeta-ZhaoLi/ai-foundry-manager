@@ -340,7 +340,7 @@ export function deriveAzureEndpointSetFromAny(
 
 /**
  * 从 Azure Endpoint 提取资源名称
- * 支持 OpenAI 和 Anthropic 两种格式
+ * 支持 OpenAI、AI Services、Foundry Project、Anthropic 格式
  */
 export function extractAzureResourceName(endpoint: string): string | null {
   return parseAzureEndpointIdentity(endpoint)?.resourceName || null;

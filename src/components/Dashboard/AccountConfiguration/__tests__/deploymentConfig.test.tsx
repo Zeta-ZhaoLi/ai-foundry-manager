@@ -824,6 +824,7 @@ describe('deployment configuration contract', () => {
         id: 'reg-1',
         name: 'eastus2',
         modelsText: '',
+        deployment: { resourceName: '' },
       });
 
       return (
@@ -853,6 +854,15 @@ describe('deployment configuration contract', () => {
           }
           onUpdateApiKey={(apiKey) =>
             setRegion((prev) => ({ ...prev, apiKey }))
+          }
+          onUpdateDeployment={(patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                ...patch,
+              },
+            }))
           }
           onUpdateEnabled={vi.fn()}
           onDelete={vi.fn()}
@@ -899,6 +909,86 @@ describe('deployment configuration contract', () => {
       getByDisplayValue(
         'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/anthropic'
       )
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue('616d30b6ef130dde-1161-resource')
+    ).toBeTruthy();
+  });
+
+  it('editing invalid Foundry project endpoint preserves existing resource name', () => {
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: '',
+        deployment: { resourceName: 'existing-resource' },
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateFoundryProjectEndpoint={(foundryProjectEndpoint) =>
+            setRegion((prev) => ({ ...prev, foundryProjectEndpoint }))
+          }
+          onUpdateOpenaiEndpoint={(openaiEndpoint) =>
+            setRegion((prev) => ({ ...prev, openaiEndpoint }))
+          }
+          onUpdateAiServicesEndpoint={(aiServicesEndpoint) =>
+            setRegion((prev) => ({ ...prev, aiServicesEndpoint }))
+          }
+          onUpdateAnthropicEndpoint={(anthropicEndpoint) =>
+            setRegion((prev) => ({ ...prev, anthropicEndpoint }))
+          }
+          onUpdateApiKey={(apiKey) =>
+            setRegion((prev) => ({ ...prev, apiKey }))
+          }
+          onUpdateDeployment={(patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: {
+                ...prev.deployment,
+                ...patch,
+              },
+            }))
+          }
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      );
+    };
+
+    const { getByDisplayValue, getByPlaceholderText } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.change(
+      getByPlaceholderText(
+        'https://xxx.services.ai.azure.com/api/projects/xxx'
+      ),
+      {
+        target: {
+          value: 'https://example.com/api/projects/test-project',
+        },
+      }
+    );
+
+    expect(getByDisplayValue('existing-resource')).toBeTruthy();
+    expect(
+      getByDisplayValue('https://example.com/api/projects/test-project')
     ).toBeTruthy();
   });
 
