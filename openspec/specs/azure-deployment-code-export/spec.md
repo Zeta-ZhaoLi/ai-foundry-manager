@@ -81,17 +81,17 @@ The deployment configuration UI for export MUST remove `Subscription ID`, replac
 
 **And** `Resource Name` MUST be shown as a region-level input immediately after `API Key`
 
+**And** an auto-generate action MUST be shown to the right of the `Resource Name` input
+
 **And** `Resource Name` MUST remain manually editable by the user
 
-#### Scenario: Foundry endpoint auto-filled resource name can still be edited
+#### Scenario: Generated resource name can still be edited
 
-**Given** the user enters Foundry project endpoint `https://test-resource.services.ai.azure.com/api/projects/test-project`
+**Given** the system generated `Resource Name` for a region
 
-**And** the system auto-fills `Resource Name` with `test-resource`
+**When** the user manually changes `Resource Name`
 
-**When** the user manually changes `Resource Name` to `test-resource-custom`
-
-**Then** the `Resource Name` input MUST accept and display `test-resource-custom`
+**Then** the `Resource Name` input MUST accept and display the manual value
 
 ### Requirement: Location Uses Region Code
 

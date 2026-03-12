@@ -274,6 +274,17 @@ export interface AzureEndpointSet {
   anthropicEndpoint: string;
 }
 
+export interface GeneratedRegionIdentityBundle extends AzureEndpointSet {
+  resourceName: string;
+  projectId: string;
+}
+
+export interface GenerateRegionIdentityResult {
+  ok: boolean;
+  bundle?: GeneratedRegionIdentityBundle;
+  error?: 'invalid_account_email' | 'generation_failed';
+}
+
 export function parseAzureEndpointIdentity(
   endpoint: string
 ): AzureEndpointIdentity | null {
@@ -344,6 +355,56 @@ export function deriveAzureEndpointSetFromAny(
  */
 export function extractAzureResourceName(endpoint: string): string | null {
   return parseAzureEndpointIdentity(endpoint)?.resourceName || null;
+}
+
+function isValidEmailAccountName(accountName: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountName.trim());
+}
+
+function buildRandomDigits(length: number, random: () => number): string {
+  return Array.from({ length }, () => Math.floor(random() * 10)).join('');
+}
+
+export function generateRegionIdentityBundleFromAccountEmail(
+  accountName: string,
+  existingResourceNames: string[],
+  random: () => number = Math.random
+): GenerateRegionIdentityResult {
+  if (!isValidEmailAccountName(accountName)) {
+    return { ok: false, error: 'invalid_account_email' };
+  }
+
+  const localPart = accountName.trim().split('@')[0] || '';
+  const baseSeed = localPart.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!baseSeed) {
+    return { ok: false, error: 'invalid_account_email' };
+  }
+
+  const suffix = '-resource';
+  const randomDigitsLength = 4;
+  const baseMaxLength = 32 - suffix.length - 1 - randomDigitsLength;
+  const resourceBase = baseSeed.slice(0, Math.max(1, baseMaxLength));
+  const existingSet = new Set(
+    existingResourceNames.map((name) => name.trim()).filter(Boolean)
+  );
+
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const digits = buildRandomDigits(randomDigitsLength, random);
+    const resourceName = `${resourceBase}-${digits}${suffix}`;
+    if (existingSet.has(resourceName)) continue;
+
+    const projectId = `${baseSeed}-${digits}`;
+    return {
+      ok: true,
+      bundle: {
+        resourceName,
+        projectId,
+        ...buildAzureEndpointSet({ resourceName, projectId }),
+      },
+    };
+  }
+
+  return { ok: false, error: 'generation_failed' };
 }
 
 /**

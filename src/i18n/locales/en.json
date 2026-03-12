@@ -112,6 +112,9 @@
     "deployMissingModelFormat": "Please fill modelFormat for all models",
     "deployInvalidCapacity": "capacity must be a positive integer",
     "deployFailed": "Deployment failed: {{msg}}",
+    "autoGenerate": "Auto Generate",
+    "generateRequiresEmailAccountName": "Account name must be a valid email address to auto-generate region values",
+    "generateFailed": "Auto-generation failed, please try again",
     "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI Endpoint",
     "aiServicesEndpoint": "Azure AI Services Endpoint",
@@ -174,6 +177,10 @@
     "deleteRegion": {
       "title": "Delete Region",
       "description": "Are you sure you want to delete this region? This action cannot be undone."
+    },
+    "generateRegionIdentity": {
+      "title": "Overwrite Region Values",
+      "description": "This region already has manually entered resource or endpoint values. Overwrite them with auto-generated values?"
     }
   },
   "export": {

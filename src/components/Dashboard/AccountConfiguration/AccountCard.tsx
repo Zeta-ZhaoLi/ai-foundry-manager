@@ -21,6 +21,7 @@ import {
   AccountTier,
   AccountQuota,
   CurrencyType,
+  type GeneratedRegionIdentityBundle,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
@@ -64,6 +65,10 @@ export interface AccountCardProps {
   onUpdateRegionDeployment?: (
     regionId: string,
     patch: Partial<RegionDeploymentConfig>
+  ) => void;
+  onApplyGeneratedRegionIdentity?: (
+    regionId: string,
+    bundle: GeneratedRegionIdentityBundle
   ) => void;
   onUpdateRegionDeploymentModel?: (
     regionId: string,
@@ -114,6 +119,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateRegionAnthropicEndpoint,
   onUpdateRegionApiKey,
   onUpdateRegionDeployment,
+  onApplyGeneratedRegionIdentity,
   onUpdateRegionDeploymentModel,
   onUpdateRegionEnabled,
   onReorderRegions,
@@ -639,6 +645,15 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                               onUpdateRegionDeployment(region.id, patch)
                           : undefined
                       }
+                      onApplyGeneratedIdentity={
+                        onApplyGeneratedRegionIdentity
+                          ? (bundle) =>
+                              onApplyGeneratedRegionIdentity(region.id, bundle)
+                          : undefined
+                      }
+                      siblingResourceNames={account.regions
+                        .filter((item) => item.id !== region.id)
+                        .map((item) => item.deployment?.resourceName || '')}
                       onUpdateDeploymentModel={
                         onUpdateRegionDeploymentModel
                           ? (modelName, patch) =>

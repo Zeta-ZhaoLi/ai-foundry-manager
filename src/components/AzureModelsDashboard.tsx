@@ -60,6 +60,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
     updateRegionDeployment,
+    applyGeneratedRegionIdentity,
     updateRegionDeploymentModel,
     updateRegionEnabled,
     reorderAccounts,
@@ -493,6 +494,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onUpdateAccountPurchase={updateAccountPurchase}
         onUpdateAccountUsedAmount={updateAccountUsedAmount}
         onUpdateRegionDeployment={updateRegionDeployment}
+        onApplyGeneratedRegionIdentity={applyGeneratedRegionIdentity}
         onDeleteAccount={deleteAccount}
         onAddRegion={addRegion}
         onDeleteRegion={deleteRegion}

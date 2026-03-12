@@ -13,6 +13,7 @@ import { useToast } from '../../../hooks/useToast';
 import {
   deriveAzureEndpointSetFromAny,
   extractAzureResourceName,
+  generateRegionIdentityBundleFromAccountEmail,
   normalizeAiServicesEndpoint,
   normalizeFoundryProjectEndpoint,
   normalizeOpenAIEndpoint,
@@ -20,6 +21,7 @@ import {
   orderModelsByMaster,
 } from '../../../utils/common';
 import type {
+  GeneratedRegionIdentityBundle,
   LocalRegion as ImportedLocalRegion,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
@@ -52,10 +54,12 @@ export interface RegionCardProps {
   onUpdateAnthropicEndpoint: (endpoint: string) => void;
   onUpdateApiKey: (apiKey: string) => void;
   onUpdateDeployment?: (patch: Partial<RegionDeploymentConfig>) => void;
+  onApplyGeneratedIdentity?: (bundle: GeneratedRegionIdentityBundle) => void;
   onUpdateDeploymentModel?: (
     modelName: string,
     patch: Partial<RegionDeploymentModelConfig>
   ) => void;
+  siblingResourceNames?: string[];
   onUpdateEnabled: (enabled: boolean) => void;
   onDelete: () => void;
   onCopy: (text: string, label: string) => void;
@@ -141,7 +145,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   onUpdateAnthropicEndpoint,
   onUpdateApiKey,
   onUpdateDeployment,
+  onApplyGeneratedIdentity,
   onUpdateDeploymentModel,
+  siblingResourceNames = [],
   onUpdateEnabled,
   onDelete,
   onCopy,
@@ -152,10 +158,13 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const [collapsed, setCollapsed] = useState(true);
   const [deployCollapsed, setDeployCollapsed] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isExpanded, setIsExpanded] = useState(region.enabled !== false);
   const [deploymentBulkCycleState, setDeploymentBulkCycleState] =
     useState<DeploymentBulkCycleState>('none');
+  const [pendingGeneratedBundle, setPendingGeneratedBundle] =
+    useState<GeneratedRegionIdentityBundle | null>(null);
   const deploymentBulkCheckboxRef = useRef<HTMLInputElement>(null);
 
   // 判断当前区域名是否为自定义（不在预设列表中）
@@ -261,6 +270,110 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   // =============== 模型部署（Azure Portal） ===============
   const deploymentResourceName = region.deployment?.resourceName || '';
   const deploymentLocation = region.name || '';
+  const regionInputSources = region.inputSources || {};
+  const canAutoGenerate = Boolean(
+    onApplyGeneratedIdentity ||
+      (onUpdateDeployment &&
+        onUpdateFoundryProjectEndpoint &&
+        onUpdateAiServicesEndpoint)
+  );
+
+  const applyGeneratedBundle = useCallback(
+    (bundle: GeneratedRegionIdentityBundle) => {
+      if (onApplyGeneratedIdentity) {
+        onApplyGeneratedIdentity(bundle);
+        return;
+      }
+
+      onUpdateDeployment?.({ resourceName: bundle.resourceName });
+      onUpdateFoundryProjectEndpoint?.(bundle.foundryProjectEndpoint);
+      onUpdateOpenaiEndpoint(bundle.openaiEndpoint);
+      onUpdateAiServicesEndpoint?.(bundle.aiServicesEndpoint);
+      onUpdateAnthropicEndpoint(bundle.anthropicEndpoint);
+    },
+    [
+      onApplyGeneratedIdentity,
+      onUpdateAiServicesEndpoint,
+      onUpdateAnthropicEndpoint,
+      onUpdateDeployment,
+      onUpdateFoundryProjectEndpoint,
+      onUpdateOpenaiEndpoint,
+    ]
+  );
+
+  const regionHasManualGenerationTargets = useMemo(() => {
+    const fields: Array<{
+      value: string;
+      source?: 'generated' | 'manual';
+    }> = [
+      {
+        value: deploymentResourceName,
+        source: regionInputSources.resourceName,
+      },
+      {
+        value: region.foundryProjectEndpoint || '',
+        source: regionInputSources.foundryProjectEndpoint,
+      },
+      {
+        value: region.openaiEndpoint || '',
+        source: regionInputSources.openaiEndpoint,
+      },
+      {
+        value: region.aiServicesEndpoint || '',
+        source: regionInputSources.aiServicesEndpoint,
+      },
+      {
+        value: region.anthropicEndpoint || '',
+        source: regionInputSources.anthropicEndpoint,
+      },
+    ];
+
+    return fields.some(
+      ({ value, source }) => value.trim() && source !== 'generated'
+    );
+  }, [
+    deploymentResourceName,
+    region.aiServicesEndpoint,
+    region.anthropicEndpoint,
+    region.foundryProjectEndpoint,
+    region.openaiEndpoint,
+    regionInputSources.aiServicesEndpoint,
+    regionInputSources.anthropicEndpoint,
+    regionInputSources.foundryProjectEndpoint,
+    regionInputSources.openaiEndpoint,
+    regionInputSources.resourceName,
+  ]);
+
+  const handleAutoGenerateClick = useCallback(() => {
+    const result = generateRegionIdentityBundleFromAccountEmail(
+      accountName,
+      siblingResourceNames
+    );
+
+    if (!result.ok || !result.bundle) {
+      toast.error(
+        result.error === 'invalid_account_email'
+          ? t('regions.generateRequiresEmailAccountName')
+          : t('regions.generateFailed')
+      );
+      return;
+    }
+
+    if (regionHasManualGenerationTargets) {
+      setPendingGeneratedBundle(result.bundle);
+      setShowGenerateConfirm(true);
+      return;
+    }
+
+    applyGeneratedBundle(result.bundle);
+  }, [
+    accountName,
+    applyGeneratedBundle,
+    regionHasManualGenerationTargets,
+    siblingResourceNames,
+    t,
+    toast,
+  ]);
 
   const templateDefaultsByModelNameMap = useMemo(
     () => getTemplateModelDeploymentEntriesByModelNameMap(),
@@ -744,20 +857,32 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             <label className="text-xs text-muted-foreground block mb-1">
               {t('accounts.resourceName')}
             </label>
-            <input
-              type="text"
-              className={clsx(
-                'w-full p-1.5 rounded-lg',
-                'border border-gray-700 bg-background text-foreground text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                className={clsx(
+                  'flex-1 min-w-0 p-1.5 rounded-lg',
+                  'border border-gray-700 bg-background text-foreground text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                )}
+                value={privacyMode ? '***' : deploymentResourceName}
+                onChange={(e) =>
+                  onUpdateDeployment?.({ resourceName: e.target.value })
+                }
+                placeholder="my-aoai"
+                disabled={privacyMode || !onUpdateDeployment}
+              />
+              {!privacyMode && canAutoGenerate && (
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateClick}
+                  className="px-2.5 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+                  title={t('regions.autoGenerate')}
+                >
+                  {t('regions.autoGenerate')}
+                </button>
               )}
-              value={privacyMode ? '***' : deploymentResourceName}
-              onChange={(e) =>
-                onUpdateDeployment?.({ resourceName: e.target.value })
-              }
-              placeholder="my-aoai"
-              disabled={privacyMode || !onUpdateDeployment}
-            />
+            </div>
           </div>
         </div>
 
@@ -1326,6 +1451,22 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={onDelete}
+      />
+
+      <ConfirmDialog
+        open={showGenerateConfirm}
+        onOpenChange={setShowGenerateConfirm}
+        title={t('confirmDialog.generateRegionIdentity.title')}
+        description={t('confirmDialog.generateRegionIdentity.description')}
+        confirmText={t('regions.autoGenerate')}
+        cancelText={t('common.cancel')}
+        variant="warning"
+        onConfirm={() => {
+          if (pendingGeneratedBundle) {
+            applyGeneratedBundle(pendingGeneratedBundle);
+            setPendingGeneratedBundle(null);
+          }
+        }}
       />
     </>
   );

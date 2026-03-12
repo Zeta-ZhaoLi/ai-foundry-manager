@@ -23,6 +23,7 @@ import {
   AccountTier,
   AccountQuota,
   CurrencyType,
+  type GeneratedRegionIdentityBundle,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
@@ -65,6 +66,11 @@ export interface AccountsSectionProps {
     accountId: string,
     regionId: string,
     patch: Partial<RegionDeploymentConfig>
+  ) => void;
+  onApplyGeneratedRegionIdentity?: (
+    accountId: string,
+    regionId: string,
+    bundle: GeneratedRegionIdentityBundle
   ) => void;
   onDeleteAccount: (accountId: string) => void;
   onAddRegion: (accountId: string) => void;
@@ -146,6 +152,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateAccountPurchase,
   onUpdateAccountUsedAmount,
   onUpdateRegionDeployment,
+  onApplyGeneratedRegionIdentity,
   onDeleteAccount,
   onAddRegion,
   onDeleteRegion,
@@ -433,6 +440,19 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                               account.id,
                               regionId,
                               patch
+                            )
+                        : undefined
+                    }
+                    onApplyGeneratedRegionIdentity={
+                      onApplyGeneratedRegionIdentity
+                        ? (
+                            regionId: string,
+                            bundle: GeneratedRegionIdentityBundle
+                          ) =>
+                            onApplyGeneratedRegionIdentity(
+                              account.id,
+                              regionId,
+                              bundle
                             )
                         : undefined
                     }

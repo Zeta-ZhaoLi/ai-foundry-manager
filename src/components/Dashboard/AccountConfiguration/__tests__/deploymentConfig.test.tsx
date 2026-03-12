@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -6,11 +6,34 @@ import i18n from '../../../../i18n';
 import { AccountCard } from '../AccountCard';
 import { RegionCard } from '../RegionCard';
 import type {
+  GeneratedRegionIdentityBundle,
   LocalAccount,
   LocalRegion,
 } from '../../../../hooks/useLocalAzureAccounts';
 
+const toastError = vi.fn();
+const toastSuccess = vi.fn();
+
+vi.mock('../../../../hooks/useToast', () => ({
+  useToast: () => ({
+    success: toastSuccess,
+    error: toastError,
+    info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
+
 describe('deployment configuration contract', () => {
+  beforeEach(() => {
+    toastError.mockReset();
+    toastSuccess.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('hides account-level Resource Name and legacy deployment fields', () => {
     const account: LocalAccount = {
       id: 'acct-1',
@@ -99,6 +122,273 @@ describe('deployment configuration contract', () => {
     expect(onUpdateDeployment).toHaveBeenCalledWith({
       resourceName: 'my-region-resource',
     });
+  });
+
+  it('shows auto-generate action beside region Resource Name', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: '',
+      deployment: { resourceName: '' },
+    };
+
+    const { getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="jessicabarrios060193@gmail.com"
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateAiServicesEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateDeployment={vi.fn()}
+          onApplyGeneratedIdentity={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    expect(
+      getByRole('button', { name: i18n.t('regions.autoGenerate') })
+    ).toBeTruthy();
+  });
+
+  it('auto-generates resource name and four endpoints from account email', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: '',
+        deployment: { resourceName: '' },
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="jessicabarrios060193@gmail.com"
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateAiServicesEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={(apiKey) =>
+            setRegion((prev) => ({ ...prev, apiKey }))
+          }
+          onUpdateDeployment={(patch) =>
+            setRegion((prev) => ({
+              ...prev,
+              deployment: { ...prev.deployment, ...patch },
+            }))
+          }
+          onApplyGeneratedIdentity={(bundle: GeneratedRegionIdentityBundle) =>
+            setRegion((prev) => ({
+              ...prev,
+              foundryProjectEndpoint: bundle.foundryProjectEndpoint,
+              openaiEndpoint: bundle.openaiEndpoint,
+              aiServicesEndpoint: bundle.aiServicesEndpoint,
+              anthropicEndpoint: bundle.anthropicEndpoint,
+              deployment: {
+                ...prev.deployment,
+                resourceName: bundle.resourceName,
+              },
+              inputSources: {
+                ...prev.inputSources,
+                resourceName: 'generated',
+                foundryProjectEndpoint: 'generated',
+                openaiEndpoint: 'generated',
+                aiServicesEndpoint: 'generated',
+                anthropicEndpoint: 'generated',
+              },
+            }))
+          }
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      );
+    };
+
+    const { getByRole, getByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: i18n.t('regions.autoGenerate') })
+    );
+
+    expect(
+      getByDisplayValue('jessicabarrios0601-1111-resource')
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue(
+        'https://jessicabarrios0601-1111-resource.services.ai.azure.com/api/projects/jessicabarrios060193-1111'
+      )
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue(
+        'https://jessicabarrios0601-1111-resource.openai.azure.com'
+      )
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue(
+        'https://jessicabarrios0601-1111-resource.cognitiveservices.azure.com'
+      )
+    ).toBeTruthy();
+    expect(
+      getByDisplayValue(
+        'https://jessicabarrios0601-1111-resource.services.ai.azure.com/anthropic'
+      )
+    ).toBeTruthy();
+  });
+
+  it('rejects auto-generation when account name is not an email', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: '',
+      deployment: { resourceName: '' },
+    };
+
+    const { getByRole, queryByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateAiServicesEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateDeployment={vi.fn()}
+          onApplyGeneratedIdentity={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: i18n.t('regions.autoGenerate') })
+    );
+
+    expect(toastError).toHaveBeenCalledWith(
+      i18n.t('regions.generateRequiresEmailAccountName')
+    );
+    expect(queryByDisplayValue(/-resource$/)).toBeNull();
+  });
+
+  it('requires confirmation before auto-generation overwrites manual values', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+
+    const RegionHarness = () => {
+      const [region, setRegion] = useState<LocalRegion>({
+        id: 'reg-1',
+        name: 'eastus2',
+        modelsText: '',
+        deployment: { resourceName: 'manual-resource' },
+        inputSources: { resourceName: 'manual' },
+      });
+
+      return (
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="jessicabarrios060193@gmail.com"
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateName={(name) => setRegion((prev) => ({ ...prev, name }))}
+          onUpdateModelsText={(modelsText) =>
+            setRegion((prev) => ({ ...prev, modelsText }))
+          }
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateAiServicesEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateDeployment={vi.fn()}
+          onApplyGeneratedIdentity={(bundle: GeneratedRegionIdentityBundle) =>
+            setRegion((prev) => ({
+              ...prev,
+              foundryProjectEndpoint: bundle.foundryProjectEndpoint,
+              openaiEndpoint: bundle.openaiEndpoint,
+              aiServicesEndpoint: bundle.aiServicesEndpoint,
+              anthropicEndpoint: bundle.anthropicEndpoint,
+              deployment: {
+                ...prev.deployment,
+                resourceName: bundle.resourceName,
+              },
+              inputSources: {
+                ...prev.inputSources,
+                resourceName: 'generated',
+                foundryProjectEndpoint: 'generated',
+                openaiEndpoint: 'generated',
+                aiServicesEndpoint: 'generated',
+                anthropicEndpoint: 'generated',
+              },
+            }))
+          }
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={vi.fn()}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      );
+    };
+
+    const { getByRole, getByDisplayValue, getByText, queryByText } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionHarness />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', { name: i18n.t('regions.autoGenerate') })
+    );
+
+    expect(
+      getByText(i18n.t('confirmDialog.generateRegionIdentity.title'))
+    ).toBeTruthy();
+    fireEvent.click(getByRole('button', { name: i18n.t('common.cancel') }));
+
+    expect(getByDisplayValue('manual-resource')).toBeTruthy();
+    expect(
+      queryByText(i18n.t('confirmDialog.generateRegionIdentity.title'))
+    ).toBeNull();
   });
 
   it('uses region resourceName and template defaults for model rows', () => {

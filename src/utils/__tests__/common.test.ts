@@ -13,6 +13,7 @@ import {
   parseAzureEndpointIdentity,
   deriveAzureEndpointSetFromAny,
   extractAzureResourceName,
+  generateRegionIdentityBundleFromAccountEmail,
 } from '../common';
 
 describe('Common Utils', () => {
@@ -205,6 +206,55 @@ describe('Common Utils', () => {
       expect(
         normalizeAiServicesEndpoint('https://foo.cognitiveservices.azure.com/')
       ).toBe('https://foo.cognitiveservices.azure.com');
+    });
+  });
+
+  describe('region identity generation', () => {
+    it('generates a unique endpoint bundle from account email', () => {
+      const result = generateRegionIdentityBundleFromAccountEmail(
+        'jessicabarrios060193@gmail.com',
+        [],
+        () => 0.1
+      );
+
+      expect(result.ok).toBe(true);
+      expect(result.bundle?.resourceName).toBe(
+        'jessicabarrios0601-1111-resource'
+      );
+      expect(result.bundle?.resourceName.length).toBeLessThanOrEqual(32);
+      expect(result.bundle?.projectId).toBe('jessicabarrios060193-1111');
+      expect(result.bundle?.foundryProjectEndpoint).toBe(
+        'https://jessicabarrios0601-1111-resource.services.ai.azure.com/api/projects/jessicabarrios060193-1111'
+      );
+      expect(result.bundle?.openaiEndpoint).toBe(
+        'https://jessicabarrios0601-1111-resource.openai.azure.com'
+      );
+    });
+
+    it('retries when a sibling region already uses the same resource name', () => {
+      const values = [
+        0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8,
+      ];
+      let index = 0;
+      const random = () => values[index++];
+      const result = generateRegionIdentityBundleFromAccountEmail(
+        'sample@gmail.com',
+        ['sample-1234-resource'],
+        random
+      );
+
+      expect(result.ok).toBe(true);
+      expect(result.bundle?.resourceName).toBe('sample-5678-resource');
+      expect(result.bundle?.projectId).toBe('sample-5678');
+    });
+
+    it('rejects non-email account names', () => {
+      expect(
+        generateRegionIdentityBundleFromAccountEmail('My Test Account', [])
+      ).toEqual({
+        ok: false,
+        error: 'invalid_account_email',
+      });
     });
   });
 });

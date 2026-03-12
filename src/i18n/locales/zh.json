@@ -112,6 +112,9 @@
     "deployMissingModelFormat": "请为所有模型填写 modelFormat",
     "deployInvalidCapacity": "capacity 必须是正整数",
     "deployFailed": "部署失败：{{msg}}",
+    "autoGenerate": "自动生成",
+    "generateRequiresEmailAccountName": "账号名称必须是有效邮箱地址，才能自动生成",
+    "generateFailed": "自动生成失败，请重试",
     "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI Endpoint",
     "aiServicesEndpoint": "Azure AI Services Endpoint",
@@ -174,6 +177,10 @@
     "deleteRegion": {
       "title": "删除区域",
       "description": "确定要删除此区域吗？此操作无法撤销。"
+    },
+    "generateRegionIdentity": {
+      "title": "覆盖区域资源配置",
+      "description": "当前区域已存在手动填写的资源名称或 Endpoint。确定要用自动生成的值覆盖吗？"
     }
   },
   "export": {

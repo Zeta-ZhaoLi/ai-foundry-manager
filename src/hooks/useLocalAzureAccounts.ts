@@ -5,6 +5,7 @@ import {
   parseModels,
   debounce,
   generateId,
+  type GeneratedRegionIdentityBundle,
   normalizeAiServicesEndpoint,
   normalizeFoundryProjectEndpoint,
   normalizeOpenAIEndpoint,
@@ -17,6 +18,8 @@ import {
   renumberAccountsByPosition,
 } from '../utils/accountIdGenerator';
 
+export type { GeneratedRegionIdentityBundle } from '../utils/common';
+
 export interface LocalRegion {
   id: string;
   name: string;
@@ -28,6 +31,17 @@ export interface LocalRegion {
   apiKey?: string;
   enabled?: boolean; // 默认 true，控制是否参与统计
   deployment?: RegionDeploymentConfig;
+  inputSources?: RegionInputSources;
+}
+
+export type RegionInputSource = 'generated' | 'manual';
+
+export interface RegionInputSources {
+  resourceName?: RegionInputSource;
+  foundryProjectEndpoint?: RegionInputSource;
+  openaiEndpoint?: RegionInputSource;
+  aiServicesEndpoint?: RegionInputSource;
+  anthropicEndpoint?: RegionInputSource;
 }
 
 export interface RegionDeploymentModelConfig {
@@ -89,6 +103,20 @@ export interface SeriesSummary {
 
 const STORAGE_KEY = 'ai-foundry-manager:accounts';
 const LEGACY_STORAGE_KEY = 'azure-openai-manager:accounts';
+
+function markRegionInputSource(
+  reg: LocalRegion,
+  key: keyof RegionInputSources,
+  source: RegionInputSource
+): LocalRegion {
+  return {
+    ...reg,
+    inputSources: {
+      ...reg.inputSources,
+      [key]: source,
+    },
+  };
+}
 
 export function useLocalAzureAccounts() {
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
@@ -493,7 +521,11 @@ export function useLocalAzureAccounts() {
                 ...acct,
                 regions: acct.regions.map((reg) =>
                   reg.id === regionId
-                    ? { ...reg, openaiEndpoint: normalized }
+                    ? markRegionInputSource(
+                        { ...reg, openaiEndpoint: normalized },
+                        'openaiEndpoint',
+                        'manual'
+                      )
                     : reg
                 ),
               }
@@ -516,7 +548,11 @@ export function useLocalAzureAccounts() {
                 ...acct,
                 regions: acct.regions.map((reg) =>
                   reg.id === regionId
-                    ? { ...reg, foundryProjectEndpoint: normalized }
+                    ? markRegionInputSource(
+                        { ...reg, foundryProjectEndpoint: normalized },
+                        'foundryProjectEndpoint',
+                        'manual'
+                      )
                     : reg
                 ),
               }
@@ -537,7 +573,11 @@ export function useLocalAzureAccounts() {
                 ...acct,
                 regions: acct.regions.map((reg) =>
                   reg.id === regionId
-                    ? { ...reg, aiServicesEndpoint: normalized }
+                    ? markRegionInputSource(
+                        { ...reg, aiServicesEndpoint: normalized },
+                        'aiServicesEndpoint',
+                        'manual'
+                      )
                     : reg
                 ),
               }
@@ -559,7 +599,11 @@ export function useLocalAzureAccounts() {
                 ...acct,
                 regions: acct.regions.map((reg) =>
                   reg.id === regionId
-                    ? { ...reg, anthropicEndpoint: normalized }
+                    ? markRegionInputSource(
+                        { ...reg, anthropicEndpoint: normalized },
+                        'anthropicEndpoint',
+                        'manual'
+                      )
                     : reg
                 ),
               }
@@ -602,10 +646,56 @@ export function useLocalAzureAccounts() {
             regions: acct.regions.map((reg) =>
               reg.id === regionId
                 ? {
-                    ...reg,
+                    ...(Object.prototype.hasOwnProperty.call(
+                      patch,
+                      'resourceName'
+                    )
+                      ? markRegionInputSource(reg, 'resourceName', 'manual')
+                      : reg),
                     deployment: {
                       ...reg.deployment,
                       ...patch,
+                    },
+                  }
+                : reg
+            ),
+          };
+        })
+      );
+    },
+    [saveAccounts]
+  );
+
+  const applyGeneratedRegionIdentity = useCallback(
+    (
+      accountId: string,
+      regionId: string,
+      bundle: GeneratedRegionIdentityBundle
+    ) => {
+      saveAccounts((prev) =>
+        prev.map((acct) => {
+          if (acct.id !== accountId) return acct;
+          return {
+            ...acct,
+            regions: acct.regions.map((reg) =>
+              reg.id === regionId
+                ? {
+                    ...reg,
+                    foundryProjectEndpoint: bundle.foundryProjectEndpoint,
+                    openaiEndpoint: bundle.openaiEndpoint,
+                    aiServicesEndpoint: bundle.aiServicesEndpoint,
+                    anthropicEndpoint: bundle.anthropicEndpoint,
+                    deployment: {
+                      ...reg.deployment,
+                      resourceName: bundle.resourceName,
+                    },
+                    inputSources: {
+                      ...reg.inputSources,
+                      resourceName: 'generated',
+                      foundryProjectEndpoint: 'generated',
+                      openaiEndpoint: 'generated',
+                      aiServicesEndpoint: 'generated',
+                      anthropicEndpoint: 'generated',
                     },
                   }
                 : reg
@@ -828,6 +918,7 @@ export function useLocalAzureAccounts() {
     updateRegionAnthropicEndpoint,
     updateRegionApiKey,
     updateRegionDeployment,
+    applyGeneratedRegionIdentity,
     updateRegionDeploymentModel,
     updateRegionEnabled,
     reorderAccounts,

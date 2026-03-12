@@ -112,6 +112,9 @@
     "deployMissingModelFormat": "すべてのモデルに modelFormat を入力してください",
     "deployInvalidCapacity": "capacity は正の整数である必要があります",
     "deployFailed": "デプロイに失敗しました: {{msg}}",
+    "autoGenerate": "Auto Generate",
+    "generateRequiresEmailAccountName": "Account name must be a valid email address to auto-generate region values",
+    "generateFailed": "Auto-generation failed, please try again",
     "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI エンドポイント",
     "aiServicesEndpoint": "Azure AI Services Endpoint",
@@ -174,6 +177,10 @@
     "deleteRegion": {
       "title": "リージョン削除",
       "description": "このリージョンを削除しますか？この操作は取り消せません。"
+    },
+    "generateRegionIdentity": {
+      "title": "Overwrite Region Values",
+      "description": "This region already has manually entered resource or endpoint values. Overwrite them with auto-generated values?"
     }
   },
   "export": {

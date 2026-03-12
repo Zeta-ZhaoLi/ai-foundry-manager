@@ -112,6 +112,9 @@
     "deployMissingModelFormat": "모든 모델의 modelFormat을 입력하세요",
     "deployInvalidCapacity": "capacity는 양의 정수여야 합니다",
     "deployFailed": "배포 실패: {{msg}}",
+    "autoGenerate": "Auto Generate",
+    "generateRequiresEmailAccountName": "Account name must be a valid email address to auto-generate region values",
+    "generateFailed": "Auto-generation failed, please try again",
     "foundryProjectEndpoint": "Foundry Project Endpoint",
     "openaiEndpoint": "OpenAI 엔드포인트",
     "aiServicesEndpoint": "Azure AI Services Endpoint",
@@ -174,6 +177,10 @@
     "deleteRegion": {
       "title": "리전 삭제",
       "description": "이 리전을 삭제할까요? 이 작업은 되돌릴 수 없습니다."
+    },
+    "generateRegionIdentity": {
+      "title": "Overwrite Region Values",
+      "description": "This region already has manually entered resource or endpoint values. Overwrite them with auto-generated values?"
     }
   },
   "export": {
