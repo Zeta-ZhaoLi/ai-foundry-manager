@@ -45,6 +45,9 @@ describe('armTemplate', () => {
         resource.type === 'Microsoft.CognitiveServices/accounts/projects'
     );
     expect(projectResource.location).toBe("[parameters('location')]");
+    expect(projectResource.identity).toEqual({
+      type: 'SystemAssigned',
+    });
     expect(projectResource.properties).toEqual({
       displayName: "[parameters('projectName')]",
       description: 'AI project',
@@ -82,6 +85,9 @@ describe('armTemplate', () => {
       "[format('{0}/{1}', parameters('resourceName'), parameters('projectName'))]"
     );
     expect(template.resources[1].location).toBe("[parameters('location')]");
+    expect(template.resources[1].identity).toEqual({
+      type: 'SystemAssigned',
+    });
     expect(template.resources[1].properties).toEqual({
       displayName: "[parameters('projectName')]",
       description: 'AI project',

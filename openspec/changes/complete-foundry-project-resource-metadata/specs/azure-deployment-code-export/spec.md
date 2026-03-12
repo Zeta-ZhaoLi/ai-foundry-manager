@@ -18,6 +18,8 @@ Copied deployment code MUST create the Foundry project required by the region's 
 
 **And** that project resource MUST include `location = [parameters('location')]`
 
+**And** that project resource MUST include `identity.type = SystemAssigned`
+
 **And** that project resource `properties.displayName` MUST equal `[parameters('projectName')]`
 
 **And** that project resource `properties.description` MUST equal `AI project`
