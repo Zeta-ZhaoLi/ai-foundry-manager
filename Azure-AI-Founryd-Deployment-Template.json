@@ -229,7 +229,7 @@
         "modelFormat": "OpenAI",
         "modelName": "o3-mini",
         "version": "2025-01-31",
-        "capacity": 50000
+        "capacity": 5000
       },
       {
         "deploymentName": "o3-pro-2025-06-10",
@@ -299,28 +299,28 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime",
         "version": "2025-08-28",
-        "capacity": 100
+        "capacity": 10
       }, 
       {
         "deploymentName": "gpt-realtime-1.5",
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-1.5",
         "version": "2026-02-23",
-        "capacity": 100
+        "capacity": 10
       },
       {
         "deploymentName": "gpt-realtime-mini-2025-10-06",
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-mini",
         "version": "2025-10-06",
-        "capacity": 100
+        "capacity": 10
       },
       {
         "deploymentName": "gpt-realtime-mini-2025-12-15",
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-mini",
         "version": "2025-12-15",
-        "capacity": 200
+        "capacity": 20
       },
       {
         "deploymentName": "gpt-4o-transcribe",
