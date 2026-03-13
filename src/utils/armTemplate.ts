@@ -228,6 +228,18 @@ function buildFoundryProjectResource() {
   };
 }
 
+function withProjectDependency(dependsOn: unknown): string[] {
+  const base = Array.isArray(dependsOn)
+    ? dependsOn.filter((item): item is string => typeof item === 'string')
+    : [];
+  const projectDependency =
+    "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('resourceName'), parameters('projectName'))]";
+  if (!base.includes(projectDependency)) {
+    base.push(projectDependency);
+  }
+  return base;
+}
+
 export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
   return {
     $schema: ARM_TEMPLATE_SCHEMA,
@@ -282,6 +294,7 @@ export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
         name: "[concat('deploy_', variables('modelDeployments')[copyIndex()].deploymentName)]",
         dependsOn: [
           "[resourceId('Microsoft.CognitiveServices/accounts', parameters('resourceName'))]",
+          "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('resourceName'), parameters('projectName'))]",
         ],
         copy: {
           name: 'modelDeploymentLoop',
@@ -375,6 +388,19 @@ export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
     const insertIndex = accountIndex >= 0 ? accountIndex + 1 : 0;
     template.resources.splice(insertIndex, 0, projectResource);
   }
+
+  template.resources = template.resources.map((resource: any) => {
+    if (
+      resource?.type === 'Microsoft.CognitiveServices/accounts/deployments' ||
+      resource?.type === 'Microsoft.Resources/deployments'
+    ) {
+      return {
+        ...resource,
+        dependsOn: withProjectDependency(resource.dependsOn),
+      };
+    }
+    return resource;
+  });
 
   return template;
 }

@@ -44,6 +44,9 @@ describe('armTemplate', () => {
       (resource: any) =>
         resource.type === 'Microsoft.CognitiveServices/accounts/projects'
     );
+    const deploymentWrapper = template.resources.find(
+      (resource: any) => resource.type === 'Microsoft.Resources/deployments'
+    );
     expect(projectResource.location).toBe("[parameters('location')]");
     expect(projectResource.identity).toEqual({
       type: 'SystemAssigned',
@@ -52,6 +55,10 @@ describe('armTemplate', () => {
       displayName: "[parameters('projectName')]",
       description: 'AI project',
     });
+    expect(deploymentWrapper.dependsOn).toEqual([
+      "[resourceId('Microsoft.CognitiveServices/accounts', parameters('resourceName'))]",
+      "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('resourceName'), parameters('projectName'))]",
+    ]);
   });
 
   it('stringifies to valid JSON', () => {
@@ -92,6 +99,13 @@ describe('armTemplate', () => {
       displayName: "[parameters('projectName')]",
       description: 'AI project',
     });
+    expect(template.resources[2].type).toBe(
+      'Microsoft.CognitiveServices/accounts/deployments'
+    );
+    expect(template.resources[2].dependsOn).toEqual([
+      "[resourceId('Microsoft.CognitiveServices/accounts', parameters('resourceName'))]",
+      "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('resourceName'), parameters('projectName'))]",
+    ]);
   });
 
   it('stringifies mainTemplate-based template to valid JSON', () => {
