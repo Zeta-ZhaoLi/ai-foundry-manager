@@ -1,8 +1,5 @@
-# default-master-model-directory-seed Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change 2026-01-30-seed-default-master-model-directory. Update Purpose after archive.
-## Requirements
 ### Requirement: Seed Default Master Directory on Fresh Install
 
 When `ai-foundry-manager:master-models` is missing from localStorage, and no legacy value is migrated, the application MUST initialize the Global Model Directory text to the canonical default seed text derived from the dedicated editable default model list file defined by `editable-default-supported-model-list`.
@@ -16,20 +13,6 @@ When `ai-foundry-manager:master-models` is missing from localStorage, and no leg
 **When** the application initializes
 
 **Then** the Global Model Directory text MUST equal the canonical default seed text derived from the dedicated editable default model list file
-
----
-
-### Requirement: Do Not Overwrite Existing Directory Text
-
-If localStorage contains key `ai-foundry-manager:master-models`, the application MUST NOT overwrite it during initialization, even if the stored value is an empty string.
-
-#### Scenario: User-cleared directory remains empty
-
-**Given** localStorage key `ai-foundry-manager:master-models` exists and is an empty string
-
-**When** the application initializes
-
-**Then** the Global Model Directory text MUST remain an empty string
 
 ---
 
@@ -48,4 +31,3 @@ The canonical default seed text MUST be produced from the dedicated editable def
 **When** the Global Model Directory text is read
 
 **Then** the text MUST contain the same blank lines and comma placement defined by the dedicated editable default model list file
-

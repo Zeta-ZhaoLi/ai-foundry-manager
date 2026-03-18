@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import defaultMasterModelDirectoryText from '../../constants/defaultMasterModelDirectory.txt?raw';
 import { DEFAULT_MASTER_MODEL_DIRECTORY_TEXT } from '../../constants/defaultMasterModelDirectory';
 import {
   LEGACY_MASTER_MODELS_STORAGE_KEY,
@@ -25,6 +26,12 @@ describe('loadInitialMasterModelsText', () => {
     expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT).toContain('\n\n');
     expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT).toContain(',,');
     expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT.endsWith('\n')).toBe(true);
+  });
+
+  it('loads the editable default model list file as the seed source', () => {
+    expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT).toBe(
+      defaultMasterModelDirectoryText.replace(/\r\n/g, '\n')
+    );
   });
 
   it('does not overwrite existing value (including empty string)', () => {
