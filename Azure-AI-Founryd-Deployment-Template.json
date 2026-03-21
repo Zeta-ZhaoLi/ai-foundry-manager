@@ -127,6 +127,20 @@
         "capacity": 10000
       },
       {
+        "deploymentName": "gpt-5.4-mini-2026-03-17",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-5.4-mini",
+        "version": "2026-03-17",
+        "capacity": 10000
+      },
+      {
+        "deploymentName": "gpt-5.4-nano-2026-03-17",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-5.4-nano",
+        "version": "2026-03-17",
+        "capacity": 150000
+      },
+      {
         "deploymentName": "gpt-5-pro-2025-10-06",
         "modelFormat": "OpenAI",
         "modelName": "gpt-5-pro",
@@ -243,7 +257,7 @@
         "modelFormat": "OpenAI",
         "modelName": "o3-pro",
         "version": "2025-06-10",
-        "capacity": 16000
+        "capacity": 1600
       },
       {
         "deploymentName": "o3-deep-research-2025-06-26",
