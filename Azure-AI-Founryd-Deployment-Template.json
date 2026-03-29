@@ -61,7 +61,7 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-4o-mini",
         "version": "2024-07-18",
-        "capacity": 15000
+        "capacity": 150000
       },
       {
         "deploymentName": "gpt-4.1-2025-04-14",
@@ -75,14 +75,14 @@
         "modelFormat": "OpenAI",
         "modelName": "gpt-4.1-mini",
         "version": "2025-04-14",
-        "capacity": 15000
+        "capacity": 150000
       },
       {
         "deploymentName": "gpt-4.1-nano-2025-04-14",
         "modelFormat": "OpenAI",
         "modelName": "gpt-4.1-nano",
         "version": "2025-04-14",
-        "capacity": 15000
+        "capacity": 150000
       },
       {
         "deploymentName": "gpt-5-2025-08-07",
