@@ -183,6 +183,13 @@
         "capacity": 5000
       },
       {
+        "deploymentName": "codex-mini-latest",
+        "modelFormat": "OpenAI",
+        "modelName": "codex-mini",
+        "version": "2025-05-16",
+        "capacity": 10000
+      },
+      {
         "deploymentName": "gpt-5-codex",
         "modelFormat": "OpenAI",
         "modelName": "gpt-5-codex",
