@@ -393,6 +393,13 @@
         "capacity": 600
       },
       {
+        "deploymentName": "gpt-image-2",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-image-2",
+        "version": "2026-04-21",
+        "capacity": 20
+      },
+      {
         "deploymentName": "gpt-image-1.5",
         "modelFormat": "OpenAI",
         "modelName": "gpt-image-1.5",
