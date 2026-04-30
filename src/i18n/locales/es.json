@@ -84,7 +84,9 @@
     "usageRate": "Uso",
     "accountId": "ID de cuenta",
     "accountIdTooltip": "Identificador asignado por el sistema (A=Premium, B=Estandar)",
-    "resourceName": "Nombre del recurso"
+    "resourceName": "Nombre del recurso",
+    "subscriptionId": "Subscription ID",
+    "subscriptionIdPlaceholder": "e.g. 37753a40-cbd3-4042-913b-3dd5d5a56f87"
   },
   "regions": {
     "regionList": "Lista de regiones",
@@ -94,6 +96,12 @@
     "deployTitle": "Despliegue de modelos",
     "deployNow": "Copiar codigo de despliegue",
     "deployCodeCopied": "Codigo de despliegue copiado",
+    "armDeployCode": "ARM deployment code",
+    "armDeployCodeCopied": "ARM deployment code copied",
+    "azureCliDeployCode": "Azure CLI deployment code",
+    "azureCliDeployCommand": "Azure CLI deployment command",
+    "azureCliDeployCodeCopied": "Azure CLI deployment code copied",
+    "azureCliDeployCommandCopied": "Azure CLI deployment command copied",
     "deployInclude": "Seleccionar",
     "deployModel": "Modelo",
     "deployDeploymentName": "Nombre de despliegue",

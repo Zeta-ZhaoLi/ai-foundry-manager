@@ -39,6 +39,7 @@ export interface AccountCardProps {
   masterModels: string[];
   filteredModels: string[];
   onUpdateName: (name: string) => void;
+  onUpdateSubscriptionId?: (subscriptionId: string) => void;
   onUpdateNote: (note: string) => void;
   onUpdateEnabled: (enabled: boolean) => void;
   onUpdateIncludeInStats?: (includeInStats: boolean) => void;
@@ -101,6 +102,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   masterModels,
   filteredModels,
   onUpdateName,
+  onUpdateSubscriptionId,
   onUpdateNote,
   onUpdateEnabled,
   onUpdateIncludeInStats,
@@ -286,7 +288,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             </div>
           </div>
 
-          {/* 第二行：类别 + 账号 ID + 账号名称 + 额度 + 备注 - 统一 Grid 对齐 */}
+          {/* 第二行：类别 + 账号 ID + 账号名称 + 订阅 ID + 额度 + 备注 - 统一 Grid 对齐 */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
             {/* 类别选择 + 账号 ID - 2列 */}
             <div className="md:col-span-2">
@@ -330,8 +332,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               </div>
             </div>
 
-            {/* 账号名称 - 4列 */}
-            <div className="md:col-span-4">
+            {/* 账号名称 - 3列 */}
+            <div className="md:col-span-3">
               <label className="text-xs text-muted-foreground block mb-1">
                 {t('accounts.accountName')}
               </label>
@@ -345,6 +347,24 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 onChange={(e) => onUpdateName(e.target.value)}
                 placeholder={t('accounts.accountNamePlaceholder')}
                 disabled={privacyMode}
+              />
+            </div>
+
+            {/* Azure Subscription ID - 3列 */}
+            <div className="md:col-span-3">
+              <label className="text-xs text-muted-foreground block mb-1">
+                {t('accounts.subscriptionId')}
+              </label>
+              <input
+                className={clsx(
+                  'w-full p-1.5 rounded-lg',
+                  'border border-border bg-background text-foreground text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                )}
+                value={privacyMode ? '***' : account.subscriptionId || ''}
+                onChange={(e) => onUpdateSubscriptionId?.(e.target.value)}
+                placeholder={t('accounts.subscriptionIdPlaceholder')}
+                disabled={privacyMode || !onUpdateSubscriptionId}
               />
             </div>
 
@@ -602,6 +622,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       privacyMode={privacyMode}
                       accountId={account.id}
                       accountName={displayName}
+                      subscriptionId={account.subscriptionId || ''}
                       masterGroups={masterGroups}
                       masterGroupLines={masterGroupLines}
                       masterModels={masterModels}

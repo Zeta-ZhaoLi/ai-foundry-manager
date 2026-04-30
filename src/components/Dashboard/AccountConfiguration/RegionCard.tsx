@@ -34,6 +34,10 @@ import {
   getTemplateModelDeploymentEntriesByModelNameMap,
   stringifyAzureOpenAiMainTemplate,
 } from '../../../utils/armTemplate';
+import {
+  AZURE_CLI_DEPLOYMENT_COMMAND,
+  buildAzureCliDeploymentScript,
+} from '../../../utils/azureCliDeployment';
 
 export type LocalRegion = ImportedLocalRegion;
 
@@ -43,6 +47,7 @@ export interface RegionCardProps {
   privacyMode?: boolean;
   accountId: string;
   accountName: string;
+  subscriptionId?: string;
   masterModels: string[];
   masterGroups: string[][];
   masterGroupLines: string[][][];
@@ -134,6 +139,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   regionIndex = 0,
   privacyMode = false,
   accountName,
+  subscriptionId = '',
   masterModels,
   masterGroups,
   masterGroupLines,
@@ -429,7 +435,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     templateDefaultsByModelNameMap,
   ]);
 
-  const validateDeployInputs = useCallback((): string | null => {
+  const validateDeployInputs = useCallback((options?: {
+    requireCapacity?: boolean;
+  }): string | null => {
+    const requireCapacity = options?.requireCapacity !== false;
     const resourceName = deploymentResourceName.trim();
     if (!resourceName) return t('regions.deployMissingResourceName');
     if (!deploymentLocation.trim()) return t('regions.deployMissingLocation');
@@ -484,7 +493,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       if (!row.modelFormat.trim()) {
         return t('regions.deployMissingModelFormat');
       }
-      if (!Number.isInteger(row.capacity) || row.capacity <= 0) {
+      if (
+        requireCapacity &&
+        (!Number.isInteger(row.capacity) || row.capacity <= 0)
+      ) {
         return t('regions.deployInvalidCapacity');
       }
     }
@@ -493,14 +505,15 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   }, [
     deploymentLocation,
     deploymentResourceName,
+    region.foundryProjectEndpoint,
     regionModels.length,
     selectedDeploymentRows,
     templateByDeploymentNameMap,
     t,
   ]);
 
-  const handleDeploy = useCallback(() => {
-    const err = validateDeployInputs();
+  const handleArmDeploy = useCallback(() => {
+    const err = validateDeployInputs({ requireCapacity: true });
     if (err) {
       toast.error(err);
       return;
@@ -536,11 +549,11 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     try {
       const json = stringifyAzureOpenAiMainTemplate(templateInput);
       onCopy(json, `${displayRegionName} - ${t('regions.deployTitle')}`);
-      toast.success(t('regions.deployCodeCopied'));
-    } catch (e: any) {
+      toast.success(t('regions.armDeployCodeCopied'));
+    } catch (e: unknown) {
       toast.error(
         t('regions.deployFailed', {
-          msg: e?.message || String(e),
+          msg: e instanceof Error ? e.message : String(e),
         })
       );
     }
@@ -555,6 +568,61 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     t,
     validateDeployInputs,
   ]);
+
+  const handleAzureCliDeployCode = useCallback(() => {
+    const err = validateDeployInputs({ requireCapacity: false });
+    if (err) {
+      toast.error(err);
+      return;
+    }
+
+    const models = selectedDeploymentRows
+      .filter((row) => row.enabled !== false)
+      .map((row) => ({
+        deploymentName: row.deploymentName.trim(),
+        modelName: row.modelName.trim(),
+        version: row.version.trim(),
+        modelFormat: row.modelFormat.trim(),
+      }));
+
+    try {
+      const script = buildAzureCliDeploymentScript({
+        subscriptionId,
+        resourceName: deploymentResourceName,
+        foundryProjectEndpoint: region.foundryProjectEndpoint || '',
+        models,
+      });
+      onCopy(
+        script,
+        `${displayRegionName} - ${t('regions.azureCliDeployCode')}`
+      );
+      toast.success(t('regions.azureCliDeployCodeCopied'));
+    } catch (e: unknown) {
+      toast.error(
+        t('regions.deployFailed', {
+          msg: e instanceof Error ? e.message : String(e),
+        })
+      );
+    }
+  }, [
+    deploymentResourceName,
+    displayRegionName,
+    onCopy,
+    region.foundryProjectEndpoint,
+    selectedDeploymentRows,
+    subscriptionId,
+    toast,
+    t,
+    validateDeployInputs,
+  ]);
+
+  const handleAzureCliDeployCommand = useCallback(() => {
+    onCopy(
+      AZURE_CLI_DEPLOYMENT_COMMAND,
+      `${displayRegionName} - ${t('regions.azureCliDeployCommand')}`
+    );
+    toast.success(t('regions.azureCliDeployCommandCopied'));
+  }, [displayRegionName, onCopy, t, toast]);
 
   const applyDeploymentBulkSelection = useCallback(
     (action: DeploymentBulkCycleState) => {
@@ -1315,7 +1383,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               <button
                 type="button"
                 disabled={privacyMode || regionModels.length === 0}
-                onClick={handleDeploy}
+                onClick={handleArmDeploy}
                 className={clsx(
                   'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
                   privacyMode || regionModels.length === 0
@@ -1323,7 +1391,33 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                     : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
                 )}
               >
-                {t('regions.deployNow')}
+                {t('regions.armDeployCode')}
+              </button>
+              <button
+                type="button"
+                disabled={privacyMode || regionModels.length === 0}
+                onClick={handleAzureCliDeployCode}
+                className={clsx(
+                  'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
+                  privacyMode || regionModels.length === 0
+                    ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
+                    : 'border-emerald-500 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30'
+                )}
+              >
+                {t('regions.azureCliDeployCode')}
+              </button>
+              <button
+                type="button"
+                disabled={privacyMode}
+                onClick={handleAzureCliDeployCommand}
+                className={clsx(
+                  'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
+                  privacyMode
+                    ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
+                    : 'border-blue-500 bg-blue-900/20 text-blue-200 hover:bg-blue-900/30'
+                )}
+              >
+                {t('regions.azureCliDeployCommand')}
               </button>
             </div>
           </div>

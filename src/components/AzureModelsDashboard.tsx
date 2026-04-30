@@ -42,6 +42,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     accounts,
     addAccount,
     updateAccountName,
+    updateAccountSubscriptionId,
     updateAccountNote,
     updateAccountEnabled,
     updateAccountIncludeInStats,
@@ -486,6 +487,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onImportConfig={handleImportConfig}
         onRenumberAccounts={renumberAllAccounts}
         onUpdateAccountName={updateAccountName}
+        onUpdateAccountSubscriptionId={updateAccountSubscriptionId}
         onUpdateAccountNote={updateAccountNote}
         onUpdateAccountEnabled={updateAccountEnabled}
         onUpdateAccountIncludeInStats={updateAccountIncludeInStats}

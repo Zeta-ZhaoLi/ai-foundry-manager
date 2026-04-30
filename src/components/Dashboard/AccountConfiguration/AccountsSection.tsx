@@ -44,6 +44,10 @@ export interface AccountsSectionProps {
   onImportConfig?: (jsonString: string) => { success: boolean; error?: string };
   onRenumberAccounts?: () => void;
   onUpdateAccountName: (accountId: string, name: string) => void;
+  onUpdateAccountSubscriptionId: (
+    accountId: string,
+    subscriptionId: string
+  ) => void;
   onUpdateAccountNote: (accountId: string, note: string) => void;
   onUpdateAccountEnabled: (accountId: string, enabled: boolean) => void;
   onUpdateAccountIncludeInStats?: (
@@ -144,6 +148,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onImportConfig,
   onRenumberAccounts,
   onUpdateAccountName,
+  onUpdateAccountSubscriptionId,
   onUpdateAccountNote,
   onUpdateAccountEnabled,
   onUpdateAccountIncludeInStats,
@@ -392,6 +397,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     filteredModels={filteredModels}
                     onUpdateName={(name) =>
                       onUpdateAccountName(account.id, name)
+                    }
+                    onUpdateSubscriptionId={(subscriptionId) =>
+                      onUpdateAccountSubscriptionId(account.id, subscriptionId)
                     }
                     onUpdateNote={(note) =>
                       onUpdateAccountNote(account.id, note)

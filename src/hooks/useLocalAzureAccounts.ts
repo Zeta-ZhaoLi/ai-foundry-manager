@@ -75,6 +75,7 @@ export interface LocalAccount {
   id: string;
   accountId?: string; // 账号 ID 前缀 (A001, B001 等)
   name: string;
+  subscriptionId?: string; // Azure 订阅 ID，用于生成 Azure CLI 部署脚本
   note?: string;
   enabled: boolean; // 启用模型 - 模型层面统计（参与模型覆盖度计算）
   includeInStats?: boolean; // 参与统计 - 账号层面统计（参与账号总览合计）
@@ -321,6 +322,7 @@ export function useLocalAzureAccounts() {
         id: generateId('acct'),
         accountId,
         name: `${i18n.t('accounts.account')} ${prev.length + 1}`,
+        subscriptionId: '',
         note: '',
         enabled: true,
         includeInStats: true, // 默认参与统计
@@ -356,6 +358,17 @@ export function useLocalAzureAccounts() {
     (id: string, note: string) => {
       saveAccounts((prev) =>
         prev.map((acct) => (acct.id === id ? { ...acct, note } : acct))
+      );
+    },
+    [saveAccounts]
+  );
+
+  const updateAccountSubscriptionId = useCallback(
+    (id: string, subscriptionId: string) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, subscriptionId } : acct
+        )
       );
     },
     [saveAccounts]
@@ -900,6 +913,7 @@ export function useLocalAzureAccounts() {
     globalSeriesSummary,
     addAccount,
     updateAccountName,
+    updateAccountSubscriptionId,
     updateAccountNote,
     updateAccountEnabled,
     updateAccountIncludeInStats,

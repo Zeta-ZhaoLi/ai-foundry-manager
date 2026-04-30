@@ -84,7 +84,9 @@
     "usageRate": "使用率",
     "accountId": "账号 ID",
     "accountIdTooltip": "系统自动分配的账号标识，A 系列为高级账号，B 系列为普通账号",
-    "resourceName": "资源名称"
+    "resourceName": "资源名称",
+    "subscriptionId": "订阅 ID",
+    "subscriptionIdPlaceholder": "例如：37753a40-cbd3-4042-913b-3dd5d5a56f87"
   },
   "regions": {
     "regionList": "区域列表",
@@ -94,6 +96,12 @@
     "deployTitle": "模型部署",
     "deployNow": "复制部署代码",
     "deployCodeCopied": "部署代码已复制",
+    "armDeployCode": "ARM 部署代码",
+    "armDeployCodeCopied": "ARM 部署代码已复制",
+    "azureCliDeployCode": "Azure CLI 部署代码",
+    "azureCliDeployCommand": "Azure CLI 部署命令",
+    "azureCliDeployCodeCopied": "Azure CLI 部署代码已复制",
+    "azureCliDeployCommandCopied": "Azure CLI 部署命令已复制",
     "deployInclude": "选择",
     "deployModel": "模型",
     "deployDeploymentName": "部署名称",

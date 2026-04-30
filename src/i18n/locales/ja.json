@@ -84,7 +84,9 @@
     "usageRate": "使用率",
     "accountId": "アカウントID",
     "accountIdTooltip": "システム割当の識別子（A系=プレミアム、B系=スタンダード）",
-    "resourceName": "リソース名"
+    "resourceName": "リソース名",
+    "subscriptionId": "Subscription ID",
+    "subscriptionIdPlaceholder": "e.g. 37753a40-cbd3-4042-913b-3dd5d5a56f87"
   },
   "regions": {
     "regionList": "リージョン一覧",
@@ -94,6 +96,12 @@
     "deployTitle": "モデルデプロイ",
     "deployNow": "デプロイコードをコピー",
     "deployCodeCopied": "デプロイコードをコピーしました",
+    "armDeployCode": "ARM deployment code",
+    "armDeployCodeCopied": "ARM deployment code copied",
+    "azureCliDeployCode": "Azure CLI deployment code",
+    "azureCliDeployCommand": "Azure CLI deployment command",
+    "azureCliDeployCodeCopied": "Azure CLI deployment code copied",
+    "azureCliDeployCommandCopied": "Azure CLI deployment command copied",
     "deployInclude": "選択",
     "deployModel": "モデル",
     "deployDeploymentName": "デプロイ名",
