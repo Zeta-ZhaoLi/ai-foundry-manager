@@ -60,6 +60,7 @@ MODELS=(
   "gpt-5.1-chat-latest|OpenAI|gpt-5.1-chat|2025-11-13"
   "gpt-5.2-chat-latest|OpenAI|gpt-5.2-chat|2025-12-11"
   "gpt-5.3-chat-latest|OpenAI|gpt-5.3-chat|2026-03-03"
+  "gpt-chat-latest|OpenAI|gpt-chat-latest|2026-05-05"
 
   "gpt-5-2025-08-07|OpenAI|gpt-5|2025-08-07"
   "gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"
