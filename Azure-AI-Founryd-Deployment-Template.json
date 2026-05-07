@@ -190,6 +190,13 @@
         "capacity": 5000
       },
       {
+        "deploymentName": "gpt-chat-latest",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-chat-latest",
+        "version": "2026-05-05",
+        "capacity": 5000
+      },
+      {
         "deploymentName": "codex-mini-latest",
         "modelFormat": "OpenAI",
         "modelName": "codex-mini",
