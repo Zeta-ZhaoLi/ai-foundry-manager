@@ -74,6 +74,38 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('deploy_model_with_max_capacity');
   });
 
+  it('includes preflight, provider registration, and deployment summary logic', () => {
+    const script = buildAzureCliDeploymentScript(baseInput);
+
+    expect(script).toContain('set -uo pipefail');
+    expect(script).toContain('AUTO_REGISTER_PROVIDER="${AUTO_REGISTER_PROVIDER:-true}"');
+    expect(script).toContain('ensure_provider_registered || true');
+    expect(script).toContain('command -v jq');
+    expect(script).toContain('SUCCEEDED_DEPLOYMENTS=()');
+    expect(script).toContain('SKIPPED_DEPLOYMENTS=()');
+    expect(script).toContain('FAILED_DEPLOYMENTS=()');
+    expect(script).toContain('Deployment summary');
+  });
+
+  it('continues after per-model failures and classifies return codes', () => {
+    const script = buildAzureCliDeploymentScript(baseInput);
+
+    expect(script).toContain('return 2');
+    expect(script).toContain('SKIPPED: ${deployment_name}');
+    expect(script).toContain('FAILED: ${deployment_name}');
+    expect(script).toContain('Continue to next deployment...');
+    expect(script).toContain('if ! az rest \\');
+  });
+
+  it('uses the resilient model capacity JSON shape from the template', () => {
+    const script = buildAzureCliDeploymentScript(baseInput);
+
+    expect(script).toContain('.location // .properties.location // ""');
+    expect(script).toContain('.properties.skuName // .sku.name // .name // ""');
+    expect(script).toContain('.properties.availableCapacity // .availableCapacity // 0');
+    expect(script).toContain('map(tonumber? // 0)');
+  });
+
   it('returns clear validation errors for missing required fields', () => {
     const result = validateAzureCliDeploymentInput({
       ...baseInput,
