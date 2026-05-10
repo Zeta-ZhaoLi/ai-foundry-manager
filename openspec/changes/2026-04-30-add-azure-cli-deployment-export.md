@@ -5,7 +5,7 @@ Add Azure CLI deployment export actions to each region's model deployment sectio
 
 The script also prints a copyable comma-separated import list after the final deployment table. The list includes both each succeeded deployment's model name and deployment name, matching the model-list import format.
 
-Region-level Azure CLI export now copies a script for every model in the master model directory, because the runtime script can skip unavailable models automatically. Account-level region headers also provide a single Azure CLI export that deploys all regions for that account, using the first region's inferred resource group for every later region.
+Region-level and all-region Azure CLI export offer selected-model and all-model options. The all-model option copies a script for every model in the master model directory, because the runtime script can skip unavailable models automatically. Account-level region headers also provide a single Azure CLI export that deploys all regions for that account, using the first region's inferred resource group for every later region.
 
 ## Motivation
 The current ARM template export requires static capacity values. Azure CLI can query `modelCapacities` at execution time, allowing deployments to use the actual maximum available quota per model and region.
@@ -21,8 +21,8 @@ The current ARM template export requires static capacity values. Azure CLI can q
 ## Implementation Plan
 1. Store `subscriptionId` on each account and expose `updateAccountSubscriptionId`.
 2. Add a Subscription ID input to account cards.
-3. Generate region CLI scripts from the full master model directory so unavailable models can be skipped by the script at runtime.
-4. Generate account-level multi-region CLI scripts using the first region's inferred resource group for all regions.
+3. Generate region CLI scripts either from selected deployment rows or from the full master model directory so unavailable models can be skipped by the script at runtime.
+4. Generate account-level multi-region CLI scripts for selected or all models, using the first region's inferred resource group for all regions.
 5. Copy a fixed three-line command for running the generated script.
 6. Print the final Azure deployment table and a copyable import list with succeeded model/deployment names.
 7. Keep existing ARM JSON export, relabeled as ARM deployment code.

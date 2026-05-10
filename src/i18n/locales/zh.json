@@ -99,6 +99,8 @@
     "armDeployCode": "ARM 部署代码",
     "armDeployCodeCopied": "ARM 部署代码已复制",
     "azureCliDeployCode": "Azure CLI 部署代码",
+    "azureCliDeploySelected": "选中",
+    "azureCliDeployAll": "全部",
     "azureCliDeployAllRegionsCode": "Azure CLI 部署所有区域",
     "azureCliDeployCommand": "Azure CLI 部署命令",
     "azureCliDeployCodeCopied": "Azure CLI 部署代码已复制",

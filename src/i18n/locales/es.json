@@ -156,7 +156,9 @@
     "deployMissingSubscriptionId": "Please fill Subscription ID first",
     "deployMissingFirstRegionResourceGroup": "Please fill the first region AOAI resource name to derive the resource group",
     "deployNoMasterModels": "Please configure models in the model directory first",
-    "deployNoDeployableRegions": "No deployable regions. Please fill AOAI resource name for at least one region"
+    "deployNoDeployableRegions": "No deployable regions. Please fill AOAI resource name for at least one region",
+    "azureCliDeploySelected": "Selected",
+    "azureCliDeployAll": "All"
   },
   "models": {
     "title": "Resumen de modelos",

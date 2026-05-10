@@ -74,7 +74,7 @@ describe('deployment configuration contract', () => {
     expect(queryByText('Azure Deployment Config')).toBeNull();
   });
 
-  it('copies Azure CLI deployment code for all regions from the account region header', () => {
+  it('copies Azure CLI deployment code for all models in all regions from the account region header', () => {
     const account: LocalAccount = {
       id: 'acct-1',
       name: 'Account 1',
@@ -125,7 +125,7 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*所有区域|Deploy all regions with Azure CLI/i,
+        name: /Azure CLI.*所有区域.*全部|Deploy all regions with Azure CLI.*All/i,
       })
     );
 
@@ -137,6 +137,75 @@ describe('deployment configuration contract', () => {
     expect(copied).toContain('ACCOUNT_NAME="first-resource"');
     expect(copied).toContain('ACCOUNT_NAME="second-resource"');
     expect(copied.match(/gpt-5.1-2025-11-13\\|OpenAI\\|gpt-5.1\\|2025-11-13/g)).toHaveLength(2);
+  });
+
+  it('copies Azure CLI deployment code for selected models in all regions', () => {
+    const account: LocalAccount = {
+      id: 'acct-1',
+      name: 'Account 1',
+      note: '',
+      enabled: true,
+      subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
+      regions: [
+        {
+          id: 'reg-1',
+          name: 'eastus2',
+          modelsText: 'gpt-5,gpt-5.1-2025-11-13',
+          deployment: {
+            resourceName: 'first-resource',
+            models: { 'gpt-5': { enabled: false } },
+          },
+        },
+        {
+          id: 'reg-2',
+          name: 'swedencentral',
+          modelsText: 'gpt-5',
+          deployment: { resourceName: 'second-resource' },
+        },
+      ],
+    };
+    const onCopy = vi.fn();
+
+    const { getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountCard
+          account={account}
+          masterGroups={[['gpt-5', 'gpt-5.1-2025-11-13']]}
+          masterGroupLines={[[['gpt-5', 'gpt-5.1-2025-11-13']]]}
+          masterModels={['gpt-5', 'gpt-5.1-2025-11-13']}
+          filteredModels={['gpt-5', 'gpt-5.1-2025-11-13']}
+          onUpdateName={vi.fn()}
+          onUpdateNote={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={onCopy}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', {
+        name: /Azure CLI.*所有区域.*选中|Deploy all regions with Azure CLI.*Selected/i,
+      })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    const copied = onCopy.mock.calls[0][0] as string;
+    expect(copied).toContain('# eastus2');
+    expect(copied).toContain('# swedencentral');
+    expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(2);
+    expect(copied).toContain('ACCOUNT_NAME="first-resource"');
+    expect(copied).toContain('ACCOUNT_NAME="second-resource"');
+    expect(copied.match(/gpt-5.1-2025-11-13\\|OpenAI\\|gpt-5.1\\|2025-11-13/g)).toHaveLength(1);
+    expect(copied.match(/gpt-5-2025-08-07\\|OpenAI\\|gpt-5\\|2025-08-07/g)).toHaveLength(1);
   });
 
   it('shows region Resource Name after API Key and supports manual editing', () => {
@@ -607,13 +676,69 @@ describe('deployment configuration contract', () => {
     );
 
     fireEvent.click(
-      getByRole('button', { name: /Azure CLI.*部署代码|Azure CLI deployment code/i })
+      getByRole('button', {
+        name: /Azure CLI.*部署代码.*全部|Azure CLI deployment code.*All/i,
+      })
     );
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
     expect(copied).toContain('RESOURCE_GROUP="rg-first-region"');
     expect(copied).toContain('"gpt-5-2025-08-07|OpenAI|gpt-5|2025-08-07"');
+    expect(copied).toContain(
+      '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
+    );
+  });
+
+  it('copies Azure CLI code for selected deployment rows in a region', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: 'gpt-5,gpt-5.1-2025-11-13',
+      deployment: {
+        resourceName: 'my-account-resource',
+        models: {
+          'gpt-5': { enabled: false },
+        },
+      },
+    };
+
+    const onCopy = vi.fn();
+    const { getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          subscriptionId="37753a40-cbd3-4042-913b-3dd5d5a56f87"
+          azureCliResourceGroupName="rg-first-region"
+          masterModels={['gpt-5', 'gpt-5.1-2025-11-13']}
+          masterGroups={[['gpt-5', 'gpt-5.1-2025-11-13']]}
+          masterGroupLines={[[['gpt-5', 'gpt-5.1-2025-11-13']]]}
+          filteredModels={['gpt-5', 'gpt-5.1-2025-11-13']}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', {
+        name: /Azure CLI.*部署代码.*选中|Azure CLI deployment code.*Selected/i,
+      })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    const copied = onCopy.mock.calls[0][0] as string;
+    expect(copied).not.toContain('"gpt-5-2025-08-07|OpenAI|gpt-5|2025-08-07"');
     expect(copied).toContain(
       '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
     );

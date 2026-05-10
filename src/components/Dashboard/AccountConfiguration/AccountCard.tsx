@@ -27,6 +27,7 @@ import {
 } from '../../../hooks/useLocalAzureAccounts';
 import type { LocalAccount as ImportedLocalAccount } from '../../../hooks/useLocalAzureAccounts';
 import { useToast } from '../../../hooks/useToast';
+import { orderModelsByMaster, parseModels } from '../../../utils/common';
 import {
   buildAzureCliMultiRegionDeploymentScript,
   getAzureCliDeploymentIdentity,
@@ -191,7 +192,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     return identity?.resourceGroup || '';
   }, [account.regions, account.subscriptionId]);
 
-  const handleAllRegionsAzureCliDeployCode = () => {
+  const handleAllRegionsAzureCliDeployCode = (mode: 'selected' | 'all') => {
     if (!account.subscriptionId?.trim()) {
       toast.error(t('regions.deployMissingSubscriptionId'));
       return;
@@ -209,6 +210,10 @@ export const AccountCard: React.FC<AccountCardProps> = ({
       .filter((region) => region.enabled !== false)
       .map((region, regionIndex) => {
         const resourceName = region.deployment?.resourceName?.trim() || '';
+        const sourceModels =
+          mode === 'selected'
+            ? orderModelsByMaster(parseModels(region.modelsText), masterModels)
+            : masterModels;
         return {
           resourceName,
           resourceGroupName: firstRegionResourceGroupName,
@@ -218,16 +223,20 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             `${t('regions.region')} ${regionIndex + 1}`,
           models: toAzureCliDeploymentModels(
             resolveAzureCliDeploymentRows(
-              masterModels,
+              sourceModels,
               region.deployment?.models || {}
             )
           ),
         };
       })
-      .filter((target) => target.resourceName);
+      .filter((target) => target.resourceName && target.models.length > 0);
 
     if (targets.length === 0) {
-      toast.error(t('regions.deployNoDeployableRegions'));
+      toast.error(
+        mode === 'selected'
+          ? t('regions.deployNoEnabledModels')
+          : t('regions.deployNoDeployableRegions')
+      );
       return;
     }
 
@@ -237,7 +246,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         resourceGroupName: firstRegionResourceGroupName,
         targets,
       });
-      onCopy(script, `${displayName} - ${t('regions.azureCliDeployAllRegionsCode')}`);
+      onCopy(
+        script,
+        `${displayName} - ${t('regions.azureCliDeployAllRegionsCode')} ${
+          mode === 'selected'
+            ? t('regions.azureCliDeploySelected')
+            : t('regions.azureCliDeployAll')
+        }`
+      );
       toast.success(t('regions.azureCliDeployAllRegionsCodeCopied'));
     } catch (e: unknown) {
       toast.error(
@@ -675,20 +691,54 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           <div className="flex items-center justify-between mb-1">
             <div className="text-sm font-medium">{t('regions.regionList')}</div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={privacyMode || account.regions.length === 0}
-                onClick={handleAllRegionsAzureCliDeployCode}
+              <div
                 className={clsx(
-                  'px-2.5 py-0.5 rounded-full',
-                  'border text-xs cursor-pointer transition-colors',
+                  'inline-flex items-center rounded-full border text-xs overflow-hidden',
                   privacyMode || account.regions.length === 0
-                    ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                    : 'border-emerald-500 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30'
+                    ? 'border-gray-700 bg-gray-900/40 text-gray-500'
+                    : 'border-emerald-500 bg-emerald-900/20 text-emerald-200'
                 )}
               >
-                {t('regions.azureCliDeployAllRegionsCode')}
-              </button>
+                <span className="px-2 py-0.5 border-r border-current/30">
+                  {t('regions.azureCliDeployAllRegionsCode')} (
+                </span>
+                <button
+                  type="button"
+                  disabled={privacyMode || account.regions.length === 0}
+                  aria-label={`${t('regions.azureCliDeployAllRegionsCode')} ${t(
+                    'regions.azureCliDeploySelected'
+                  )}`}
+                  onClick={() => handleAllRegionsAzureCliDeployCode('selected')}
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || account.regions.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  {t('regions.azureCliDeploySelected')}
+                </button>
+                <span className="text-current/60">|</span>
+                <button
+                  type="button"
+                  disabled={privacyMode || account.regions.length === 0}
+                  aria-label={`${t('regions.azureCliDeployAllRegionsCode')} ${t(
+                    'regions.azureCliDeployAll'
+                  )}`}
+                  onClick={() => handleAllRegionsAzureCliDeployCode('all')}
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || account.regions.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  {t('regions.azureCliDeployAll')}
+                </button>
+                <span className="px-2 py-0.5 border-l border-current/30">
+                  )
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={onAddRegion}

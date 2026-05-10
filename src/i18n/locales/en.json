@@ -99,6 +99,8 @@
     "armDeployCode": "ARM deployment code",
     "armDeployCodeCopied": "ARM deployment code copied",
     "azureCliDeployCode": "Azure CLI deployment code",
+    "azureCliDeploySelected": "Selected",
+    "azureCliDeployAll": "All",
     "azureCliDeployAllRegionsCode": "Deploy all regions with Azure CLI",
     "azureCliDeployCommand": "Azure CLI deployment command",
     "azureCliDeployCodeCopied": "Azure CLI deployment code copied",

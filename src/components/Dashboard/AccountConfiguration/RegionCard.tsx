@@ -539,7 +539,12 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     validateDeployInputs,
   ]);
 
-  const handleAzureCliDeployCode = useCallback(() => {
+  const selectedAzureCliModels = useMemo(
+    () => toAzureCliDeploymentModels(selectedDeploymentRows),
+    [selectedDeploymentRows]
+  );
+
+  const handleAzureCliDeployCode = useCallback((mode: 'selected' | 'all') => {
     if (!subscriptionId.trim()) {
       toast.error(t('regions.deployMissingSubscriptionId'));
       return;
@@ -549,7 +554,15 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       toast.error(t('regions.deployMissingResourceName'));
       return;
     }
-    if (allMasterAzureCliModels.length === 0) {
+
+    const models =
+      mode === 'selected' ? selectedAzureCliModels : allMasterAzureCliModels;
+
+    if (mode === 'selected' && models.length === 0) {
+      toast.error(t('regions.deployNoEnabledModels'));
+      return;
+    }
+    if (mode === 'all' && models.length === 0) {
       toast.error(t('regions.deployNoMasterModels'));
       return;
     }
@@ -560,11 +573,15 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         resourceName,
         resourceGroupName: azureCliResourceGroupName,
         foundryProjectEndpoint: region.foundryProjectEndpoint || '',
-        models: allMasterAzureCliModels,
+        models,
       });
       onCopy(
         script,
-        `${displayRegionName} - ${t('regions.azureCliDeployCode')}`
+        `${displayRegionName} - ${t('regions.azureCliDeployCode')} ${
+          mode === 'selected'
+            ? t('regions.azureCliDeploySelected')
+            : t('regions.azureCliDeployAll')
+        }`
       );
       toast.success(t('regions.azureCliDeployCodeCopied'));
     } catch (e: unknown) {
@@ -581,6 +598,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     displayRegionName,
     onCopy,
     region.foundryProjectEndpoint,
+    selectedAzureCliModels,
     subscriptionId,
     toast,
     t,
@@ -1363,19 +1381,54 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               >
                 {t('regions.armDeployCode')}
               </button>
-              <button
-                type="button"
-                disabled={privacyMode || allMasterAzureCliModels.length === 0}
-                onClick={handleAzureCliDeployCode}
+              <div
                 className={clsx(
-                  'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
-                  privacyMode || allMasterAzureCliModels.length === 0
-                    ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                    : 'border-emerald-500 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30'
+                  'inline-flex items-center rounded-full border text-xs overflow-hidden',
+                  privacyMode
+                    ? 'border-gray-700 bg-gray-900/40 text-gray-500'
+                    : 'border-emerald-500 bg-emerald-900/20 text-emerald-200'
                 )}
               >
-                {t('regions.azureCliDeployCode')}
-              </button>
+                <span className="px-2 py-0.5 border-r border-current/30">
+                  {t('regions.azureCliDeployCode')} (
+                </span>
+                <button
+                  type="button"
+                  disabled={privacyMode || selectedAzureCliModels.length === 0}
+                  aria-label={`${t('regions.azureCliDeployCode')} ${t(
+                    'regions.azureCliDeploySelected'
+                  )}`}
+                  onClick={() => handleAzureCliDeployCode('selected')}
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || selectedAzureCliModels.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  {t('regions.azureCliDeploySelected')}
+                </button>
+                <span className="text-current/60">|</span>
+                <button
+                  type="button"
+                  disabled={privacyMode || allMasterAzureCliModels.length === 0}
+                  aria-label={`${t('regions.azureCliDeployCode')} ${t(
+                    'regions.azureCliDeployAll'
+                  )}`}
+                  onClick={() => handleAzureCliDeployCode('all')}
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || allMasterAzureCliModels.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  {t('regions.azureCliDeployAll')}
+                </button>
+                <span className="px-2 py-0.5 border-l border-current/30">
+                  )
+                </span>
+              </div>
               <button
                 type="button"
                 disabled={privacyMode}
