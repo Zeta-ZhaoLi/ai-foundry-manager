@@ -29,14 +29,14 @@ import type {
 } from '../../../hooks/useLocalAzureAccounts';
 
 import {
-  getFallbackModelDeploymentDefaults,
   getTemplateModelDeploymentByDeploymentNameMap,
-  getTemplateModelDeploymentEntriesByModelNameMap,
   stringifyAzureOpenAiMainTemplate,
 } from '../../../utils/armTemplate';
 import {
   AZURE_CLI_DEPLOYMENT_COMMAND,
   buildAzureCliDeploymentScript,
+  resolveAzureCliDeploymentRows,
+  toAzureCliDeploymentModels,
 } from '../../../utils/azureCliDeployment';
 
 export type LocalRegion = ImportedLocalRegion;
@@ -48,6 +48,7 @@ export interface RegionCardProps {
   accountId: string;
   accountName: string;
   subscriptionId?: string;
+  azureCliResourceGroupName?: string;
   masterModels: string[];
   masterGroups: string[][];
   masterGroupLines: string[][][];
@@ -140,6 +141,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   privacyMode = false,
   accountName,
   subscriptionId = '',
+  azureCliResourceGroupName,
   masterModels,
   masterGroups,
   masterGroupLines,
@@ -382,58 +384,26 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     toast,
   ]);
 
-  const templateDefaultsByModelNameMap = useMemo(
-    () => getTemplateModelDeploymentEntriesByModelNameMap(),
-    []
-  );
   const templateByDeploymentNameMap = useMemo(
     () => getTemplateModelDeploymentByDeploymentNameMap(),
     []
   );
 
   const selectedDeploymentRows = useMemo(() => {
-    const modelMap = region.deployment?.models || {};
-    const redirectedModelNames = new Set<string>();
-    for (const selectedModel of regionModels) {
-      const match = templateByDeploymentNameMap.get(selectedModel);
-      if (match) redirectedModelNames.add(match.modelName);
-    }
+    return resolveAzureCliDeploymentRows(
+      regionModels,
+      region.deployment?.models || {}
+    );
+  }, [region.deployment?.models, regionModels]);
 
-    return regionModels.map((modelName) => {
-      const cfg = modelMap[modelName] || {};
-      const deploymentMatch = templateByDeploymentNameMap.get(modelName);
-      const resolvedModelName = deploymentMatch?.modelName || modelName;
-      const fallback = getFallbackModelDeploymentDefaults(resolvedModelName);
-      const templateDefaults =
-        deploymentMatch ||
-        templateDefaultsByModelNameMap.get(resolvedModelName)?.[0];
-      const defaultEnabled = deploymentMatch
-        ? true
-        : !redirectedModelNames.has(resolvedModelName);
-
-      return {
-        sourceModel: modelName,
-        modelName: resolvedModelName,
-        enabled: cfg.enabled ?? defaultEnabled,
-        deploymentName:
-          cfg.deploymentName ??
-          templateDefaults?.deploymentName ??
-          fallback.deploymentName,
-        version: cfg.version ?? templateDefaults?.version ?? fallback.version,
-        modelFormat:
-          cfg.modelFormat ??
-          templateDefaults?.modelFormat ??
-          fallback.modelFormat,
-        capacity:
-          cfg.capacity ?? templateDefaults?.capacity ?? fallback.capacity,
-      };
-    });
-  }, [
-    region.deployment?.models,
-    regionModels,
-    templateByDeploymentNameMap,
-    templateDefaultsByModelNameMap,
-  ]);
+  const allMasterDeploymentRows = useMemo(
+    () => resolveAzureCliDeploymentRows(masterModels),
+    [masterModels]
+  );
+  const allMasterAzureCliModels = useMemo(
+    () => toAzureCliDeploymentModels(allMasterDeploymentRows),
+    [allMasterDeploymentRows]
+  );
 
   const validateDeployInputs = useCallback((options?: {
     requireCapacity?: boolean;
@@ -570,27 +540,27 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   ]);
 
   const handleAzureCliDeployCode = useCallback(() => {
-    const err = validateDeployInputs({ requireCapacity: false });
-    if (err) {
-      toast.error(err);
+    if (!subscriptionId.trim()) {
+      toast.error(t('regions.deployMissingSubscriptionId'));
       return;
     }
-
-    const models = selectedDeploymentRows
-      .filter((row) => row.enabled !== false)
-      .map((row) => ({
-        deploymentName: row.deploymentName.trim(),
-        modelName: row.modelName.trim(),
-        version: row.version.trim(),
-        modelFormat: row.modelFormat.trim(),
-      }));
+    const resourceName = deploymentResourceName.trim();
+    if (!resourceName) {
+      toast.error(t('regions.deployMissingResourceName'));
+      return;
+    }
+    if (allMasterAzureCliModels.length === 0) {
+      toast.error(t('regions.deployNoMasterModels'));
+      return;
+    }
 
     try {
       const script = buildAzureCliDeploymentScript({
         subscriptionId,
-        resourceName: deploymentResourceName,
+        resourceName,
+        resourceGroupName: azureCliResourceGroupName,
         foundryProjectEndpoint: region.foundryProjectEndpoint || '',
-        models,
+        models: allMasterAzureCliModels,
       });
       onCopy(
         script,
@@ -605,15 +575,15 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       );
     }
   }, [
+    allMasterAzureCliModels,
+    azureCliResourceGroupName,
     deploymentResourceName,
     displayRegionName,
     onCopy,
     region.foundryProjectEndpoint,
-    selectedDeploymentRows,
     subscriptionId,
     toast,
     t,
-    validateDeployInputs,
   ]);
 
   const handleAzureCliDeployCommand = useCallback(() => {
@@ -1395,11 +1365,11 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               </button>
               <button
                 type="button"
-                disabled={privacyMode || regionModels.length === 0}
+                disabled={privacyMode || allMasterAzureCliModels.length === 0}
                 onClick={handleAzureCliDeployCode}
                 className={clsx(
                   'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
-                  privacyMode || regionModels.length === 0
+                  privacyMode || allMasterAzureCliModels.length === 0
                     ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
                     : 'border-emerald-500 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30'
                 )}

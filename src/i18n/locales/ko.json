@@ -150,7 +150,13 @@
     "copyGroupModels": "그룹 모델 복사",
     "disabled": "비활성",
     "customRegion": "사용자 지정",
-    "usePreset": "프리셋 리전 사용"
+    "usePreset": "프리셋 리전 사용",
+    "azureCliDeployAllRegionsCode": "Deploy all regions with Azure CLI",
+    "azureCliDeployAllRegionsCodeCopied": "Azure CLI deployment code for all regions copied",
+    "deployMissingSubscriptionId": "Please fill Subscription ID first",
+    "deployMissingFirstRegionResourceGroup": "Please fill the first region AOAI resource name to derive the resource group",
+    "deployNoMasterModels": "Please configure models in the model directory first",
+    "deployNoDeployableRegions": "No deployable regions. Please fill AOAI resource name for at least one region"
   },
   "models": {
     "title": "모델 개요",

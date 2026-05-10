@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 
 import {
   AZURE_CLI_DEPLOYMENT_COMMAND,
+  buildAzureCliMultiRegionDeploymentScript,
   buildAzureCliDeploymentScript,
   getAzureCliDeploymentIdentity,
+  resolveAzureCliDeploymentRows,
+  toAzureCliDeploymentModels,
   validateAzureCliDeploymentInput,
 } from '../azureCliDeployment';
 
@@ -52,6 +55,32 @@ describe('azureCliDeployment', () => {
     });
   });
 
+  it('allows resource group override for resources created under the first region group', () => {
+    expect(
+      getAzureCliDeploymentIdentity({
+        ...baseInput,
+        resourceGroupName: 'rg-first-region',
+      })
+    ).toEqual({
+      subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
+      resourceGroup: 'rg-first-region',
+      accountName: 'arthurphillips-6272-resource',
+      projectId: 'arthurphillips-6272',
+    });
+  });
+
+  it('resolves deployment rows from master models and includes disabled rows when requested', () => {
+    const rows = resolveAzureCliDeploymentRows(['gpt-5.1-2025-11-13']);
+    const models = toAzureCliDeploymentModels(rows, { includeDisabled: true });
+
+    expect(models[0]).toEqual({
+      deploymentName: 'gpt-5.1-2025-11-13',
+      modelName: 'gpt-5.1',
+      version: '2025-11-13',
+      modelFormat: 'OpenAI',
+    });
+  });
+
   it('generates only selected models in the MODELS block', () => {
     const script = buildAzureCliDeploymentScript({
       ...baseInput,
@@ -62,6 +91,31 @@ describe('azureCliDeployment', () => {
       '"gpt-4o-2024-11-20|OpenAI|gpt-4o|2024-11-20"'
     );
     expect(script).not.toContain('gpt-4o-mini-2024-07-18');
+  });
+
+  it('builds a multi-region script using the shared first-region resource group', () => {
+    const script = buildAzureCliMultiRegionDeploymentScript({
+      subscriptionId: baseInput.subscriptionId,
+      resourceGroupName: 'rg-first-region',
+      targets: [
+        {
+          label: 'eastus2',
+          resourceName: 'first-resource',
+          models: [baseInput.models[0]],
+        },
+        {
+          label: 'swedencentral',
+          resourceName: 'second-resource',
+          models: [baseInput.models[1]],
+        },
+      ],
+    });
+
+    expect(script).toContain('# eastus2');
+    expect(script).toContain('# swedencentral');
+    expect(script.match(/RESOURCE_GROUP="rg-first-region"/g)).toHaveLength(2);
+    expect(script).toContain('ACCOUNT_NAME="first-resource"');
+    expect(script).toContain('ACCOUNT_NAME="second-resource"');
   });
 
   it('includes modelCapacities and max capacity logic', () => {
@@ -95,6 +149,18 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('FAILED: ${deployment_name}');
     expect(script).toContain('Continue to next deployment...');
     expect(script).toContain('if ! az rest \\');
+  });
+
+  it('prints a copyable import list with succeeded model and deployment names', () => {
+    const script = buildAzureCliDeploymentScript(baseInput);
+
+    expect(script).toContain('print_copyable_model_import_list');
+    expect(script).toContain('Copyable model import list');
+    expect(script).toContain('Copy this comma-separated list into the model list import field:');
+    expect(script).toContain('properties.provisioningState');
+    expect(script).toContain('| [(.properties.model.name // ""), (.name // "")]');
+    expect(script).toContain('reduce .[] as $name ([]; if index($name) then . else . + [$name] end)');
+    expect(script).toContain('join(", ")');
   });
 
   it('uses the resilient model capacity JSON shape from the template', () => {

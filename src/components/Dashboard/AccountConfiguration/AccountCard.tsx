@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import {
@@ -26,6 +26,13 @@ import {
   RegionDeploymentModelConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 import type { LocalAccount as ImportedLocalAccount } from '../../../hooks/useLocalAzureAccounts';
+import { useToast } from '../../../hooks/useToast';
+import {
+  buildAzureCliMultiRegionDeploymentScript,
+  getAzureCliDeploymentIdentity,
+  resolveAzureCliDeploymentRows,
+  toAzureCliDeploymentModels,
+} from '../../../utils/azureCliDeployment';
 
 // 使用从 hook 导入的类型
 export type LocalAccount = ImportedLocalAccount;
@@ -128,6 +135,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onCopy,
 }) => {
   const { t } = useTranslation();
+  const toast = useToast();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(account.enabled);
 
@@ -159,6 +167,86 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     : account.name || t('accounts.account') + ` ${index + 1}`;
 
   const displayNote = privacyMode ? '***' : account.note;
+
+  const firstRegionResourceGroupName = useMemo(() => {
+    const firstRegion = account.regions.find((region) =>
+      (region.deployment?.resourceName || '').trim()
+    );
+    if (!firstRegion) return '';
+
+    const identity = getAzureCliDeploymentIdentity({
+      subscriptionId: account.subscriptionId || '00000000-0000-0000-0000-000000000000',
+      resourceName: firstRegion.deployment?.resourceName || '',
+      foundryProjectEndpoint: firstRegion.foundryProjectEndpoint || '',
+      models: [
+        {
+          deploymentName: 'placeholder',
+          modelName: 'placeholder',
+          modelFormat: 'OpenAI',
+          version: '1',
+        },
+      ],
+    });
+
+    return identity?.resourceGroup || '';
+  }, [account.regions, account.subscriptionId]);
+
+  const handleAllRegionsAzureCliDeployCode = () => {
+    if (!account.subscriptionId?.trim()) {
+      toast.error(t('regions.deployMissingSubscriptionId'));
+      return;
+    }
+    if (!firstRegionResourceGroupName) {
+      toast.error(t('regions.deployMissingFirstRegionResourceGroup'));
+      return;
+    }
+    if (masterModels.length === 0) {
+      toast.error(t('regions.deployNoMasterModels'));
+      return;
+    }
+
+    const targets = account.regions
+      .filter((region) => region.enabled !== false)
+      .map((region, regionIndex) => {
+        const resourceName = region.deployment?.resourceName?.trim() || '';
+        return {
+          resourceName,
+          resourceGroupName: firstRegionResourceGroupName,
+          foundryProjectEndpoint: region.foundryProjectEndpoint || '',
+          label:
+            region.name ||
+            `${t('regions.region')} ${regionIndex + 1}`,
+          models: toAzureCliDeploymentModels(
+            resolveAzureCliDeploymentRows(
+              masterModels,
+              region.deployment?.models || {}
+            )
+          ),
+        };
+      })
+      .filter((target) => target.resourceName);
+
+    if (targets.length === 0) {
+      toast.error(t('regions.deployNoDeployableRegions'));
+      return;
+    }
+
+    try {
+      const script = buildAzureCliMultiRegionDeploymentScript({
+        subscriptionId: account.subscriptionId,
+        resourceGroupName: firstRegionResourceGroupName,
+        targets,
+      });
+      onCopy(script, `${displayName} - ${t('regions.azureCliDeployAllRegionsCode')}`);
+      toast.success(t('regions.azureCliDeployAllRegionsCodeCopied'));
+    } catch (e: unknown) {
+      toast.error(
+        t('regions.deployFailed', {
+          msg: e instanceof Error ? e.message : String(e),
+        })
+      );
+    }
+  };
 
   // 未启用账号收起时的简化视图
   if (!account.enabled && !isExpanded) {
@@ -586,17 +674,33 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         <div className="mb-1.5">
           <div className="flex items-center justify-between mb-1">
             <div className="text-sm font-medium">{t('regions.regionList')}</div>
-            <button
-              type="button"
-              onClick={onAddRegion}
-              className={clsx(
-                'px-2.5 py-0.5 rounded-full',
-                'border border-cyan-500 bg-slate-900 text-cyan-200',
-                'text-xs cursor-pointer hover:bg-slate-800'
-              )}
-            >
-              + {t('regions.addRegion')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={privacyMode || account.regions.length === 0}
+                onClick={handleAllRegionsAzureCliDeployCode}
+                className={clsx(
+                  'px-2.5 py-0.5 rounded-full',
+                  'border text-xs cursor-pointer transition-colors',
+                  privacyMode || account.regions.length === 0
+                    ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
+                    : 'border-emerald-500 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/30'
+                )}
+              >
+                {t('regions.azureCliDeployAllRegionsCode')}
+              </button>
+              <button
+                type="button"
+                onClick={onAddRegion}
+                className={clsx(
+                  'px-2.5 py-0.5 rounded-full',
+                  'border border-cyan-500 bg-slate-900 text-cyan-200',
+                  'text-xs cursor-pointer hover:bg-slate-800'
+                )}
+              >
+                + {t('regions.addRegion')}
+              </button>
+            </div>
           </div>
 
           {account.regions.length === 0 ? (
@@ -623,6 +727,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       accountId={account.id}
                       accountName={displayName}
                       subscriptionId={account.subscriptionId || ''}
+                      azureCliResourceGroupName={firstRegionResourceGroupName}
                       masterGroups={masterGroups}
                       masterGroupLines={masterGroupLines}
                       masterModels={masterModels}

@@ -293,6 +293,41 @@ print_capacity_debug() {
     -o table 2>/dev/null || true
 }
 
+print_copyable_model_import_list() {
+  local model_list
+
+  echo
+  echo "============================================================"
+  echo "Copyable model import list"
+  echo "============================================================"
+  echo "Copy this comma-separated list into the model list import field:"
+
+  if ! model_list="$(az rest \
+    --method get \
+    --url "${BASE_URL}?api-version=${DEPLOYMENT_API_VERSION}" \
+    -o json 2>/dev/null | jq -r '
+      [
+        .value[]?
+        | select(((.properties.provisioningState // "") | ascii_downcase) == "succeeded")
+        | [(.properties.model.name // ""), (.name // "")]
+        | .[]
+        | select(. != "")
+      ]
+      | reduce .[] as $name ([]; if index($name) then . else . + [$name] end)
+      | join(", ")
+    ')"; then
+    echo "WARNING: Could not generate copyable model import list."
+    return 0
+  fi
+
+  if [ -z "${model_list}" ]; then
+    echo "No succeeded deployments found."
+    return 0
+  fi
+
+  echo "${model_list}"
+}
+
 make_payload() {
   local deployment_name="$1"
   local model_format="$2"
@@ -534,3 +569,5 @@ az rest \
     raiPolicy:properties.raiPolicyName
   }" \
   -o table 2>/dev/null || true
+
+print_copyable_model_import_list

@@ -150,7 +150,13 @@
     "copyGroupModels": "Copiar modelos do grupo",
     "disabled": "Desativado",
     "customRegion": "Personalizada",
-    "usePreset": "Usar regiao predefinida"
+    "usePreset": "Usar regiao predefinida",
+    "azureCliDeployAllRegionsCode": "Deploy all regions with Azure CLI",
+    "azureCliDeployAllRegionsCodeCopied": "Azure CLI deployment code for all regions copied",
+    "deployMissingSubscriptionId": "Please fill Subscription ID first",
+    "deployMissingFirstRegionResourceGroup": "Please fill the first region AOAI resource name to derive the resource group",
+    "deployNoMasterModels": "Please configure models in the model directory first",
+    "deployNoDeployableRegions": "No deployable regions. Please fill AOAI resource name for at least one region"
   },
   "models": {
     "title": "Visao de modelos",

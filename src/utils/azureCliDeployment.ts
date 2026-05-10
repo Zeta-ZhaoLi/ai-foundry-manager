@@ -1,4 +1,9 @@
 import { getDefaultProjectIdFromResourceName } from './common';
+import {
+  getFallbackModelDeploymentDefaults,
+  getTemplateModelDeploymentByDeploymentNameMap,
+  getTemplateModelDeploymentEntriesByModelNameMap,
+} from './armTemplate';
 
 export interface AzureCliDeploymentModel {
   deploymentName: string;
@@ -7,11 +12,40 @@ export interface AzureCliDeploymentModel {
   version: string;
 }
 
+export interface AzureCliDeploymentModelOverride {
+  enabled?: boolean;
+  deploymentName?: string;
+  modelFormat?: string;
+  version?: string;
+  capacity?: number;
+}
+
+export interface AzureCliDeploymentRow extends AzureCliDeploymentModel {
+  sourceModel: string;
+  enabled: boolean;
+  capacity: number;
+}
+
 export interface AzureCliDeploymentInput {
   subscriptionId: string;
   resourceName: string;
+  resourceGroupName?: string;
   foundryProjectEndpoint?: string;
   models: AzureCliDeploymentModel[];
+}
+
+export interface AzureCliDeploymentTargetInput {
+  resourceName: string;
+  resourceGroupName?: string;
+  foundryProjectEndpoint?: string;
+  label?: string;
+  models: AzureCliDeploymentModel[];
+}
+
+export interface AzureCliMultiRegionDeploymentInput {
+  subscriptionId: string;
+  resourceGroupName: string;
+  targets: AzureCliDeploymentTargetInput[];
 }
 
 export interface AzureCliDeploymentIdentity {
@@ -70,7 +104,7 @@ function deriveIdentity(
 
   return {
     subscriptionId,
-    resourceGroup: `rg-${projectId}`,
+    resourceGroup: input.resourceGroupName?.trim() || `rg-${projectId}`,
     accountName,
     projectId,
   };
@@ -131,21 +165,69 @@ export function stringifyAzureCliModelRows(
     .join('\n');
 }
 
-export function buildAzureCliDeploymentScript(
-  input: AzureCliDeploymentInput
+export function resolveAzureCliDeploymentRows(
+  modelNames: string[],
+  overrides: Record<string, AzureCliDeploymentModelOverride> = {}
+): AzureCliDeploymentRow[] {
+  const templateDefaultsByModelNameMap =
+    getTemplateModelDeploymentEntriesByModelNameMap();
+  const templateByDeploymentNameMap =
+    getTemplateModelDeploymentByDeploymentNameMap();
+
+  const redirectedModelNames = new Set<string>();
+  for (const modelName of modelNames) {
+    const match = templateByDeploymentNameMap.get(modelName);
+    if (match) redirectedModelNames.add(match.modelName);
+  }
+
+  return modelNames.map((modelName) => {
+    const cfg = overrides[modelName] || {};
+    const deploymentMatch = templateByDeploymentNameMap.get(modelName);
+    const resolvedModelName = deploymentMatch?.modelName || modelName;
+    const fallback = getFallbackModelDeploymentDefaults(resolvedModelName);
+    const templateDefaults =
+      deploymentMatch ||
+      templateDefaultsByModelNameMap.get(resolvedModelName)?.[0];
+    const defaultEnabled = deploymentMatch
+      ? true
+      : !redirectedModelNames.has(resolvedModelName);
+
+    return {
+      sourceModel: modelName,
+      modelName: resolvedModelName,
+      enabled: cfg.enabled ?? defaultEnabled,
+      deploymentName:
+        cfg.deploymentName ??
+        templateDefaults?.deploymentName ??
+        fallback.deploymentName,
+      version: cfg.version ?? templateDefaults?.version ?? fallback.version,
+      modelFormat:
+        cfg.modelFormat ??
+        templateDefaults?.modelFormat ??
+        fallback.modelFormat,
+      capacity: cfg.capacity ?? templateDefaults?.capacity ?? fallback.capacity,
+    };
+  });
+}
+
+export function toAzureCliDeploymentModels(
+  rows: AzureCliDeploymentRow[],
+  options: { includeDisabled?: boolean } = {}
+): AzureCliDeploymentModel[] {
+  return rows
+    .filter((row) => options.includeDisabled || row.enabled !== false)
+    .map((row) => ({
+      deploymentName: row.deploymentName.trim(),
+      modelName: row.modelName.trim(),
+      version: row.version.trim(),
+      modelFormat: row.modelFormat.trim(),
+    }));
+}
+
+function buildAzureCliDeploymentScriptBody(
+  identity: AzureCliDeploymentIdentity,
+  modelRows: string
 ): string {
-  const validation = validateAzureCliDeploymentInput(input);
-  if (!validation.valid) {
-    throw new Error(validation.errors.join('; '));
-  }
-
-  const identity = deriveIdentity(input);
-  if (!identity) {
-    throw new Error('Unable to derive Azure CLI deployment identity');
-  }
-
-  const modelRows = stringifyAzureCliModelRows(input.models);
-
   return `# 部署方法：保存为 deploy-models.sh 后执行：
 # ${AZURE_CLI_DEPLOYMENT_COMMAND.split('\n').join('\n# ')}
 
@@ -391,6 +473,41 @@ print_capacity_debug() {
     -o table 2>/dev/null || true
 }
 
+print_copyable_model_import_list() {
+  local model_list
+
+  echo
+  echo "============================================================"
+  echo "Copyable model import list"
+  echo "============================================================"
+  echo "Copy this comma-separated list into the model list import field:"
+
+  if ! model_list="$(az rest \\
+    --method get \\
+    --url "\${BASE_URL}?api-version=\${DEPLOYMENT_API_VERSION}" \\
+    -o json 2>/dev/null | jq -r '
+      [
+        .value[]?
+        | select(((.properties.provisioningState // "") | ascii_downcase) == "succeeded")
+        | [(.properties.model.name // ""), (.name // "")]
+        | .[]
+        | select(. != "")
+      ]
+      | reduce .[] as $name ([]; if index($name) then . else . + [$name] end)
+      | join(", ")
+    ')"; then
+    echo "WARNING: Could not generate copyable model import list."
+    return 0
+  fi
+
+  if [ -z "\${model_list}" ]; then
+    echo "No succeeded deployments found."
+    return 0
+  fi
+
+  echo "\${model_list}"
+}
+
 make_payload() {
   local deployment_name="$1"
   local model_format="$2"
@@ -632,5 +749,64 @@ az rest \\
     raiPolicy:properties.raiPolicyName
   }" \\
   -o table 2>/dev/null || true
+
+print_copyable_model_import_list
 `;
+}
+
+export function buildAzureCliDeploymentScript(
+  input: AzureCliDeploymentInput
+): string {
+  const validation = validateAzureCliDeploymentInput(input);
+  if (!validation.valid) {
+    throw new Error(validation.errors.join('; '));
+  }
+
+  const identity = deriveIdentity(input);
+  if (!identity) {
+    throw new Error('Unable to derive Azure CLI deployment identity');
+  }
+
+  return buildAzureCliDeploymentScriptBody(
+    identity,
+    stringifyAzureCliModelRows(input.models)
+  );
+}
+
+export function buildAzureCliMultiRegionDeploymentScript(
+  input: AzureCliMultiRegionDeploymentInput
+): string {
+  const subscriptionId = input.subscriptionId.trim();
+  const resourceGroupName = input.resourceGroupName.trim();
+  const targets = input.targets.filter((target) => target.models.length > 0);
+
+  if (!subscriptionId) {
+    throw new Error('subscriptionId is required');
+  }
+  if (!resourceGroupName) {
+    throw new Error('resourceGroupName is required');
+  }
+  if (targets.length === 0) {
+    throw new Error('targets are required');
+  }
+
+  return targets
+    .map((target, index) => {
+      const label = target.label?.trim() || `Region ${index + 1}`;
+      const script = buildAzureCliDeploymentScript({
+        subscriptionId,
+        resourceGroupName,
+        resourceName: target.resourceName,
+        foundryProjectEndpoint: target.foundryProjectEndpoint,
+        models: target.models,
+      });
+
+      return [
+        `# ============================================================`,
+        `# ${shellDoubleQuote(label)}`,
+        `# ============================================================`,
+        script,
+      ].join('\n');
+    })
+    .join('\n\n');
 }

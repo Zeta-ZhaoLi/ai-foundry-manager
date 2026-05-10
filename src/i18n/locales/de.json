@@ -150,7 +150,13 @@
     "copyGroupModels": "Gruppenmodelle kopieren",
     "disabled": "Deaktiviert",
     "customRegion": "Benutzerdefiniert",
-    "usePreset": "Preset-Region verwenden"
+    "usePreset": "Preset-Region verwenden",
+    "azureCliDeployAllRegionsCode": "Deploy all regions with Azure CLI",
+    "azureCliDeployAllRegionsCodeCopied": "Azure CLI deployment code for all regions copied",
+    "deployMissingSubscriptionId": "Please fill Subscription ID first",
+    "deployMissingFirstRegionResourceGroup": "Please fill the first region AOAI resource name to derive the resource group",
+    "deployNoMasterModels": "Please configure models in the model directory first",
+    "deployNoDeployableRegions": "No deployable regions. Please fill AOAI resource name for at least one region"
   },
   "models": {
     "title": "Modelluebersicht",
