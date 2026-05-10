@@ -519,6 +519,13 @@
         "capacity": 1000
       },
       {
+        "deploymentName": "deepseek-v4-flash-20260423",
+        "modelFormat": "DeepSeek",
+        "modelName": "DeepSeek-V4-Flash",
+        "version": "2026-04-23",
+        "capacity": 1000
+      },
+      {
         "deploymentName": "deepseek-v3.2-speciale",
         "modelFormat": "DeepSeek",
         "modelName": "DeepSeek-V3.2-Speciale",
