@@ -74,6 +74,67 @@ describe('deployment configuration contract', () => {
     expect(queryByText('Azure Deployment Config')).toBeNull();
   });
 
+  it('keeps account actions visible when a disabled account is collapsed', () => {
+    const account: LocalAccount = {
+      id: 'acct-1',
+      accountId: 'B001',
+      name: 'Account 1',
+      note: '',
+      enabled: false,
+      includeInStats: true,
+      tier: 'standard',
+      quota: '1000',
+      regions: [
+        {
+          id: 'reg-1',
+          name: 'eastus2',
+          modelsText: '',
+        },
+      ],
+    };
+    const onUpdateEnabled = vi.fn();
+
+    const { getByText, getByLabelText, queryByText } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountCard
+          account={account}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          masterModels={[]}
+          filteredModels={[]}
+          onUpdateName={vi.fn()}
+          onUpdateNote={vi.fn()}
+          onUpdateEnabled={onUpdateEnabled}
+          onUpdateIncludeInStats={vi.fn()}
+          onDelete={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    expect(getByText(i18n.t('accounts.deleteAccount'))).toBeTruthy();
+    expect(getByText(i18n.t('accounts.includeInStats'))).toBeTruthy();
+    const enableModels = getByLabelText(
+      i18n.t('accounts.enableModels')
+    ) as HTMLInputElement;
+    expect(enableModels.checked).toBe(false);
+    expect(getByText(i18n.t('accounts.expand'))).toBeTruthy();
+    expect(queryByText(i18n.t('regions.regionList'))).toBeNull();
+
+    fireEvent.click(enableModels);
+    expect(onUpdateEnabled).toHaveBeenCalledWith(true);
+    expect(getByText(i18n.t('accounts.collapse'))).toBeTruthy();
+    expect(getByText(i18n.t('regions.regionList'))).toBeTruthy();
+  });
+
   it('copies Azure CLI deployment code for all models in all regions from the account region header', () => {
     const account: LocalAccount = {
       id: 'acct-1',

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useLocalAzureAccounts } from '../useLocalAzureAccounts';
 
 const STORAGE_KEY = 'ai-foundry-manager:accounts';
@@ -70,5 +70,28 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     const [account] = result.current.accounts;
     expect(account.regions[0].deployment?.resourceName).toBe('region-specific');
     expect(account.regions[1].deployment?.resourceName).toBe('legacy-aoai');
+  });
+
+  it('creates new accounts disabled with default quota and regions', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    act(() => {
+      result.current.addAccount();
+    });
+
+    const account = result.current.accounts.at(-1);
+    expect(account).toBeTruthy();
+    expect(account?.enabled).toBe(false);
+    expect(account?.quota).toBe('1000');
+    expect(account?.regions.map((region) => region.name)).toEqual([
+      'eastus2',
+      'swedencentral',
+      'polandcentral',
+    ]);
+    expect(account?.regions.every((region) => region.enabled)).toBe(true);
   });
 });

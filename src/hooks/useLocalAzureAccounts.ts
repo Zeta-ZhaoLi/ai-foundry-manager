@@ -29,7 +29,7 @@ export interface LocalRegion {
   aiServicesEndpoint?: string;
   anthropicEndpoint?: string;
   apiKey?: string;
-  enabled?: boolean; // 默认 true，控制是否参与统计
+  enabled?: boolean;
   deployment?: RegionDeploymentConfig;
   inputSources?: RegionInputSources;
 }
@@ -73,19 +73,19 @@ export type CurrencyType = 'USD' | 'CNY';
 
 export interface LocalAccount {
   id: string;
-  accountId?: string; // 账号 ID 前缀 (A001, B001 等)
+  accountId?: string;
   name: string;
-  subscriptionId?: string; // Azure 订阅 ID，用于生成 Azure CLI 部署脚本
+  subscriptionId?: string;
   note?: string;
-  enabled: boolean; // 启用模型 - 模型层面统计（参与模型覆盖度计算）
-  includeInStats?: boolean; // 参与统计 - 账号层面统计（参与账号总览合计）
+  enabled: boolean;
+  includeInStats?: boolean;
   regions: LocalRegion[];
-  tier?: AccountTier; // 账号类别（高级/普通）
-  quota?: AccountQuota; // 额度选项
-  customQuota?: number; // 自定义额度值
-  purchaseAmount?: number; // 购买金额
-  purchaseCurrency?: CurrencyType; // 货币类型 (默认 USD)
-  usedAmount?: number; // 已使用额度
+  tier?: AccountTier;
+  quota?: AccountQuota;
+  customQuota?: number;
+  purchaseAmount?: number;
+  purchaseCurrency?: CurrencyType;
+  usedAmount?: number;
 }
 
 export interface AccountSummary {
@@ -104,6 +104,23 @@ export interface SeriesSummary {
 
 const STORAGE_KEY = 'ai-foundry-manager:accounts';
 const LEGACY_STORAGE_KEY = 'azure-openai-manager:accounts';
+const DEFAULT_NEW_ACCOUNT_REGION_NAMES = [
+  'eastus2',
+  'swedencentral',
+  'polandcentral',
+];
+
+function createDefaultAccountRegion(name: string): LocalRegion {
+  return {
+    id: generateId('region'),
+    name,
+    openaiEndpoint: '',
+    anthropicEndpoint: '',
+    apiKey: '',
+    modelsText: '',
+    enabled: true,
+  };
+}
 
 function markRegionInputSource(
   reg: LocalRegion,
@@ -122,11 +139,10 @@ function markRegionInputSource(
 export function useLocalAzureAccounts() {
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
 
-  // 解密敏感字段（仅保留仍然支持的字段；弃用字段会被丢弃）
   const decryptAccounts = useCallback(
     (accounts: LocalAccount[]): LocalAccount[] => {
       return accounts.map((acct) => {
-        // 注意：这里用解构显式丢弃已弃用的 server 字段，兼容旧配置
+        // Drop deprecated account-level server fields while loading.
         const {
           windowsServer: _windowsServer,
           linuxServer: _linuxServer,
@@ -159,7 +175,6 @@ export function useLocalAzureAccounts() {
     []
   );
 
-  // 加密敏感字段（仅保留仍然支持的字段；弃用字段会被丢弃）
   const encryptAccounts = useCallback(
     (accounts: LocalAccount[]): LocalAccount[] => {
       return accounts.map((acct) => {
@@ -194,21 +209,18 @@ export function useLocalAzureAccounts() {
     }, 500)
   );
 
-  // 迁移函数：为没有 accountId 的账号自动分配 ID
-  // 使用累加器模式确保每个账号都能看到之前分配的 ID，避免重复
+  // Assign account IDs to legacy entries that do not have one.
   const migrateAccountsToV2 = useCallback(
     (accounts: LocalAccount[]): LocalAccount[] => {
       const migrated: LocalAccount[] = [];
 
       for (const acct of accounts) {
         if (!acct.accountId) {
-          // 为没有 accountId 的账号生成 ID
+          // Generate an ID for legacy accounts.
           const tier = acct.tier || 'standard';
-          // 传入 migrated 数组，包含之前已分配的 ID，确保生成唯一的序号
           const accountId = generateAccountId(migrated, tier);
           migrated.push({ ...acct, accountId });
         } else {
-          // 保留已有 ID 的账号不变
           migrated.push(acct);
         }
       }
@@ -218,21 +230,20 @@ export function useLocalAzureAccounts() {
     []
   );
 
-  // 注：server login 字段已弃用，不再做 serverName/serverId 迁移。
-
+  // Server login fields are deprecated.
   useEffect(() => {
     try {
-      // 尝试从新 key 读取数据
+      // Read from the current storage key first.
       let raw = window.localStorage.getItem(STORAGE_KEY);
 
-      // 如果新 key 没有数据，尝试从旧 key 迁移
+      // Fall back to the legacy storage key.
       if (!raw) {
         const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
         if (legacyRaw) {
           console.log(
             '[Migration] Migrating accounts from legacy key to new key'
           );
-          // 将旧数据复制到新 key
+          // Copy legacy data into the current storage key.
           window.localStorage.setItem(STORAGE_KEY, legacyRaw);
           raw = legacyRaw;
           console.log('[Migration] Accounts migration completed successfully');
@@ -242,7 +253,6 @@ export function useLocalAzureAccounts() {
       if (raw) {
         const parsed = JSON.parse(raw) as LocalAccount[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // 兼容历史数据：如果没有 enabled 字段，默认视为启用
           const normalized = parsed.map((acct) => ({
             ...acct,
             enabled: acct.enabled !== false,
@@ -262,12 +272,12 @@ export function useLocalAzureAccounts() {
             }
           );
 
-          // 迁移：为没有 accountId 的账号分配 ID
+          // Assign missing account IDs.
           const migratedAccounts = migrateAccountsToV2(normalized);
           const decrypted = decryptAccounts(migratedAccounts);
           setAccounts(decrypted);
 
-          // 如果发生了迁移（accountId 或 server 字段清理），保存更新后的数据
+          // Persist cleaned legacy data.
           if (
             hadMissingAccountId ||
             hadLegacyServerFields ||
@@ -285,7 +295,7 @@ export function useLocalAzureAccounts() {
     const initial: LocalAccount[] = [
       {
         id: 'sample-account',
-        accountId: 'B001', // 示例账号默认为 standard
+        accountId: 'B001',
         name: `${i18n.t('accounts.account')} 1`,
         note: '',
         enabled: true,
@@ -316,7 +326,7 @@ export function useLocalAzureAccounts() {
 
   const addAccount = useCallback(() => {
     saveAccounts((prev) => {
-      const newTier: AccountTier = 'standard'; // 默认为普通账号
+      const newTier: AccountTier = 'standard';
       const accountId = generateAccountId(prev, newTier);
       const newAccount: LocalAccount = {
         id: generateId('acct'),
@@ -324,22 +334,14 @@ export function useLocalAzureAccounts() {
         name: `${i18n.t('accounts.account')} ${prev.length + 1}`,
         subscriptionId: '',
         note: '',
-        enabled: true,
-        includeInStats: true, // 默认参与统计
+        enabled: false,
+        includeInStats: true,
         tier: newTier,
-        regions: [
-          {
-            id: generateId('region'),
-            name: 'eastus2',
-            openaiEndpoint: '',
-            anthropicEndpoint: '',
-            apiKey: '',
-            modelsText: '',
-            enabled: true,
-          },
-        ],
-        quota: '2000', // 默认额度 $2,000
-        purchaseCurrency: 'CNY', // 默认货币为人民币
+        regions: DEFAULT_NEW_ACCOUNT_REGION_NAMES.map((name) =>
+          createDefaultAccountRegion(name)
+        ),
+        quota: '1000',
+        purchaseCurrency: 'CNY',
       };
       return [...prev, newAccount];
     });
@@ -399,7 +401,7 @@ export function useLocalAzureAccounts() {
       saveAccounts((prev) =>
         prev.map((acct) => {
           if (acct.id === id) {
-            // 如果类别改变，重新生成 accountId
+            // Regenerate account ID when the account tier changes.
             const currentAccountId = acct.accountId || '';
             const newAccountId = regenerateAccountId(
               prev,
@@ -525,7 +527,7 @@ export function useLocalAzureAccounts() {
 
   const updateRegionOpenaiEndpoint = useCallback(
     (accountId: string, regionId: string, openaiEndpoint: string) => {
-      // 规范化 OpenAI Endpoint（去除末尾斜杠）
+      // Normalize OpenAI endpoint.
       const normalized = normalizeOpenAIEndpoint(openaiEndpoint);
       saveAccounts((prev) =>
         prev.map((acct) =>
@@ -603,7 +605,7 @@ export function useLocalAzureAccounts() {
 
   const updateRegionAnthropicEndpoint = useCallback(
     (accountId: string, regionId: string, anthropicEndpoint: string) => {
-      // 规范化 Anthropic Endpoint（去除末尾的 /v1/messages 和斜杠）
+      // Normalize Anthropic endpoint.
       const normalized = normalizeAnthropicEndpoint(anthropicEndpoint);
       saveAccounts((prev) =>
         prev.map((acct) =>
@@ -757,7 +759,7 @@ export function useLocalAzureAccounts() {
     [saveAccounts]
   );
 
-  // 重新排序账号
+  // Reorder accounts.
   const reorderAccounts = useCallback(
     (oldIndex: number, newIndex: number) => {
       saveAccounts((prev) => {
@@ -770,7 +772,7 @@ export function useLocalAzureAccounts() {
     [saveAccounts]
   );
 
-  // 重新排序区域
+  // Reorder regions.
   const reorderRegions = useCallback(
     (accountId: string, oldIndex: number, newIndex: number) => {
       saveAccounts((prev) =>
@@ -786,7 +788,6 @@ export function useLocalAzureAccounts() {
     [saveAccounts]
   );
 
-  // 更新区域启用状态
   const updateRegionEnabled = useCallback(
     (accountId: string, regionId: string, enabled: boolean) => {
       saveAccounts((prev) =>
@@ -805,20 +806,19 @@ export function useLocalAzureAccounts() {
     [saveAccounts]
   );
 
-  // 重新编号所有账号（根据当前排序）
   const renumberAllAccounts = useCallback(() => {
     saveAccounts((prev) => {
       return renumberAccountsByPosition(prev) as LocalAccount[];
     });
   }, [saveAccounts]);
 
-  // 导入配置
+  // Import configuration.
   const importConfig = useCallback(
     (jsonString: string): { success: boolean; error?: string } => {
       try {
         const parsed = JSON.parse(jsonString);
 
-        // 验证配置结构
+        // Validate configuration shape.
         if (!Array.isArray(parsed)) {
           return {
             success: false,
@@ -826,17 +826,16 @@ export function useLocalAzureAccounts() {
           };
         }
 
-        // 验证每个账号的基本结构
         for (const item of parsed) {
           if (!item.id || !Array.isArray(item.regions)) {
             return { success: false, error: 'Invalid account structure' };
           }
         }
 
-        // 解密敏感字段（并丢弃已弃用字段）
+        // Decrypt sensitive fields and drop deprecated fields.
         const decrypted = decryptAccounts(parsed);
 
-        // 保存到 localStorage
+        // Persist imported data.
         saveAccounts(() => decrypted);
 
         return { success: true };
@@ -850,7 +849,6 @@ export function useLocalAzureAccounts() {
     [saveAccounts, decryptAccounts]
   );
 
-  // 仅统计 enabled 的账号
   const enabledAccounts = useMemo(
     () => accounts.filter((a) => a.enabled !== false),
     [accounts]
@@ -861,7 +859,7 @@ export function useLocalAzureAccounts() {
       const regions: AccountSummary['regions'] = {};
       const allModelsSet = new Set<string>();
 
-      // 只统计启用的区域
+      // Only include enabled regions.
       const enabledRegions = acct.regions.filter((r) => r.enabled !== false);
       for (const reg of enabledRegions) {
         const models = parseModels(reg.modelsText);

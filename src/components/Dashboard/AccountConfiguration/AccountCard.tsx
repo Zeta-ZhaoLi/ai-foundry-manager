@@ -35,7 +35,6 @@ import {
   toAzureCliDeploymentModels,
 } from '../../../utils/azureCliDeployment';
 
-// 使用从 hook 导入的类型
 export type LocalAccount = ImportedLocalAccount;
 
 export interface AccountCardProps {
@@ -89,7 +88,7 @@ export interface AccountCardProps {
   onCopy: (text: string, label: string) => void;
 }
 
-// 额度选项配置
+// Quota options
 const QUOTA_OPTIONS: { value: AccountQuota; label: string }[] = [
   { value: '200', label: '$200' },
   { value: '1000', label: '$1,000' },
@@ -162,7 +161,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     }
   };
 
-  // 隐私模式下显示的名称
+  // Display values in privacy mode.
   const displayName = privacyMode
     ? t('accounts.account') + ` ${index + 1}`
     : account.name || t('accounts.account') + ` ${index + 1}`;
@@ -264,52 +263,10 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     }
   };
 
-  // 未启用账号收起时的简化视图
-  if (!account.enabled && !isExpanded) {
-    return (
-      <div
-        className={clsx(
-          'rounded-xl border border-border p-3',
-          'bg-gradient-to-br from-white to-slate-50 dark:from-slate-950/90 dark:to-slate-950/70',
-          'shadow-lg opacity-50'
-        )}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            {/* 账号 ID 徽章 - 最左侧 */}
-            {account.accountId && (
-              <span
-                title={t('accounts.accountId')}
-                className={clsx(
-                  'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
-                  account.tier === 'premium'
-                    ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
-                    : 'bg-muted text-muted-foreground border border-border'
-                )}
-              >
-                {privacyMode
-                  ? account.accountId.replace(/\d/g, 'X')
-                  : account.accountId}
-              </span>
-            )}
-            {/* 账号名称 */}
-            <span className="text-sm font-medium truncate">{displayName}</span>
-            <span className="text-xs text-muted-foreground">
-              ({t('regions.disabled')})
-            </span>
-          </div>
-          {/* 展开按钮 - 固定在最右侧 */}
-          <button
-            type="button"
-            onClick={() => setIsExpanded(true)}
-            className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted whitespace-nowrap shrink-0"
-          >
-            {t('accounts.expand')}
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const handleAccountEnabledChange = (enabled: boolean) => {
+    onUpdateEnabled(enabled);
+    setIsExpanded(enabled);
+  };
 
   return (
     <>
@@ -321,12 +278,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           account.enabled ? 'opacity-100' : 'opacity-60'
         )}
       >
-        {/* Account header - 使用 Grid 统一对齐 */}
+        {/* Account header */}
         <div className="mb-2">
-          {/* 第一行：账号 ID + 服务器徽章 + 名称 + 操作按钮 */}
+          {/* Summary and fixed account actions */}
           <div className="flex items-center justify-between mb-2 gap-3">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
-              {/* 账号 ID 徽章 - 最左侧 */}
+              {/* Account ID badge */}
               {account.accountId && (
                 <span
                   title={t('accounts.accountId')}
@@ -342,42 +299,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     : account.accountId}
                 </span>
               )}
-              {/* 账号名称 */}
+              {/* Account name */}
               <span className="text-sm font-medium truncate">
                 {displayName}
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {/* 参与统计 - 账号层面统计 */}
-              <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={account.includeInStats !== false}
-                  onChange={(e) => onUpdateIncludeInStats?.(e.target.checked)}
-                  className="cursor-pointer"
-                />
-                <span>{t('accounts.includeInStats')}</span>
-              </label>
-              {/* 启用模型 - 模型层面统计 */}
-              <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={account.enabled}
-                  onChange={(e) => onUpdateEnabled(e.target.checked)}
-                  className="cursor-pointer"
-                />
-                <span>{t('accounts.enableModels')}</span>
-              </label>
-              {/* 收起按钮 - 与展开按钮位置相同 */}
-              {!account.enabled && (
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded(false)}
-                  className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted whitespace-nowrap"
-                >
-                  {t('accounts.collapse')}
-                </button>
-              )}
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
@@ -389,12 +316,44 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               >
                 {t('accounts.deleteAccount')}
               </button>
+              {/* Account-level statistics */}
+              <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={account.includeInStats !== false}
+                  onChange={(e) => onUpdateIncludeInStats?.(e.target.checked)}
+                  className="cursor-pointer"
+                />
+                <span>{t('accounts.includeInStats')}</span>
+              </label>
+              {/* Model-level statistics */}
+              <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={account.enabled}
+                  onChange={(e) =>
+                    handleAccountEnabledChange(e.target.checked)
+                  }
+                  className="cursor-pointer"
+                />
+                <span>{t('accounts.enableModels')}</span>
+              </label>
+              {/* Expand or collapse */}
+              <button
+                type="button"
+                onClick={() => setIsExpanded((prev) => !prev)}
+                className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted whitespace-nowrap"
+              >
+                {isExpanded ? t('accounts.collapse') : t('accounts.expand')}
+              </button>
             </div>
           </div>
 
-          {/* 第二行：类别 + 账号 ID + 账号名称 + 订阅 ID + 额度 + 备注 - 统一 Grid 对齐 */}
+          {isExpanded && (
+            <>
+          {/* Account detail fields */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-            {/* 类别选择 + 账号 ID - 2列 */}
+            {/* Tier and account ID */}
             <div className="md:col-span-2">
               <label className="text-xs text-muted-foreground block mb-1">
                 {t('accounts.tier')}
@@ -417,7 +376,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   </option>
                   <option value="standard">{t('accounts.tierStandard')}</option>
                 </select>
-                {/* 账号 ID 徽章 */}
+                {/* Account ID badge */}
                 {account.accountId && (
                   <span
                     title={t('accounts.accountIdTooltip')}
@@ -436,7 +395,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               </div>
             </div>
 
-            {/* 账号名称 - 3列 */}
+            {/* Account name */}
             <div className="md:col-span-3">
               <label className="text-xs text-muted-foreground block mb-1">
                 {t('accounts.accountName')}
@@ -454,7 +413,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               />
             </div>
 
-            {/* Azure Subscription ID - 3列 */}
+            {/* Azure Subscription ID */}
             <div className="md:col-span-3">
               <label className="text-xs text-muted-foreground block mb-1">
                 {t('accounts.subscriptionId')}
@@ -472,7 +431,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               />
             </div>
 
-            {/* 额度选择 - 2列 */}
+            {/* Quota */}
             <div className="md:col-span-2">
               <label className="text-xs text-muted-foreground block mb-1">
                 {t('accounts.quota')}
@@ -501,7 +460,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               </div>
             </div>
 
-            {/* 自定义额度输入 - 仅在选择自定义时显示 */}
+            {/* Custom quota */}
             {account.quota === 'custom' && (
               <div className="md:col-span-1">
                 <label className="text-xs text-muted-foreground block mb-1">
@@ -523,7 +482,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               </div>
             )}
 
-            {/* 备注 - 剩余列 */}
+            {/* Note */}
             <div
               className={
                 account.quota === 'custom' ? 'md:col-span-1' : 'md:col-span-2'
@@ -546,10 +505,10 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             </div>
           </div>
 
-          {/* 第三行：购买金额 + 已使用额度 (隐私模式下隐藏) */}
+          {/* Purchase and usage fields */}
           {!privacyMode && (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mt-3">
-              {/* 购买金额 - 3列 */}
+              {/* Purchase amount */}
               <div className="md:col-span-3">
                 <label className="text-xs text-muted-foreground block mb-1">
                   {t('accounts.purchaseAmount')}
@@ -592,7 +551,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 </div>
               </div>
 
-              {/* 已使用额度 - 2列 */}
+              {/* Used quota */}
               <div className="md:col-span-2">
                 <label className="text-xs text-muted-foreground block mb-1">
                   {t('accounts.usedAmount')}
@@ -615,7 +574,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 </div>
               </div>
 
-              {/* 账号成本/$ - 只读显示 - 2列 */}
+              {/* Account cost */}
               <div className="md:col-span-2">
                 <label className="text-xs text-muted-foreground block mb-1">
                   {t('accounts.accountCost')}
@@ -635,7 +594,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 </div>
               </div>
 
-              {/* 实际成本/$ - 只读显示 - 2列 */}
+              {/* Actual cost */}
               <div className="md:col-span-2">
                 <label className="text-xs text-muted-foreground block mb-1">
                   {t('accounts.actualCost')}
@@ -652,7 +611,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 </div>
               </div>
 
-              {/* 额度使用率进度条 - 3列 */}
+              {/* Usage rate */}
               <div className="md:col-span-3">
                 <label className="text-xs text-muted-foreground block mb-1">
                   {t('accounts.usageRate')}
@@ -684,10 +643,13 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* Regions */}
-        <div className="mb-1.5">
+        {isExpanded && (
+          <div className="mb-1.5">
           <div className="flex items-center justify-between mb-1">
             <div className="text-sm font-medium">{t('regions.regionList')}</div>
             <div className="flex items-center gap-2">
@@ -851,7 +813,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               </SortableContext>
             </DndContext>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
