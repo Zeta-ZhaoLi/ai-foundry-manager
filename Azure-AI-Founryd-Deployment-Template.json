@@ -155,10 +155,24 @@
         "capacity": 1600
       },
       {
+        "deploymentName": "gpt-5.2-pro-2025-12-11",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-5.2-pro",
+        "version": "2025-12-11",
+        "capacity": 1600
+      },
+      {
         "deploymentName": "gpt-5.4-pro-2026-03-05",
         "modelFormat": "OpenAI",
         "modelName": "gpt-5.4-pro",
         "version": "2026-03-05",
+        "capacity": 1600
+      },
+      {
+        "deploymentName": "gpt-5.5-pro-2026-04-23",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-5.5-pro",
+        "version": "2026-04-24",
         "capacity": 1600
       },
       {
@@ -365,6 +379,13 @@
         "capacity": 20
       },
       {
+        "deploymentName": "gpt-4o-mini-realtime-preview-2024-12-17",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-4o-mini-realtime-preview",
+        "version": "2024-12-17",
+        "capacity": 6
+      },
+      {
         "deploymentName": "gpt-4o-transcribe",
         "modelFormat": "OpenAI",
         "modelName": "gpt-4o-transcribe",
@@ -405,6 +426,27 @@
         "modelName": "gpt-4o-mini-tts",
         "version": "2025-03-20",
         "capacity": 600
+      },
+      {
+        "deploymentName": "whisper-1",
+        "modelFormat": "OpenAI",
+        "modelName": "whisper",
+        "version": "001",
+        "capacity": 3
+      },
+      {
+        "deploymentName": "tts-1",
+        "modelFormat": "OpenAI",
+        "modelName": "tts",
+        "version": "001",
+        "capacity": 3
+      },
+      {
+        "deploymentName": "tts-1-hd",
+        "modelFormat": "OpenAI",
+        "modelName": "tts-hd",
+        "version": "001",
+        "capacity": 3
       },
       {
         "deploymentName": "gpt-image-2",
@@ -463,6 +505,20 @@
         "capacity": 60
       },
       {
+        "deploymentName": "gpt-oss-20b",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-oss-20b",
+        "version": "11",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "gpt-oss-120b",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-oss-120b",
+        "version": "4",
+        "capacity": 1000
+      },
+      {
         "deploymentName": "deepseek-v3.2-speciale",
         "modelFormat": "DeepSeek",
         "modelName": "DeepSeek-V3.2-Speciale",
@@ -496,6 +552,76 @@
         "modelName": "DeepSeek-V3-0324",
         "version": "1",
         "capacity": 1000
+      },
+      {
+        "deploymentName": "kimi-k2.6",
+        "modelFormat": "Moonshot AI",
+        "modelName": "kimi-k2.6",
+        "version": "2026-04-20",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "kimi-k2.5",
+        "modelFormat": "Moonshot AI",
+        "modelName": "kimi-k2.5",
+        "version": "1",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "kimi-k2-thinking",
+        "modelFormat": "Moonshot AI",
+        "modelName": "kimi-k2.6",
+        "version": "2026-04-20",
+        "capacity": 1000
+      },
+      {
+        "deploymentName": "claude-opus-4-7",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-opus-4-7",
+        "version": "1",
+        "capacity": 2000
+      },
+      {
+        "deploymentName": "claude-opus-4-6",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-opus-4-6",
+        "version": "1",
+        "capacity": 2000
+      },
+      {
+        "deploymentName": "claude-sonnet-4-6",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-sonnet-4-6",
+        "version": "1",
+        "capacity": 4000
+      },
+      {
+        "deploymentName": "claude-opus-4-5",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-opus-4-5",
+        "version": "20251101",
+        "capacity": 2000
+      },
+      {
+        "deploymentName": "claude-sonnet-4-5",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-sonnet-4-5",
+        "version": "20250929",
+        "capacity": 4000
+      },
+      {
+        "deploymentName": "claude-haiku-4-5",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-haiku-4-5",
+        "version": "20251001",
+        "capacity": 4000
+      },
+      {
+        "deploymentName": "claude-opus-4-1",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-opus-4-1",
+        "version": "20250805",
+        "capacity": 2000
       }
     ]
   },
