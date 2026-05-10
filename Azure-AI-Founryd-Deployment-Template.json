@@ -603,7 +603,7 @@
         "capacity": 2000
       },
       {
-        "deploymentName": "claude-sonnet-4-5-20250929	",
+        "deploymentName": "claude-sonnet-4-5-20250929",
         "modelFormat": "Anthropic",
         "modelName": "claude-sonnet-4-5",
         "version": "20250929",
