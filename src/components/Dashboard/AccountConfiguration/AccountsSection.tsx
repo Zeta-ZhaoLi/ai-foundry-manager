@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { LocalAccount } from './AccountCard';
 import { SortableAccountCard } from './SortableAccountCard';
+import { DefaultRegionModelTemplatePanel } from './DefaultRegionModelTemplatePanel';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
 import {
@@ -26,12 +27,14 @@ import {
   type GeneratedRegionIdentityBundle,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
+  type DefaultRegionModelTemplateConfig,
 } from '../../../hooks/useLocalAzureAccounts';
 import { useToast } from '../../../hooks/useToast';
 import { parseModels } from '../../../utils/common';
 
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
+  defaultRegionModelTemplate: DefaultRegionModelTemplateConfig;
   masterGroups: string[][];
   masterGroupLines: string[][][];
   masterModels: string[];
@@ -40,6 +43,21 @@ export interface AccountsSectionProps {
   privacyMode?: boolean;
   onFilterChange: (value: string) => void;
   onAddAccount: () => void;
+  onUpdateDefaultRegionModelTemplateEnabled: (enabled: boolean) => void;
+  onAddDefaultRegionModelTemplateRegion: () => void;
+  onDeleteDefaultRegionModelTemplateRegion: (regionId: string) => void;
+  onUpdateDefaultRegionModelTemplateRegionName: (
+    regionId: string,
+    name: string
+  ) => void;
+  onUpdateDefaultRegionModelTemplateRegionModelsText: (
+    regionId: string,
+    modelsText: string
+  ) => void;
+  onReorderDefaultRegionModelTemplateRegions: (
+    oldIndex: number,
+    newIndex: number
+  ) => void;
   onExportConfig: () => void;
   onImportConfig?: (jsonString: string) => { success: boolean; error?: string };
   onRenumberAccounts?: () => void;
@@ -136,6 +154,7 @@ export interface AccountsSectionProps {
 
 export const AccountsSection: React.FC<AccountsSectionProps> = ({
   accounts,
+  defaultRegionModelTemplate,
   masterGroups,
   masterGroupLines,
   masterModels,
@@ -144,6 +163,12 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   privacyMode = false,
   onFilterChange,
   onAddAccount,
+  onUpdateDefaultRegionModelTemplateEnabled,
+  onAddDefaultRegionModelTemplateRegion,
+  onDeleteDefaultRegionModelTemplateRegion,
+  onUpdateDefaultRegionModelTemplateRegionName,
+  onUpdateDefaultRegionModelTemplateRegionModelsText,
+  onReorderDefaultRegionModelTemplateRegions,
   onExportConfig,
   onImportConfig,
   onRenumberAccounts,
@@ -337,6 +362,23 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
             </button>
           </div>
         </div>
+
+        <DefaultRegionModelTemplatePanel
+          template={defaultRegionModelTemplate}
+          masterModels={masterModels}
+          masterGroups={masterGroups}
+          masterGroupLines={masterGroupLines}
+          filteredModels={filteredModels}
+          onUpdateEnabled={onUpdateDefaultRegionModelTemplateEnabled}
+          onAddRegion={onAddDefaultRegionModelTemplateRegion}
+          onDeleteRegion={onDeleteDefaultRegionModelTemplateRegion}
+          onUpdateRegionName={onUpdateDefaultRegionModelTemplateRegionName}
+          onUpdateRegionModelsText={
+            onUpdateDefaultRegionModelTemplateRegionModelsText
+          }
+          onReorderRegions={onReorderDefaultRegionModelTemplateRegions}
+          onCopy={onCopy}
+        />
 
         {/* Search filter */}
         <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">

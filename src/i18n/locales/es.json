@@ -86,7 +86,14 @@
     "accountIdTooltip": "Identificador asignado por el sistema (A=Premium, B=Estandar)",
     "resourceName": "Nombre del recurso",
     "subscriptionId": "Subscription ID",
-    "subscriptionIdPlaceholder": "e.g. 37753a40-cbd3-4042-913b-3dd5d5a56f87"
+    "subscriptionIdPlaceholder": "e.g. 37753a40-cbd3-4042-913b-3dd5d5a56f87",
+    "defaultRegionModelTemplate": "Default Region Model Template",
+    "templateEnabled": "Enabled",
+    "templateDisabled": "Disabled",
+    "templateRegionCount": "{{count}} regions",
+    "templateModelCount": "{{count}} models",
+    "enableTemplate": "Enable template models",
+    "templateNoRegions": "No template regions. Click Add Region to create one."
   },
   "regions": {
     "regionList": "Lista de regiones",

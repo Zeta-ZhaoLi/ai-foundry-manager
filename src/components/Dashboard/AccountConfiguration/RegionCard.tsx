@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -8,8 +8,8 @@ import React, {
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
-import { buildCopyString } from '../../../utils/modelSeries';
 import { useToast } from '../../../hooks/useToast';
+import { RegionModelSelector } from './RegionModelSelector';
 import {
   deriveAzureEndpointSetFromAny,
   extractAzureResourceName,
@@ -19,6 +19,7 @@ import {
   normalizeOpenAIEndpoint,
   normalizeAnthropicEndpoint,
   orderModelsByMaster,
+  parseModels,
   resolveEffectiveFoundryProjectIdentity,
 } from '../../../utils/common';
 import type {
@@ -72,23 +73,14 @@ export interface RegionCardProps {
   onCopy: (text: string, label: string) => void;
 }
 
-const parseModels = (text: string): string[] => {
-  if (!text) return [];
-  const parts = text
-    .split(/[\s,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return Array.from(new Set(parts));
-};
-
-// 隐私模式下打码 Endpoint
+// 闅愮妯″紡涓嬫墦鐮?Endpoint
 const maskEndpoint = (url: string): string => {
   if (!url) return '';
   try {
     const parsed = new URL(url);
     const parts = parsed.hostname.split('.');
     if (parts.length >= 2) {
-      parts[0] = '***'; // 打码第一段
+      parts[0] = '***';
     }
     return `${parsed.protocol}//${parts.join('.')}`;
   } catch {
@@ -96,7 +88,7 @@ const maskEndpoint = (url: string): string => {
   }
 };
 
-// 预设 Azure 区域列表 (value: API值, label: 显示名称)
+// 棰勮 Azure 鍖哄煙鍒楄〃 (value: API鍊? label: 鏄剧ず鍚嶇О)
 const PRESET_REGIONS = [
   { value: 'eastus2', label: 'East US 2' },
   { value: 'eastus', label: 'East US' },
@@ -164,19 +156,17 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   type DeploymentBulkCycleState = 'none' | 'invert' | 'all';
   const { t } = useTranslation();
   const toast = useToast();
-  const [collapsed, setCollapsed] = useState(true);
   const [deployCollapsed, setDeployCollapsed] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(region.enabled !== false);
   const [deploymentBulkCycleState, setDeploymentBulkCycleState] =
     useState<DeploymentBulkCycleState>('none');
   const [pendingGeneratedBundle, setPendingGeneratedBundle] =
     useState<GeneratedRegionIdentityBundle | null>(null);
   const deploymentBulkCheckboxRef = useRef<HTMLInputElement>(null);
 
-  // 判断当前区域名是否为自定义（不在预设列表中）
+  // 鍒ゆ柇褰撳墠鍖哄煙鍚嶆槸鍚︿负鑷畾涔夛紙涓嶅湪棰勮鍒楄〃涓級
   const isCustomRegion = !PRESET_REGIONS.some((r) => r.value === region.name);
   const [showCustomInput, setShowCustomInput] = useState(isCustomRegion);
 
@@ -248,35 +238,17 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     () => parseModels(region.modelsText),
     [region.modelsText]
   );
-  const selectedSet = useMemo(() => new Set(selectedModels), [selectedModels]);
   const regionModels = useMemo(
     () => orderModelsByMaster(selectedModels, masterModels),
     [selectedModels, masterModels]
   );
 
-  // 隐私模式下显示的区域名称
+  // 闅愮妯″紡涓嬫樉绀虹殑鍖哄煙鍚嶇О
   const displayRegionName = privacyMode
     ? t('regions.region') + ` ${regionIndex + 1}`
     : region.name || t('regions.region') + ` ${regionIndex + 1}`;
 
-  const groupedFilteredLines = useMemo((): {
-    idx: number;
-    lines: string[][];
-  }[] => {
-    const visible = new Set(filteredModels);
-
-    return masterGroupLines
-      .map((groupLines, idx) => {
-        const lines = groupLines
-          .map((line) => line.filter((m) => visible.has(m)))
-          .filter((line) => line.length > 0);
-
-        return { idx, lines };
-      })
-      .filter((g) => g.lines.length > 0);
-  }, [filteredModels, masterGroupLines]);
-
-  // =============== 模型部署（Azure Portal） ===============
+  // =============== 妯″瀷閮ㄧ讲锛圓zure Portal锛?===============
   const deploymentResourceName = region.deployment?.resourceName || '';
   const deploymentLocation = region.name || '';
   const regionInputSources = region.inputSources || {};
@@ -648,90 +620,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       deploymentBulkCycleState === 'invert';
   }, [deploymentBulkCycleState]);
 
-  const toggleModel = (modelId: string) => {
-    const set = new Set(parseModels(region.modelsText));
-    if (set.has(modelId)) {
-      set.delete(modelId);
-    } else {
-      set.add(modelId);
-    }
-    onUpdateModelsText(
-      orderModelsByMaster(Array.from(set), masterModels).join(',')
-    );
-  };
-
-  const selectAll = () => {
-    if (masterModels.length === 0) return;
-    onUpdateModelsText(masterModels.join(','));
-  };
-
-  const selectGroup = (models: string[]) => {
-    if (models.length === 0) return;
-    const set = new Set(parseModels(region.modelsText));
-    for (const model of models) {
-      set.add(model);
-    }
-    onUpdateModelsText(
-      orderModelsByMaster(Array.from(set), masterModels).join(',')
-    );
-  };
-
-  const clearModels = () => {
-    onUpdateModelsText('');
-  };
-
-  // 粘贴导入模型
-  const handlePasteModels = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const models = text
-        .split(/[\s,\n]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      if (models.length === 0) {
-        toast.error(t('regions.pasteEmpty'));
-        return;
-      }
-
-      const currentModels = parseModels(region.modelsText);
-      const mergedSet = new Set([...currentModels, ...models]);
-      onUpdateModelsText(
-        orderModelsByMaster(Array.from(mergedSet), masterModels).join(',')
-      );
-      toast.success(t('regions.pasteSuccess', { count: models.length }));
-    } catch {
-      toast.error(t('regions.pasteFailed'));
-    }
-  };
 
   const isDisabled = region.enabled === false;
 
-  // 未启用区域收起时的简化视图
-  if (isDisabled && !isExpanded) {
-    return (
-      <div className="rounded-lg border border-border p-2.5 bg-background opacity-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium">
-              {regionIndex + 1}.
-            </span>
-            <span className="text-sm">{displayRegionName}</span>
-            <span className="text-xs text-muted-foreground">
-              ({t('regions.disabled')})
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsExpanded(true)}
-            className="px-2 py-0.5 rounded-full border border-border bg-background text-foreground text-xs cursor-pointer hover:bg-muted"
-          >
-            {t('accounts.expand')}
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -741,7 +632,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           isDisabled && 'opacity-50'
         )}
       >
-        {/* 删除按钮 - 绝对定位在右上角 */}
+        {/* 鍒犻櫎鎸夐挳 - 缁濆瀹氫綅鍦ㄥ彸涓婅 */}
         <button
           type="button"
           onClick={() => setShowDeleteConfirm(true)}
@@ -750,9 +641,9 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           {t('regions.deleteRegion')}
         </button>
 
-        {/* 第一行: 启用开关 + 区域编号 + 区域名称 + API Key */}
+        {/* 绗竴琛? 鍚敤寮€鍏?+ 鍖哄煙缂栧彿 + 鍖哄煙鍚嶇О + API Key */}
         <div className="flex flex-col md:flex-row md:items-start gap-3 mb-2 pr-0 md:pr-20">
-          {/* 启用开关 + 编号 + 区域名称 */}
+          {/* 鍚敤寮€鍏?+ 缂栧彿 + 鍖哄煙鍚嶇О */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="pt-6 shrink-0">
               <label
@@ -768,7 +659,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               </label>
             </div>
 
-            {/* 区域编号 + 区域名称 */}
+            {/* 鍖哄煙缂栧彿 + 鍖哄煙鍚嶇О */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs text-muted-foreground font-medium">
@@ -809,8 +700,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                     className="px-2 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:bg-slate-800"
                     title={t('regions.usePreset')}
                   >
-                    ↩
-                  </button>
+                    鈫?                  </button>
                 </div>
               ) : (
                 <select
@@ -843,7 +733,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             </div>
           </div>
 
-          {/* API Key 带显示/隐藏/复制按钮 */}
+          {/* API Key 甯︽樉绀?闅愯棌/澶嶅埗鎸夐挳 */}
           <div className="flex-1 min-w-0 pl-7 md:pl-0">
             <label className="text-xs text-muted-foreground block mb-1">
               {t('regions.apiKey')}
@@ -863,7 +753,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 placeholder={t('regions.apiKeyPlaceholder')}
                 disabled={privacyMode}
               />
-              {/* 显示/隐藏按钮 */}
+              {/* 鏄剧ず/闅愯棌鎸夐挳 */}
               {!privacyMode && (
                 <button
                   type="button"
@@ -904,7 +794,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                   )}
                 </button>
               )}
-              {/* 复制按钮 */}
+              {/* 澶嶅埗鎸夐挳 */}
               {!privacyMode && region.apiKey && (
                 <button
                   type="button"
@@ -966,7 +856,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
           </div>
         </div>
 
-        {/* 第二行: 4类 Endpoint 自动互转 */}
+        {/* 绗簩琛? 4绫?Endpoint 鑷姩浜掕浆 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2 pl-7">
           <div className="min-w-0">
             <label className="text-xs text-muted-foreground block mb-1">
@@ -1168,188 +1058,21 @@ export const RegionCard: React.FC<RegionCardProps> = ({
             </div>
           </div>
 
-          {/* 收起按钮 (未启用时显示) */}
-          {isDisabled && (
-            <div className="flex items-end pb-1">
-              <button
-                type="button"
-                onClick={() => setIsExpanded(false)}
-                className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground text-xs cursor-pointer hover:bg-slate-800"
-              >
-                {t('accounts.collapse')}
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* 模型选择区域 */}
-        <div className="border-t border-gray-800 pt-2">
-          {/* 模型区域头部 */}
-          <div className="flex items-center justify-between mb-1.5">
-            <button
-              type="button"
-              onClick={() => setCollapsed((prev) => !prev)}
-              className="flex items-center gap-1.5 bg-transparent text-foreground text-xs cursor-pointer border-none p-0"
-            >
-              <span className="inline-block w-3.5 text-center text-muted-foreground">
-                {collapsed ? '▶' : '▼'}
-              </span>
-              <span>{t('regions.modelsToggle')}</span>
-              {regionModels.length > 0 && (
-                <span className="text-muted-foreground ml-1">
-                  ({regionModels.length})
-                </span>
-              )}
-            </button>
+        <RegionModelSelector
+          modelsText={region.modelsText}
+          masterModels={masterModels}
+          masterGroups={masterGroups}
+          masterGroupLines={masterGroupLines}
+          filteredModels={filteredModels}
+          title={t('regions.modelsToggle')}
+          copyLabel={`${t('accounts.account')} ${accountName} / ${t('regions.region')} ${displayRegionName}`}
+          onChange={onUpdateModelsText}
+          onCopy={onCopy}
+        />
 
-            <div className="flex items-center gap-1.5">
-              {/* 粘贴导入按钮 */}
-              <button
-                type="button"
-                onClick={handlePasteModels}
-                className="px-2 py-0.5 rounded-full border border-blue-900 bg-blue-900/30 text-blue-300 text-xs cursor-pointer hover:bg-blue-900/50"
-              >
-                {t('regions.pasteModels')}
-              </button>
-              <button
-                type="button"
-                onClick={selectAll}
-                className="px-2 py-0.5 rounded-full border border-green-900 bg-green-900/30 text-green-300 text-xs cursor-pointer hover:bg-green-900/50"
-              >
-                {t('regions.selectAll')}
-              </button>
-              <button
-                type="button"
-                onClick={clearModels}
-                className="px-2 py-0.5 rounded-full border border-red-900 bg-red-900/30 text-red-300 text-xs cursor-pointer hover:bg-red-900/50"
-              >
-                {t('regions.clear')}
-              </button>
-            </div>
-          </div>
-
-          {/* 模型选择器 - 按全局目录分组显示 */}
-          {!collapsed && (
-            <>
-              {masterModels.length === 0 ? (
-                <div className="text-xs text-gray-500 mt-1">
-                  {t('regions.configureMasterFirst')}
-                </div>
-              ) : filteredModels.length === 0 ? (
-                <div className="text-xs text-gray-500 mt-1">
-                  {t('regions.noMatchingModels')}
-                </div>
-              ) : (
-                <div className="space-y-2 mt-1.5">
-                  {groupedFilteredLines.map(({ idx, lines }) => {
-                    const groupTitle = t('common.group', { index: idx + 1 });
-                    const groupAllModels = masterGroups[idx] || [];
-                    const selectedModels = groupAllModels.filter((m) =>
-                      selectedSet.has(m)
-                    );
-                    const selectedCount = selectedModels.length;
-
-                    return (
-                      <div
-                        key={`group-${idx}`}
-                        className="border border-gray-800 rounded-lg p-2"
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span
-                            className={clsx(
-                              'text-xs font-medium',
-                              'text-cyan-300'
-                            )}
-                          >
-                            {groupTitle}
-                            <span className="text-muted-foreground ml-1">
-                              ({selectedCount}/{groupAllModels.length})
-                            </span>
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {/* 复制此分组已选模型 */}
-                            {selectedModels.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onCopy(
-                                    buildCopyString(selectedModels),
-                                    `${displayRegionName} - ${groupTitle}`
-                                  )
-                                }
-                                className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
-                                title={t('regions.copyGroupModels')}
-                              >
-                                📋
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => selectGroup(groupAllModels)}
-                              className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
-                            >
-                              {t('regions.selectGroup')}
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          {lines.map((line, lineIndex) => (
-                            <div
-                              key={`group-${idx}-line-${lineIndex}`}
-                              className="flex flex-wrap gap-1.5"
-                            >
-                              {line.map((model) => {
-                                const selected = selectedSet.has(model);
-                                return (
-                                  <button
-                                    key={model}
-                                    type="button"
-                                    onClick={() => toggleModel(model)}
-                                    className={clsx(
-                                      'px-2 py-1 rounded-full text-xs cursor-pointer transition-all',
-                                      selected
-                                        ? 'border border-cyan-500 bg-gradient-to-r from-cyan-500 to-green-500 text-white'
-                                        : 'border border-gray-600 bg-background text-foreground hover:border-gray-500'
-                                    )}
-                                  >
-                                    {model}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* 复制区域模型 */}
-          {regionModels.length > 0 && (
-            <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground border-t border-gray-800 pt-2">
-              <span>
-                {t('regions.selectedCount', { count: regionModels.length })}
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  onCopy(
-                    buildCopyString(regionModels),
-                    `${t('accounts.account')} ${accountName} / ${t('regions.region')} ${displayRegionName}`
-                  )
-                }
-                className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground cursor-pointer hover:bg-slate-800"
-              >
-                {t('regions.copyRegionModels')}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 模型部署 */}
+        {/* 妯″瀷閮ㄧ讲 */}
         <div className="border-t border-gray-800 pt-2 mt-2">
           <div className="flex items-center justify-between">
             <button
@@ -1358,7 +1081,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               className="flex items-center gap-1.5 bg-transparent text-foreground text-xs cursor-pointer border-none p-0"
             >
               <span className="inline-block w-3.5 text-center text-muted-foreground">
-                {deployCollapsed ? '▶' : '▼'}
+                {deployCollapsed ? '▸' : '▾'}
               </span>
               <span>{t('regions.deployTitle')}</span>
               {regionModels.length > 0 && (

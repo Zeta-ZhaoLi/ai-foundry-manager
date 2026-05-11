@@ -40,7 +40,15 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
 
   const {
     accounts,
+    defaultRegionModelTemplate,
     addAccount,
+    updateDefaultRegionModelTemplateEnabled,
+    addDefaultRegionModelTemplateRegion,
+    deleteDefaultRegionModelTemplateRegion,
+    updateDefaultRegionModelTemplateRegionName,
+    updateDefaultRegionModelTemplateRegionModelsText,
+    reorderDefaultRegionModelTemplateRegions,
+    importDefaultRegionModelTemplate,
     updateAccountName,
     updateAccountSubscriptionId,
     updateAccountNote,
@@ -339,7 +347,11 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
 
   const handleExportConfig = useCallback(() => {
     try {
-      const payload = JSON.stringify({ accounts, masterText }, null, 2);
+      const payload = JSON.stringify(
+        { accounts, masterText, defaultRegionModelTemplate },
+        null,
+        2
+      );
       const blob = new Blob([payload], {
         type: 'application/json;charset=utf-8',
       });
@@ -355,7 +367,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     } catch {
       toast.error(t('toast.exportFailed'));
     }
-  }, [accounts, masterText, toast, t]);
+  }, [accounts, defaultRegionModelTemplate, masterText, toast, t]);
 
   const handleImportConfig = useCallback(
     (jsonString: string): { success: boolean; error?: string } => {
@@ -365,6 +377,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         // 检查是对象格式 { accounts, masterText } 还是旧的数组格式
         let accountsData: any[];
         let masterTextData: string | undefined;
+        let defaultRegionModelTemplateData: unknown;
 
         if (Array.isArray(parsed)) {
           // 旧格式：直接是数组（向后兼容）
@@ -377,6 +390,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
           // 新格式：对象包含 accounts 和 masterText
           accountsData = parsed.accounts;
           masterTextData = parsed.masterText;
+          defaultRegionModelTemplateData =
+            parsed.defaultRegionModelTemplate;
         } else {
           return { success: false, error: 'Invalid config format' };
         }
@@ -392,6 +407,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
           setMasterText(masterTextData);
         }
 
+        importDefaultRegionModelTemplate(defaultRegionModelTemplateData);
+
         return { success: true };
       } catch (error) {
         return {
@@ -400,7 +417,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         };
       }
     },
-    [importConfig]
+    [importConfig, importDefaultRegionModelTemplate]
   );
 
   return (
@@ -475,6 +492,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       {/* Account Configuration */}
       <AccountsSection
         accounts={accounts}
+        defaultRegionModelTemplate={defaultRegionModelTemplate}
         masterGroups={masterGroups}
         masterGroupLines={masterGroupLines}
         masterModels={masterModels}
@@ -483,6 +501,24 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         privacyMode={privacyMode}
         onFilterChange={handleFilterChange}
         onAddAccount={addAccount}
+        onUpdateDefaultRegionModelTemplateEnabled={
+          updateDefaultRegionModelTemplateEnabled
+        }
+        onAddDefaultRegionModelTemplateRegion={
+          addDefaultRegionModelTemplateRegion
+        }
+        onDeleteDefaultRegionModelTemplateRegion={
+          deleteDefaultRegionModelTemplateRegion
+        }
+        onUpdateDefaultRegionModelTemplateRegionName={
+          updateDefaultRegionModelTemplateRegionName
+        }
+        onUpdateDefaultRegionModelTemplateRegionModelsText={
+          updateDefaultRegionModelTemplateRegionModelsText
+        }
+        onReorderDefaultRegionModelTemplateRegions={
+          reorderDefaultRegionModelTemplateRegions
+        }
         onExportConfig={handleExportConfig}
         onImportConfig={handleImportConfig}
         onRenumberAccounts={renumberAllAccounts}

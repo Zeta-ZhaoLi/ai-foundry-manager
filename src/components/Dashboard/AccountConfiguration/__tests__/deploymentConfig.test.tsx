@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../../i18n';
 import { AccountCard } from '../AccountCard';
+import { DefaultRegionModelTemplatePanel } from '../DefaultRegionModelTemplatePanel';
 import { RegionCard } from '../RegionCard';
 import type {
+  DefaultRegionModelTemplateConfig,
   GeneratedRegionIdentityBundle,
   LocalAccount,
   LocalRegion,
@@ -1745,5 +1747,111 @@ describe('deployment configuration contract', () => {
     expect(queryAllByTitle(i18n.t('common.copy')).length).toBe(0);
     expect(queryAllByTitle(i18n.t('common.show')).length).toBe(0);
     expect(queryAllByTitle(i18n.t('common.hide')).length).toBe(0);
+  });
+
+  it('keeps the default region model template panel collapsed until opened', () => {
+    const template: DefaultRegionModelTemplateConfig = {
+      enabled: true,
+      regions: [
+        { id: 'template-1', name: 'eastus2', modelsText: '' },
+        { id: 'template-2', name: 'swedencentral', modelsText: '' },
+        { id: 'template-3', name: 'polandcentral', modelsText: '' },
+      ],
+    };
+
+    const { getByText, queryByDisplayValue, getByDisplayValue } = render(
+      <I18nextProvider i18n={i18n}>
+        <DefaultRegionModelTemplatePanel
+          template={template}
+          masterModels={[]}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          filteredModels={[]}
+          onUpdateEnabled={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onReorderRegions={vi.fn()}
+          onCopy={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    expect(queryByDisplayValue('eastus2')).toBeNull();
+
+    fireEvent.click(getByText(i18n.t('accounts.defaultRegionModelTemplate')));
+
+    expect(getByDisplayValue('eastus2')).toBeTruthy();
+    expect(getByDisplayValue('swedencentral')).toBeTruthy();
+    expect(getByDisplayValue('polandcentral')).toBeTruthy();
+  });
+
+  it('supports paste, select all, clear, and copy in template regions', async () => {
+    const onUpdateRegionModelsText = vi.fn();
+    const onCopy = vi.fn();
+    const template: DefaultRegionModelTemplateConfig = {
+      enabled: true,
+      regions: [
+        {
+          id: 'template-1',
+          name: 'eastus2',
+          modelsText: 'gpt-4o',
+        },
+      ],
+    };
+
+    const readText = vi.fn().mockResolvedValue('gpt-4o-mini gpt-5');
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText },
+    });
+
+    const { getByText } = render(
+      <I18nextProvider i18n={i18n}>
+        <DefaultRegionModelTemplatePanel
+          template={template}
+          masterModels={['gpt-4o', 'gpt-4o-mini', 'gpt-5']}
+          masterGroups={[['gpt-4o', 'gpt-4o-mini', 'gpt-5']]}
+          masterGroupLines={[[['gpt-4o', 'gpt-4o-mini', 'gpt-5']]]}
+          filteredModels={['gpt-4o', 'gpt-4o-mini', 'gpt-5']}
+          onUpdateEnabled={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={onUpdateRegionModelsText}
+          onReorderRegions={vi.fn()}
+          onCopy={onCopy}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(getByText(i18n.t('accounts.defaultRegionModelTemplate')));
+
+    fireEvent.click(getByText(i18n.t('regions.pasteModels')));
+    await waitFor(() => {
+      expect(onUpdateRegionModelsText).toHaveBeenCalledWith(
+        'template-1',
+        'gpt-4o,gpt-4o-mini,gpt-5'
+      );
+    });
+
+    fireEvent.click(getByText(i18n.t('regions.selectAll')));
+    expect(onUpdateRegionModelsText).toHaveBeenLastCalledWith(
+      'template-1',
+      'gpt-4o,gpt-4o-mini,gpt-5'
+    );
+
+    fireEvent.click(getByText(i18n.t('regions.clear')));
+    expect(onUpdateRegionModelsText).toHaveBeenLastCalledWith(
+      'template-1',
+      ''
+    );
+
+    fireEvent.click(getByText(i18n.t('regions.copyRegionModels')));
+    expect(onCopy).toHaveBeenCalledWith(
+      'gpt-4o,',
+      `${i18n.t('accounts.defaultRegionModelTemplate')} / eastus2`
+    );
   });
 });

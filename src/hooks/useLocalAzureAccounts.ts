@@ -88,6 +88,17 @@ export interface LocalAccount {
   usedAmount?: number;
 }
 
+export interface DefaultRegionModelTemplate {
+  id: string;
+  name: string;
+  modelsText: string;
+}
+
+export interface DefaultRegionModelTemplateConfig {
+  enabled: boolean;
+  regions: DefaultRegionModelTemplate[];
+}
+
 export interface AccountSummary {
   accountKey: string;
   regions: {
@@ -104,20 +115,63 @@ export interface SeriesSummary {
 
 const STORAGE_KEY = 'ai-foundry-manager:accounts';
 const LEGACY_STORAGE_KEY = 'azure-openai-manager:accounts';
+const DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY =
+  'ai-foundry-manager:default-region-model-template';
 const DEFAULT_NEW_ACCOUNT_REGION_NAMES = [
   'eastus2',
   'swedencentral',
   'polandcentral',
 ];
 
-function createDefaultAccountRegion(name: string): LocalRegion {
+export const createDefaultRegionModelTemplateConfig =
+  (): DefaultRegionModelTemplateConfig => ({
+    enabled: true,
+    regions: DEFAULT_NEW_ACCOUNT_REGION_NAMES.map((name) => ({
+      id: generateId('template-region'),
+      name,
+      modelsText: '',
+    })),
+  });
+
+function normalizeDefaultRegionModelTemplateConfig(
+  value: unknown
+): DefaultRegionModelTemplateConfig {
+  if (!value || typeof value !== 'object') {
+    return createDefaultRegionModelTemplateConfig();
+  }
+
+  const raw = value as Partial<DefaultRegionModelTemplateConfig>;
+  const regions = Array.isArray(raw.regions)
+    ? raw.regions
+        .filter((region) => Boolean(region) && typeof region === 'object')
+        .map((region) => ({
+          id:
+            typeof region.id === 'string' && region.id.trim()
+              ? region.id
+              : generateId('template-region'),
+          name: typeof region.name === 'string' ? region.name : '',
+          modelsText:
+            typeof region.modelsText === 'string' ? region.modelsText : '',
+        }))
+    : createDefaultRegionModelTemplateConfig().regions;
+
+  return {
+    enabled: raw.enabled !== false,
+    regions,
+  };
+}
+
+function createDefaultAccountRegion(
+  name: string,
+  modelsText = ''
+): LocalRegion {
   return {
     id: generateId('region'),
     name,
     openaiEndpoint: '',
     anthropicEndpoint: '',
     apiKey: '',
-    modelsText: '',
+    modelsText,
     enabled: true,
   };
 }
@@ -138,6 +192,21 @@ function markRegionInputSource(
 
 export function useLocalAzureAccounts() {
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
+  const [defaultRegionModelTemplate, setDefaultRegionModelTemplate] =
+    useState<DefaultRegionModelTemplateConfig>(() => {
+      if (typeof window === 'undefined') {
+        return createDefaultRegionModelTemplateConfig();
+      }
+      try {
+        const raw = window.localStorage.getItem(
+          DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY
+        );
+        if (!raw) return createDefaultRegionModelTemplateConfig();
+        return normalizeDefaultRegionModelTemplateConfig(JSON.parse(raw));
+      } catch {
+        return createDefaultRegionModelTemplateConfig();
+      }
+    });
 
   const decryptAccounts = useCallback(
     (accounts: LocalAccount[]): LocalAccount[] => {
@@ -205,6 +274,19 @@ export function useLocalAzureAccounts() {
         window.localStorage.setItem(STORAGE_KEY, encrypted);
       } catch (error) {
         console.error('Failed to save accounts:', error);
+      }
+    }, 500)
+  );
+
+  const debouncedSaveDefaultRegionModelTemplateRef = useRef(
+    debounce((template: DefaultRegionModelTemplateConfig) => {
+      try {
+        window.localStorage.setItem(
+          DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY,
+          JSON.stringify(template)
+        );
+      } catch (error) {
+        console.error('Failed to save default region model template:', error);
       }
     }, 500)
   );
@@ -324,6 +406,21 @@ export function useLocalAzureAccounts() {
     []
   );
 
+  const saveDefaultRegionModelTemplate = useCallback(
+    (
+      updater: (
+        prev: DefaultRegionModelTemplateConfig
+      ) => DefaultRegionModelTemplateConfig
+    ) => {
+      setDefaultRegionModelTemplate((prev) => {
+        const next = normalizeDefaultRegionModelTemplateConfig(updater(prev));
+        debouncedSaveDefaultRegionModelTemplateRef.current(next);
+        return next;
+      });
+    },
+    []
+  );
+
   const addAccount = useCallback(() => {
     saveAccounts((prev) => {
       const newTier: AccountTier = 'standard';
@@ -337,15 +434,20 @@ export function useLocalAzureAccounts() {
         enabled: false,
         includeInStats: true,
         tier: newTier,
-        regions: DEFAULT_NEW_ACCOUNT_REGION_NAMES.map((name) =>
-          createDefaultAccountRegion(name)
+        regions: defaultRegionModelTemplate.regions.map((templateRegion) =>
+          createDefaultAccountRegion(
+            templateRegion.name,
+            defaultRegionModelTemplate.enabled
+              ? templateRegion.modelsText
+              : ''
+          )
         ),
         quota: '1000',
         purchaseCurrency: 'CNY',
       };
       return [...prev, newAccount];
     });
-  }, [saveAccounts]);
+  }, [defaultRegionModelTemplate, saveAccounts]);
 
   const updateAccountName = useCallback(
     (id: string, name: string) => {
@@ -446,6 +548,83 @@ export function useLocalAzureAccounts() {
       );
     },
     [saveAccounts]
+  );
+
+  const updateDefaultRegionModelTemplateEnabled = useCallback(
+    (enabled: boolean) => {
+      saveDefaultRegionModelTemplate((prev) => ({ ...prev, enabled }));
+    },
+    [saveDefaultRegionModelTemplate]
+  );
+
+  const addDefaultRegionModelTemplateRegion = useCallback(() => {
+    saveDefaultRegionModelTemplate((prev) => ({
+      ...prev,
+      regions: [
+        ...prev.regions,
+        {
+          id: generateId('template-region'),
+          name: 'new-region',
+          modelsText: '',
+        },
+      ],
+    }));
+  }, [saveDefaultRegionModelTemplate]);
+
+  const deleteDefaultRegionModelTemplateRegion = useCallback(
+    (regionId: string) => {
+      saveDefaultRegionModelTemplate((prev) => ({
+        ...prev,
+        regions: prev.regions.filter((region) => region.id !== regionId),
+      }));
+    },
+    [saveDefaultRegionModelTemplate]
+  );
+
+  const updateDefaultRegionModelTemplateRegionName = useCallback(
+    (regionId: string, name: string) => {
+      saveDefaultRegionModelTemplate((prev) => ({
+        ...prev,
+        regions: prev.regions.map((region) =>
+          region.id === regionId ? { ...region, name } : region
+        ),
+      }));
+    },
+    [saveDefaultRegionModelTemplate]
+  );
+
+  const updateDefaultRegionModelTemplateRegionModelsText = useCallback(
+    (regionId: string, modelsText: string) => {
+      saveDefaultRegionModelTemplate((prev) => ({
+        ...prev,
+        regions: prev.regions.map((region) =>
+          region.id === regionId ? { ...region, modelsText } : region
+        ),
+      }));
+    },
+    [saveDefaultRegionModelTemplate]
+  );
+
+  const reorderDefaultRegionModelTemplateRegions = useCallback(
+    (oldIndex: number, newIndex: number) => {
+      saveDefaultRegionModelTemplate((prev) => {
+        const regions = Array.from(prev.regions);
+        const [removed] = regions.splice(oldIndex, 1);
+        if (!removed) return prev;
+        regions.splice(newIndex, 0, removed);
+        return { ...prev, regions };
+      });
+    },
+    [saveDefaultRegionModelTemplate]
+  );
+
+  const importDefaultRegionModelTemplate = useCallback(
+    (template: unknown) => {
+      const normalized = normalizeDefaultRegionModelTemplateConfig(template);
+      setDefaultRegionModelTemplate(normalized);
+      debouncedSaveDefaultRegionModelTemplateRef.current(normalized);
+    },
+    []
   );
 
   const deleteAccount = useCallback(
@@ -907,9 +1086,17 @@ export function useLocalAzureAccounts() {
 
   return {
     accounts,
+    defaultRegionModelTemplate,
     accountSummaries,
     globalSeriesSummary,
     addAccount,
+    updateDefaultRegionModelTemplateEnabled,
+    addDefaultRegionModelTemplateRegion,
+    deleteDefaultRegionModelTemplateRegion,
+    updateDefaultRegionModelTemplateRegionName,
+    updateDefaultRegionModelTemplateRegionModelsText,
+    reorderDefaultRegionModelTemplateRegions,
+    importDefaultRegionModelTemplate,
     updateAccountName,
     updateAccountSubscriptionId,
     updateAccountNote,

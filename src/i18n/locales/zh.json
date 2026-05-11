@@ -86,7 +86,14 @@
     "accountIdTooltip": "系统自动分配的账号标识，A 系列为高级账号，B 系列为普通账号",
     "resourceName": "资源名称",
     "subscriptionId": "订阅 ID",
-    "subscriptionIdPlaceholder": "例如：37753a40-cbd3-4042-913b-3dd5d5a56f87"
+    "subscriptionIdPlaceholder": "例如：37753a40-cbd3-4042-913b-3dd5d5a56f87",
+    "defaultRegionModelTemplate": "区域默认模型模板",
+    "templateEnabled": "已启用",
+    "templateDisabled": "已停用",
+    "templateRegionCount": "{{count}} 个区域",
+    "templateModelCount": "{{count}} 个模型",
+    "enableTemplate": "启用模板模型",
+    "templateNoRegions": "暂无模板区域。点击新增区域创建。"
   },
   "regions": {
     "regionList": "区域列表",

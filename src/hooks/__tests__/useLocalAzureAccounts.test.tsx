@@ -9,6 +9,26 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     window.localStorage.clear();
   });
 
+  it('initializes the default region model template enabled with three empty regions', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    expect(result.current.defaultRegionModelTemplate.enabled).toBe(true);
+    expect(
+      result.current.defaultRegionModelTemplate.regions.map((region) => ({
+        name: region.name,
+        modelsText: region.modelsText,
+      }))
+    ).toEqual([
+      { name: 'eastus2', modelsText: '' },
+      { name: 'swedencentral', modelsText: '' },
+      { name: 'polandcentral', modelsText: '' },
+    ]);
+  });
+
   it('fans out legacy account deployment.resourceName to all regions', async () => {
     const legacy = [
       {
@@ -93,5 +113,97 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       'polandcentral',
     ]);
     expect(account?.regions.every((region) => region.enabled)).toBe(true);
+  });
+
+  it('creates new accounts from the latest enabled template order and model lists', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    const [eastus2, sweden] =
+      result.current.defaultRegionModelTemplate.regions;
+
+    act(() => {
+      result.current.updateDefaultRegionModelTemplateRegionModelsText(
+        eastus2.id,
+        'gpt-4o,gpt-4o-mini'
+      );
+      result.current.updateDefaultRegionModelTemplateRegionModelsText(
+        sweden.id,
+        'gpt-5'
+      );
+      result.current.reorderDefaultRegionModelTemplateRegions(1, 0);
+    });
+
+    act(() => {
+      result.current.addAccount();
+    });
+
+    const account = result.current.accounts.at(-1);
+    expect(account?.regions.map((region) => region.name)).toEqual([
+      'swedencentral',
+      'eastus2',
+      'polandcentral',
+    ]);
+    expect(account?.regions.map((region) => region.modelsText)).toEqual([
+      'gpt-5',
+      'gpt-4o,gpt-4o-mini',
+      '',
+    ]);
+  });
+
+  it('keeps template region order but clears models when the template is disabled', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    const [eastus2] = result.current.defaultRegionModelTemplate.regions;
+
+    act(() => {
+      result.current.updateDefaultRegionModelTemplateRegionModelsText(
+        eastus2.id,
+        'gpt-4o'
+      );
+      result.current.reorderDefaultRegionModelTemplateRegions(2, 0);
+      result.current.updateDefaultRegionModelTemplateEnabled(false);
+    });
+
+    act(() => {
+      result.current.addAccount();
+    });
+
+    const account = result.current.accounts.at(-1);
+    expect(account?.regions.map((region) => region.name)).toEqual([
+      'polandcentral',
+      'eastus2',
+      'swedencentral',
+    ]);
+    expect(account?.regions.every((region) => region.modelsText === '')).toBe(
+      true
+    );
+  });
+
+  it('creates new accounts with no regions when the template region list is empty', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    act(() => {
+      for (const region of result.current.defaultRegionModelTemplate.regions) {
+        result.current.deleteDefaultRegionModelTemplateRegion(region.id);
+      }
+    });
+
+    act(() => {
+      result.current.addAccount();
+    });
+
+    expect(result.current.accounts.at(-1)?.regions).toEqual([]);
   });
 });
