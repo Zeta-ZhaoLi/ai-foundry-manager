@@ -206,4 +206,39 @@ describe('useLocalAzureAccounts resourceName migration', () => {
 
     expect(result.current.accounts.at(-1)?.regions).toEqual([]);
   });
+
+  it('encrypts Service Principal password at rest and decrypts on load', async () => {
+    const { result, unmount } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    const accountId = result.current.accounts[0].id;
+    act(() => {
+      result.current.updateAccountServicePrincipal(accountId, {
+        appId: 'app-id',
+        displayName: 'azure-cli',
+        password: 'plain-secret',
+        tenant: 'tenant-id',
+      });
+    });
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem(STORAGE_KEY) || '';
+      expect(raw).toContain('azure-cli');
+      expect(raw).not.toContain('plain-secret');
+    });
+
+    unmount();
+    const reloaded = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(reloaded.result.current.accounts.length).toBe(1);
+    });
+
+    expect(
+      reloaded.result.current.accounts[0].servicePrincipal?.password
+    ).toBe('plain-secret');
+  });
 });

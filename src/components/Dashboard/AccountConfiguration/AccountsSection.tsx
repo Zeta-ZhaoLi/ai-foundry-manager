@@ -25,6 +25,7 @@ import {
   AccountQuota,
   CurrencyType,
   type GeneratedRegionIdentityBundle,
+  type ServicePrincipalCredential,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
   type DefaultRegionModelTemplateConfig,
@@ -65,6 +66,10 @@ export interface AccountsSectionProps {
   onUpdateAccountSubscriptionId: (
     accountId: string,
     subscriptionId: string
+  ) => void;
+  onUpdateAccountServicePrincipal?: (
+    accountId: string,
+    servicePrincipal?: ServicePrincipalCredential
   ) => void;
   onUpdateAccountNote: (accountId: string, note: string) => void;
   onUpdateAccountEnabled: (accountId: string, enabled: boolean) => void;
@@ -174,6 +179,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onRenumberAccounts,
   onUpdateAccountName,
   onUpdateAccountSubscriptionId,
+  onUpdateAccountServicePrincipal,
   onUpdateAccountNote,
   onUpdateAccountEnabled,
   onUpdateAccountIncludeInStats,
@@ -442,6 +448,15 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     }
                     onUpdateSubscriptionId={(subscriptionId) =>
                       onUpdateAccountSubscriptionId(account.id, subscriptionId)
+                    }
+                    onUpdateServicePrincipal={
+                      onUpdateAccountServicePrincipal
+                        ? (servicePrincipal) =>
+                            onUpdateAccountServicePrincipal(
+                              account.id,
+                              servicePrincipal
+                            )
+                        : undefined
                     }
                     onUpdateNote={(note) =>
                       onUpdateAccountNote(account.id, note)

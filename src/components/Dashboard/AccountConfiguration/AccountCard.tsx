@@ -21,6 +21,7 @@ import {
   AccountTier,
   AccountQuota,
   CurrencyType,
+  type ServicePrincipalCredential,
   type GeneratedRegionIdentityBundle,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
@@ -29,11 +30,16 @@ import type { LocalAccount as ImportedLocalAccount } from '../../../hooks/useLoc
 import { useToast } from '../../../hooks/useToast';
 import { orderModelsByMaster, parseModels } from '../../../utils/common';
 import {
+  buildAzureCliPowerShellMultiRegionDeploymentScript,
   buildAzureCliMultiRegionDeploymentScript,
   getAzureCliDeploymentIdentity,
   resolveAzureCliDeploymentRows,
   toAzureCliDeploymentModels,
 } from '../../../utils/azureCliDeployment';
+import {
+  isCompleteServicePrincipal,
+  parseServicePrincipalJson,
+} from '../../../utils/servicePrincipal';
 
 export type LocalAccount = ImportedLocalAccount;
 
@@ -47,6 +53,9 @@ export interface AccountCardProps {
   filteredModels: string[];
   onUpdateName: (name: string) => void;
   onUpdateSubscriptionId?: (subscriptionId: string) => void;
+  onUpdateServicePrincipal?: (
+    servicePrincipal?: ServicePrincipalCredential
+  ) => void;
   onUpdateNote: (note: string) => void;
   onUpdateEnabled: (enabled: boolean) => void;
   onUpdateIncludeInStats?: (includeInStats: boolean) => void;
@@ -110,6 +119,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   filteredModels,
   onUpdateName,
   onUpdateSubscriptionId,
+  onUpdateServicePrincipal,
   onUpdateNote,
   onUpdateEnabled,
   onUpdateIncludeInStats,
@@ -138,6 +148,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   const toast = useToast();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(account.enabled);
+  const [servicePrincipalJson, setServicePrincipalJson] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -193,8 +204,31 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     return identity?.resourceGroup || '';
   }, [account.regions, account.subscriptionId]);
 
-  const handleAllRegionsAzureCliDeployCode = (mode: 'selected' | 'all') => {
-    if (!account.subscriptionId?.trim()) {
+  const hasDeployAuth = Boolean(
+    account.subscriptionId?.trim() ||
+      isCompleteServicePrincipal(account.servicePrincipal)
+  );
+
+  const handleImportServicePrincipal = () => {
+    const result = parseServicePrincipalJson(servicePrincipalJson);
+    if (!result.success || !result.credential) {
+      toast.error(
+        t('accounts.servicePrincipalImportFailed', {
+          msg: result.error || 'Invalid JSON',
+        })
+      );
+      return;
+    }
+    onUpdateServicePrincipal?.(result.credential);
+    setServicePrincipalJson('');
+    toast.success(t('accounts.servicePrincipalImported'));
+  };
+
+  const handleAllRegionsAzureCliDeployCode = (
+    mode: 'selected' | 'all',
+    shell: 'bash' | 'powershell' = 'bash'
+  ) => {
+    if (!hasDeployAuth) {
       toast.error(t('regions.deployMissingSubscriptionId'));
       return;
     }
@@ -246,14 +280,23 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     }
 
     try {
-      const script = buildAzureCliMultiRegionDeploymentScript({
+      const input = {
         subscriptionId: account.subscriptionId,
+        servicePrincipal: account.servicePrincipal,
         resourceGroupName: firstRegionResourceGroupName,
         targets,
-      });
+      };
+      const script =
+        shell === 'powershell'
+          ? buildAzureCliPowerShellMultiRegionDeploymentScript(input)
+          : buildAzureCliMultiRegionDeploymentScript(input);
       onCopy(
         script,
-        `${displayName} - ${t('regions.azureCliDeployAllRegionsCode')} ${
+        `${displayName} - ${t(
+          shell === 'powershell'
+            ? 'regions.azureCliDeployPowerShellCode'
+            : 'regions.azureCliDeployAllRegionsCode'
+        )} ${
           mode === 'selected'
             ? t('regions.azureCliDeploySelected')
             : t('regions.azureCliDeployAll')
@@ -420,7 +463,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             </div>
 
             {/* Azure Subscription ID */}
-            <div className="md:col-span-3">
+            <div className="md:col-span-2">
               <label className="text-xs text-muted-foreground block mb-1">
                 {t('accounts.subscriptionId')}
               </label>
@@ -435,6 +478,73 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 placeholder={t('accounts.subscriptionIdPlaceholder')}
                 disabled={privacyMode || !onUpdateSubscriptionId}
               />
+            </div>
+
+            {/* Service Principal */}
+            <div className="md:col-span-3">
+              <label className="text-xs text-muted-foreground block mb-1">
+                {t('accounts.servicePrincipal')}
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  className={clsx(
+                    'flex-1 min-w-0 p-1.5 rounded-lg',
+                    'border border-border bg-background text-foreground text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                  )}
+                  value={
+                    privacyMode
+                      ? account.servicePrincipal
+                        ? '***'
+                        : ''
+                      : servicePrincipalJson
+                  }
+                  onChange={(e) => setServicePrincipalJson(e.target.value)}
+                  placeholder={t('accounts.servicePrincipalJsonPlaceholder')}
+                  disabled={privacyMode || !onUpdateServicePrincipal}
+                />
+                <button
+                  type="button"
+                  disabled={
+                    privacyMode ||
+                    !onUpdateServicePrincipal ||
+                    !servicePrincipalJson.trim()
+                  }
+                  onClick={handleImportServicePrincipal}
+                  className={clsx(
+                    'px-2 py-1.5 rounded-lg border text-xs whitespace-nowrap',
+                    privacyMode ||
+                      !onUpdateServicePrincipal ||
+                      !servicePrincipalJson.trim()
+                      ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
+                      : 'border-blue-500 bg-blue-900/20 text-blue-200 hover:bg-blue-900/30'
+                  )}
+                >
+                  {t('accounts.importServicePrincipal')}
+                </button>
+                {account.servicePrincipal && !privacyMode && (
+                  <button
+                    type="button"
+                    onClick={() => onUpdateServicePrincipal?.(undefined)}
+                    className="px-2 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+                  >
+                    {t('common.clear')}
+                  </button>
+                )}
+              </div>
+              {account.servicePrincipal && (
+                <div className="mt-1 text-[11px] text-muted-foreground truncate">
+                  {privacyMode
+                    ? t('accounts.servicePrincipalConfigured')
+                    : [
+                        account.servicePrincipal.displayName,
+                        account.servicePrincipal.appId,
+                        account.servicePrincipal.tenant,
+                      ]
+                        .filter(Boolean)
+                        .join(' / ')}
+                </div>
+              )}
             </div>
 
             {/* Quota */}
@@ -703,6 +813,44 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 >
                   {t('regions.azureCliDeployAll')}
                 </button>
+                <span className="text-current/60">|</span>
+                <button
+                  type="button"
+                  disabled={privacyMode || account.regions.length === 0}
+                  aria-label={`${t(
+                    'regions.azureCliDeployPowerShellCode'
+                  )} ${t('regions.azureCliDeploySelected')}`}
+                  onClick={() =>
+                    handleAllRegionsAzureCliDeployCode('selected', 'powershell')
+                  }
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || account.regions.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  PS {t('regions.azureCliDeploySelected')}
+                </button>
+                <span className="text-current/60">|</span>
+                <button
+                  type="button"
+                  disabled={privacyMode || account.regions.length === 0}
+                  aria-label={`${t('regions.azureCliDeployPowerShellCode')} ${t(
+                    'regions.azureCliDeployAll'
+                  )}`}
+                  onClick={() =>
+                    handleAllRegionsAzureCliDeployCode('all', 'powershell')
+                  }
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || account.regions.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  PS {t('regions.azureCliDeployAll')}
+                </button>
                 <span className="px-2 py-0.5 border-l border-current/30">
                   )
                 </span>
@@ -745,6 +893,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       accountId={account.id}
                       accountName={displayName}
                       subscriptionId={account.subscriptionId || ''}
+                      servicePrincipal={account.servicePrincipal}
                       azureCliResourceGroupName={firstRegionResourceGroupName}
                       masterGroups={masterGroups}
                       masterGroupLines={masterGroupLines}

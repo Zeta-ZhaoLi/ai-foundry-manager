@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "title": "Azure AI Foundry Verwaltungsoberflaeche",
     "subtitle": "Pflegen Sie oben eine Master-Modellliste und waehlen Sie pro Account/Region Modelle per Klick aus. Modelllisten (mit Kommas) werden automatisch generiert und lassen sich leicht kopieren.",
@@ -87,6 +87,12 @@
     "resourceName": "Ressourcenname",
     "subscriptionId": "Subscription ID",
     "subscriptionIdPlaceholder": "e.g. 37753a40-cbd3-4042-913b-3dd5d5a56f87",
+    "servicePrincipal": "Service Principal",
+    "servicePrincipalJsonPlaceholder": "Paste SP JSON",
+    "importServicePrincipal": "Import SP",
+    "servicePrincipalConfigured": "Service Principal configured",
+    "servicePrincipalImported": "Service Principal imported",
+    "servicePrincipalImportFailed": "Service Principal import failed: {{msg}}",
     "defaultRegionModelTemplate": "Default Region Model Template",
     "templateEnabled": "Enabled",
     "templateDisabled": "Disabled",
@@ -107,6 +113,7 @@
     "armDeployCodeCopied": "ARM deployment code copied",
     "azureCliDeployCode": "Azure CLI deployment code",
     "azureCliDeployCommand": "Azure CLI deployment command",
+    "azureCliDeployPowerShellCommand": "Azure CLI PowerShell command",
     "azureCliDeployCodeCopied": "Azure CLI deployment code copied",
     "azureCliDeployCommandCopied": "Azure CLI deployment command copied",
     "deployInclude": "Auswählen",
@@ -159,6 +166,7 @@
     "customRegion": "Benutzerdefiniert",
     "usePreset": "Preset-Region verwenden",
     "azureCliDeployAllRegionsCode": "Deploy all regions with Azure CLI",
+    "azureCliDeployPowerShellCode": "Azure CLI PowerShell deployment code",
     "azureCliDeployAllRegionsCodeCopied": "Azure CLI deployment code for all regions copied",
     "deployMissingSubscriptionId": "Please fill Subscription ID first",
     "deployMissingFirstRegionResourceGroup": "Please fill the first region AOAI resource name to derive the resource group",

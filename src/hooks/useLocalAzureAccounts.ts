@@ -17,8 +17,10 @@ import {
   regenerateAccountId,
   renumberAccountsByPosition,
 } from '../utils/accountIdGenerator';
+import type { ServicePrincipalCredential } from '../utils/servicePrincipal';
 
 export type { GeneratedRegionIdentityBundle } from '../utils/common';
+export type { ServicePrincipalCredential } from '../utils/servicePrincipal';
 
 export interface LocalRegion {
   id: string;
@@ -76,6 +78,7 @@ export interface LocalAccount {
   accountId?: string;
   name: string;
   subscriptionId?: string;
+  servicePrincipal?: ServicePrincipalCredential;
   note?: string;
   enabled: boolean;
   includeInStats?: boolean;
@@ -224,9 +227,18 @@ export function useLocalAzureAccounts() {
           (typeof legacyAccountDeployment?.resourceGroup === 'string'
             ? legacyAccountDeployment.resourceGroup
             : undefined);
+        const servicePrincipal = (rest as LocalAccount).servicePrincipal;
 
         return {
           ...(rest as LocalAccount),
+          servicePrincipal: servicePrincipal
+            ? {
+                ...servicePrincipal,
+                password: servicePrincipal.password
+                  ? decryptData(servicePrincipal.password)
+                  : servicePrincipal.password,
+              }
+            : servicePrincipal,
           regions: (acct.regions || []).map((reg) => ({
             ...reg,
             deployment: {
@@ -256,6 +268,14 @@ export function useLocalAzureAccounts() {
 
         return {
           ...(rest as LocalAccount),
+          servicePrincipal: acct.servicePrincipal
+            ? {
+                ...acct.servicePrincipal,
+                password: acct.servicePrincipal.password
+                  ? encryptData(acct.servicePrincipal.password)
+                  : acct.servicePrincipal.password,
+              }
+            : acct.servicePrincipal,
           regions: (acct.regions || []).map((reg) => ({
             ...reg,
             apiKey: reg.apiKey ? encryptData(reg.apiKey) : reg.apiKey,
@@ -472,6 +492,17 @@ export function useLocalAzureAccounts() {
       saveAccounts((prev) =>
         prev.map((acct) =>
           acct.id === id ? { ...acct, subscriptionId } : acct
+        )
+      );
+    },
+    [saveAccounts]
+  );
+
+  const updateAccountServicePrincipal = useCallback(
+    (id: string, servicePrincipal?: ServicePrincipalCredential) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, servicePrincipal } : acct
         )
       );
     },
@@ -1099,6 +1130,7 @@ export function useLocalAzureAccounts() {
     importDefaultRegionModelTemplate,
     updateAccountName,
     updateAccountSubscriptionId,
+    updateAccountServicePrincipal,
     updateAccountNote,
     updateAccountEnabled,
     updateAccountIncludeInStats,

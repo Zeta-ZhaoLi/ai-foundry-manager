@@ -281,6 +281,138 @@ describe('deployment configuration contract', () => {
     );
   });
 
+  it('imports Service Principal JSON and uses it for account-level deployment without subscriptionId', () => {
+    const account: LocalAccount = {
+      id: 'acct-1',
+      name: 'Account 1',
+      note: '',
+      enabled: true,
+      subscriptionId: '',
+      servicePrincipal: {
+        appId: 'app-id',
+        displayName: 'azure-cli',
+        password: 'secret',
+        tenant: 'tenant-id',
+      },
+      regions: [
+        {
+          id: 'reg-1',
+          name: 'eastus2',
+          modelsText: 'gpt-5',
+          deployment: { resourceName: 'first-resource' },
+        },
+      ],
+    };
+    const onUpdateServicePrincipal = vi.fn();
+    const onCopy = vi.fn();
+
+    const { getByRole, getByPlaceholderText, getByText } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountCard
+          account={account}
+          masterGroups={[['gpt-5']]}
+          masterGroupLines={[[['gpt-5']]]}
+          masterModels={['gpt-5']}
+          filteredModels={['gpt-5']}
+          onUpdateName={vi.fn()}
+          onUpdateSubscriptionId={vi.fn()}
+          onUpdateServicePrincipal={onUpdateServicePrincipal}
+          onUpdateNote={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={onCopy}
+        />
+      </I18nextProvider>
+    );
+
+    expect(getByText(/azure-cli \/ app-id \/ tenant-id/)).toBeTruthy();
+    fireEvent.change(
+      getByPlaceholderText(i18n.t('accounts.servicePrincipalJsonPlaceholder')),
+      {
+        target: {
+          value: JSON.stringify({
+            appId: 'new-app',
+            password: 'new-secret',
+            tenant: 'new-tenant',
+          }),
+        },
+      }
+    );
+    fireEvent.click(getByText(i18n.t('accounts.importServicePrincipal')));
+    expect(onUpdateServicePrincipal).toHaveBeenCalledWith({
+      appId: 'new-app',
+      displayName: undefined,
+      password: 'new-secret',
+      tenant: 'new-tenant',
+    });
+
+    fireEvent.click(
+      getByRole('button', {
+        name: /Azure CLI.*所有区域.*全部|Deploy all regions with Azure CLI.*All/i,
+      })
+    );
+
+    const copied = onCopy.mock.calls[0][0] as string;
+    expect(copied).toContain('az login --service-principal');
+    expect(copied).toContain('SP_APP_ID="app-id"');
+    expect(copied).toContain('az account list --query');
+    expect(copied).toContain('az cognitiveservices account keys list');
+  });
+
+  it('hides Service Principal details in privacy mode', () => {
+    const account: LocalAccount = {
+      id: 'acct-1',
+      name: 'Account 1',
+      note: '',
+      enabled: true,
+      servicePrincipal: {
+        appId: 'app-id',
+        displayName: 'azure-cli',
+        password: 'secret',
+        tenant: 'tenant-id',
+      },
+      regions: [],
+    };
+
+    const { getByText, queryByText } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountCard
+          account={account}
+          privacyMode
+          masterGroups={[]}
+          masterGroupLines={[]}
+          masterModels={[]}
+          filteredModels={[]}
+          onUpdateName={vi.fn()}
+          onUpdateNote={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    expect(getByText(i18n.t('accounts.servicePrincipalConfigured'))).toBeTruthy();
+    expect(queryByText('app-id')).toBeNull();
+    expect(queryByText('tenant-id')).toBeNull();
+  });
+
   it('shows region Resource Name after API Key and supports manual editing', () => {
     const region: LocalRegion = {
       id: 'reg-1',
@@ -750,7 +882,7 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*部署代码.*全部|Azure CLI deployment code.*All/i,
+        name: /^Azure CLI (部署代码|deployment code).*全部$|^Azure CLI deployment code.*All$/i,
       })
     );
 
@@ -805,7 +937,7 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*部署代码.*选中|Azure CLI deployment code.*Selected/i,
+        name: /^Azure CLI (部署代码|deployment code).*选中$|^Azure CLI deployment code.*Selected$/i,
       })
     );
 

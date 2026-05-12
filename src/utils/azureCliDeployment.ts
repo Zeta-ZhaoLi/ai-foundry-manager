@@ -21,6 +21,13 @@ export interface AzureCliDeploymentModelOverride {
   capacity?: number;
 }
 
+export interface AzureCliServicePrincipal {
+  appId: string;
+  displayName?: string;
+  password?: string;
+  tenant: string;
+}
+
 export interface AzureCliDeploymentRow extends AzureCliDeploymentModel {
   sourceModel: string;
   enabled: boolean;
@@ -28,7 +35,8 @@ export interface AzureCliDeploymentRow extends AzureCliDeploymentModel {
 }
 
 export interface AzureCliDeploymentInput {
-  subscriptionId: string;
+  subscriptionId?: string;
+  servicePrincipal?: AzureCliServicePrincipal;
   resourceName: string;
   location: string;
   resourceGroupName?: string;
@@ -46,7 +54,8 @@ export interface AzureCliDeploymentTargetInput {
 }
 
 export interface AzureCliMultiRegionDeploymentInput {
-  subscriptionId: string;
+  subscriptionId?: string;
+  servicePrincipal?: AzureCliServicePrincipal;
   resourceGroupName: string;
   targets: AzureCliDeploymentTargetInput[];
 }
@@ -70,6 +79,11 @@ export const AZURE_CLI_DEPLOYMENT_COMMAND = [
   './deploy-models.sh',
 ].join('\n');
 
+export const AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND = [
+  'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass',
+  '.\\deploy-foundry.ps1',
+].join('\n');
+
 function shellDoubleQuote(value: string): string {
   return value
     .replace(/\\/g, '\\\\')
@@ -78,10 +92,24 @@ function shellDoubleQuote(value: string): string {
     .replace(/`/g, '\\`');
 }
 
+function powershellSingleQuote(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function hasCompleteServicePrincipal(
+  servicePrincipal?: AzureCliServicePrincipal
+): boolean {
+  return Boolean(
+    servicePrincipal?.appId.trim() &&
+      servicePrincipal?.tenant.trim() &&
+      servicePrincipal?.password?.trim()
+  );
+}
+
 function deriveIdentity(
   input: AzureCliDeploymentInput
 ): AzureCliDeploymentIdentity | null {
-  const subscriptionId = input.subscriptionId.trim();
+  const subscriptionId = input.subscriptionId?.trim() || '';
   const resourceName = input.resourceName.trim();
   const location = input.location.trim();
   const endpoint = (input.foundryProjectEndpoint || '').trim();
@@ -105,7 +133,7 @@ function deriveIdentity(
     }
   }
 
-  if (!subscriptionId || !accountName || !projectId || !location) return null;
+  if (!accountName || !projectId || !location) return null;
 
   return {
     subscriptionId,
@@ -127,7 +155,9 @@ export function validateAzureCliDeploymentInput(
 ): AzureCliDeploymentValidation {
   const errors: string[] = [];
 
-  if (!input.subscriptionId.trim()) errors.push('subscriptionId is required');
+  if (!input.subscriptionId?.trim() && !hasCompleteServicePrincipal(input.servicePrincipal)) {
+    errors.push('subscriptionId or complete servicePrincipal is required');
+  }
   if (!input.resourceName.trim()) errors.push('resourceName is required');
   if (!input.location.trim()) errors.push('location is required');
   if (input.models.length === 0) errors.push('models are required');
@@ -232,8 +262,11 @@ export function toAzureCliDeploymentModels(
 
 function buildAzureCliDeploymentScriptBody(
   identity: AzureCliDeploymentIdentity,
-  modelRows: string
+  modelRows: string,
+  servicePrincipal?: AzureCliServicePrincipal
 ): string {
+  const configuredSubscriptionId = identity.subscriptionId;
+  const sp = servicePrincipal;
   return `# Deployment method: save as deploy-models.sh, then run:
 # ${AZURE_CLI_DEPLOYMENT_COMMAND.split('\n').join('\n# ')}
 
@@ -243,7 +276,11 @@ set -uo pipefail
 # ============================================================
 # Basic configuration
 # ============================================================
-SUBSCRIPTION_ID="${shellDoubleQuote(identity.subscriptionId)}"
+CONFIGURED_SUBSCRIPTION_ID="${shellDoubleQuote(configuredSubscriptionId)}"
+SUBSCRIPTION_ID="${shellDoubleQuote(configuredSubscriptionId)}"
+SP_APP_ID="${shellDoubleQuote(sp?.appId || '')}"
+SP_PASSWORD="${shellDoubleQuote(sp?.password || '')}"
+SP_TENANT="${shellDoubleQuote(sp?.tenant || '')}"
 RESOURCE_GROUP="${shellDoubleQuote(identity.resourceGroup)}"
 RESOURCE_GROUP_LOCATION="${shellDoubleQuote(identity.location)}"
 ACCOUNT_NAME="${shellDoubleQuote(identity.accountName)}"
@@ -271,17 +308,74 @@ FAILED_DEPLOYMENTS=()
 # ============================================================
 # Preflight
 # ============================================================
-echo "Setting subscription: \${SUBSCRIPTION_ID}"
-if ! az account set --subscription "\${SUBSCRIPTION_ID}"; then
-  echo "ERROR: Failed to set subscription."
-  exit 1
-fi
-
 if ! command -v jq >/dev/null 2>&1; then
   echo "ERROR: jq is required but not installed."
   echo "Azure Cloud Shell normally includes jq."
   exit 1
 fi
+
+login_and_select_subscription() {
+  if [ -n "\${SP_APP_ID}" ] || [ -n "\${SP_PASSWORD}" ] || [ -n "\${SP_TENANT}" ]; then
+    if [ -z "\${SP_APP_ID}" ] || [ -z "\${SP_PASSWORD}" ] || [ -z "\${SP_TENANT}" ]; then
+      echo "ERROR: Service Principal requires appId, password, and tenant."
+      exit 1
+    fi
+
+    echo "Logging in with Service Principal..."
+    if ! az login --service-principal --username "\${SP_APP_ID}" --password "\${SP_PASSWORD}" --tenant "\${SP_TENANT}" -o none; then
+      echo "ERROR: Service Principal login failed."
+      exit 1
+    fi
+  fi
+
+  if [ -n "\${AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID:-}" ]; then
+    SUBSCRIPTION_ID="\${AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID}"
+    echo "Reusing selected subscription: \${SUBSCRIPTION_ID}"
+  elif [ -n "\${CONFIGURED_SUBSCRIPTION_ID}" ]; then
+    SUBSCRIPTION_ID="\${CONFIGURED_SUBSCRIPTION_ID}"
+    echo "Using configured subscription: \${SUBSCRIPTION_ID}"
+  else
+    local subscriptions_json
+    local subscription_count
+
+    echo "Discovering enabled subscriptions..."
+    subscriptions_json="$(az account list --query "[?state=='Enabled'].{id:id,name:name,tenantId:tenantId}" -o json)"
+    subscription_count="$(echo "\${subscriptions_json}" | jq 'length')"
+
+    if [ "\${subscription_count}" -eq 0 ]; then
+      echo "ERROR: No enabled subscriptions are visible to this identity."
+      exit 1
+    fi
+
+    if [ "\${subscription_count}" -eq 1 ]; then
+      SUBSCRIPTION_ID="$(echo "\${subscriptions_json}" | jq -r '.[0].id')"
+      echo "Using the only enabled subscription: \${SUBSCRIPTION_ID}"
+    else
+      echo "Multiple enabled subscriptions found:"
+      echo "\${subscriptions_json}" | jq -r 'to_entries[] | "\\(.key + 1)) \\(.value.name) [\\(.value.id)] tenant=\\(.value.tenantId)"'
+
+      local selected_index
+      while true; do
+        read -r -p "Select subscription number: " selected_index
+        if [[ "\${selected_index}" =~ ^[0-9]+$ ]] && [ "\${selected_index}" -ge 1 ] && [ "\${selected_index}" -le "\${subscription_count}" ]; then
+          SUBSCRIPTION_ID="$(echo "\${subscriptions_json}" | jq -r --argjson index "$((selected_index - 1))" '.[$index].id')"
+          break
+        fi
+        echo "Invalid selection. Enter a number from 1 to \${subscription_count}."
+      done
+    fi
+  fi
+
+  echo "Setting subscription: \${SUBSCRIPTION_ID}"
+  if ! az account set --subscription "\${SUBSCRIPTION_ID}"; then
+    echo "ERROR: Failed to set subscription."
+    exit 1
+  fi
+
+  export AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID="\${SUBSCRIPTION_ID}"
+}
+
+login_and_select_subscription
 
 echo "Current Azure account:"
 az account show \\
@@ -568,6 +662,26 @@ print_copyable_model_import_list() {
   echo "\${model_list}"
 }
 
+print_account_key_summary() {
+  local key1
+  key1="$(az cognitiveservices account keys list \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    --query "key1" \\
+    -o tsv 2>/dev/null || true)"
+
+  echo
+  echo "============================================================"
+  echo "Account access summary"
+  echo "============================================================"
+  echo "Subscription ID:  \${SUBSCRIPTION_ID}"
+  echo "Region:           \${ACCOUNT_LOCATION}"
+  echo "Resource name:    \${ACCOUNT_NAME}"
+  echo "Foundry endpoint: https://\${ACCOUNT_NAME}.services.ai.azure.com/api/projects/\${PROJECT_NAME}"
+  echo "OpenAI endpoint:  https://\${ACCOUNT_NAME}.openai.azure.com"
+  echo "Key1:             \${key1}"
+}
+
 wait_until_succeeded() {
   local deployment_name="$1"
   local max_attempts="\${2:-120}"
@@ -781,6 +895,7 @@ az rest \\
   -o table 2>/dev/null || true
 
 print_copyable_model_import_list
+print_account_key_summary
 `;
 }
 
@@ -799,19 +914,20 @@ export function buildAzureCliDeploymentScript(
 
   return buildAzureCliDeploymentScriptBody(
     identity,
-    stringifyAzureCliModelRows(input.models)
+    stringifyAzureCliModelRows(input.models),
+    input.servicePrincipal
   );
 }
 
 export function buildAzureCliMultiRegionDeploymentScript(
   input: AzureCliMultiRegionDeploymentInput
 ): string {
-  const subscriptionId = input.subscriptionId.trim();
+  const subscriptionId = input.subscriptionId?.trim() || '';
   const resourceGroupName = input.resourceGroupName.trim();
   const targets = input.targets.filter((target) => target.models.length > 0);
 
-  if (!subscriptionId) {
-    throw new Error('subscriptionId is required');
+  if (!subscriptionId && !hasCompleteServicePrincipal(input.servicePrincipal)) {
+    throw new Error('subscriptionId or complete servicePrincipal is required');
   }
   if (!resourceGroupName) {
     throw new Error('resourceGroupName is required');
@@ -825,6 +941,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
       const label = target.label?.trim() || `Region ${index + 1}`;
       const script = buildAzureCliDeploymentScript({
         subscriptionId,
+        servicePrincipal: input.servicePrincipal,
         resourceGroupName,
         resourceName: target.resourceName,
         location: target.location,
@@ -835,6 +952,428 @@ export function buildAzureCliMultiRegionDeploymentScript(
       return [
         `# ============================================================`,
         `# ${shellDoubleQuote(label)}`,
+        `# ============================================================`,
+        script,
+      ].join('\n');
+    })
+    .join('\n\n');
+}
+
+function stringifyPowerShellModelRows(models: AzureCliDeploymentModel[]): string {
+  return models
+    .map(
+      (model) =>
+        `  '${powershellSingleQuote(model.deploymentName.trim())}|${powershellSingleQuote(
+          model.modelFormat.trim()
+        )}|${powershellSingleQuote(model.modelName.trim())}|${powershellSingleQuote(
+          model.version.trim()
+        )}'`
+    )
+    .join(',\n');
+}
+
+function buildAzureCliPowerShellDeploymentScriptBody(
+  identity: AzureCliDeploymentIdentity,
+  modelRows: string,
+  servicePrincipal?: AzureCliServicePrincipal
+): string {
+  return `# Deployment method: save as deploy-foundry.ps1, then run:
+# ${AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND.split('\n').join('\n# ')}
+
+$ErrorActionPreference = 'Stop'
+
+# ============================================================
+# Basic configuration
+# ============================================================
+$ConfiguredSubscriptionId = '${powershellSingleQuote(identity.subscriptionId)}'
+$SubscriptionId = $ConfiguredSubscriptionId
+$SpAppId = '${powershellSingleQuote(servicePrincipal?.appId || '')}'
+$SpPassword = '${powershellSingleQuote(servicePrincipal?.password || '')}'
+$SpTenant = '${powershellSingleQuote(servicePrincipal?.tenant || '')}'
+$ResourceGroup = '${powershellSingleQuote(identity.resourceGroup)}'
+$ResourceGroupLocation = '${powershellSingleQuote(identity.location)}'
+$AccountName = '${powershellSingleQuote(identity.accountName)}'
+$AccountLocation = '${powershellSingleQuote(identity.location)}'
+$ProjectName = '${powershellSingleQuote(identity.projectId)}'
+$DeploymentApiVersion = '2025-09-01'
+$CapacityApiVersion = '2024-10-01'
+$SkuName = 'GlobalStandard'
+$OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } else { 'true' }
+$AutoRegisterProvider = if ($env:AUTO_REGISTER_PROVIDER) { $env:AUTO_REGISTER_PROVIDER } else { 'true' }
+
+$SucceededDeployments = @()
+$SkippedDeployments = @()
+$FailedDeployments = @()
+
+function Invoke-AzCliJson {
+  param([Parameter(Mandatory=$true)][string[]]$Arguments)
+  $output = & az @Arguments 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    return $null
+  }
+  if (-not $output) {
+    return $null
+  }
+  return ($output | ConvertFrom-Json)
+}
+
+function Login-AndSelectSubscription {
+  if ($SpAppId -or $SpPassword -or $SpTenant) {
+    if (-not $SpAppId -or -not $SpPassword -or -not $SpTenant) {
+      throw 'Service Principal requires appId, password, and tenant.'
+    }
+
+    Write-Host 'Logging in with Service Principal...'
+    & az login --service-principal --username $SpAppId --password $SpPassword --tenant $SpTenant -o none
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Service Principal login failed.'
+    }
+  }
+
+  if ($env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID) {
+    $script:SubscriptionId = $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID
+    Write-Host "Reusing selected subscription: $script:SubscriptionId"
+  } elseif ($ConfiguredSubscriptionId) {
+    $script:SubscriptionId = $ConfiguredSubscriptionId
+    Write-Host "Using configured subscription: $script:SubscriptionId"
+  } else {
+    Write-Host 'Discovering enabled subscriptions...'
+    $subscriptions = Invoke-AzCliJson -Arguments @('account','list','--query',"[?state=='Enabled'].{id:id,name:name,tenantId:tenantId}",'-o','json')
+    if (-not $subscriptions) {
+      throw 'No enabled subscriptions are visible to this identity.'
+    }
+    if ($subscriptions -isnot [array]) {
+      $subscriptions = @($subscriptions)
+    }
+
+    if ($subscriptions.Count -eq 0) {
+      throw 'No enabled subscriptions are visible to this identity.'
+    } elseif ($subscriptions.Count -eq 1) {
+      $script:SubscriptionId = $subscriptions[0].id
+      Write-Host "Using the only enabled subscription: $script:SubscriptionId"
+    } else {
+      Write-Host 'Multiple enabled subscriptions found:'
+      for ($i = 0; $i -lt $subscriptions.Count; $i++) {
+        $n = $i + 1
+        Write-Host "$n) $($subscriptions[$i].name) [$($subscriptions[$i].id)] tenant=$($subscriptions[$i].tenantId)"
+      }
+      do {
+        $raw = Read-Host 'Select subscription number'
+        $ok = [int]::TryParse($raw, [ref]$selected)
+      } until ($ok -and $selected -ge 1 -and $selected -le $subscriptions.Count)
+      $script:SubscriptionId = $subscriptions[$selected - 1].id
+    }
+  }
+
+  Write-Host "Setting subscription: $script:SubscriptionId"
+  & az account set --subscription $script:SubscriptionId
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to set subscription.'
+  }
+  $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID = $script:SubscriptionId
+}
+
+function Ensure-ProviderRegistered {
+  Write-Host ''
+  Write-Host 'Checking Microsoft.CognitiveServices provider registration...'
+  $providerState = (& az provider show --namespace Microsoft.CognitiveServices --query registrationState -o tsv 2>$null)
+  if (-not $providerState) { $providerState = 'NotRegistered' }
+  Write-Host "Microsoft.CognitiveServices: $providerState"
+  if ($providerState -eq 'Registered') { return }
+  if ($AutoRegisterProvider -ne 'true') {
+    Write-Warning 'Provider is not registered and AUTO_REGISTER_PROVIDER is not true.'
+    return
+  }
+  & az provider register --namespace Microsoft.CognitiveServices
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning 'Failed to start provider registration.'
+    return
+  }
+  for ($attempt = 1; $attempt -le 60; $attempt++) {
+    $providerState = (& az provider show --namespace Microsoft.CognitiveServices --query registrationState -o tsv 2>$null)
+    Write-Host "  [$attempt/60] Microsoft.CognitiveServices: $providerState"
+    if ($providerState -eq 'Registered') { return }
+    Start-Sleep -Seconds 10
+  }
+  Write-Warning 'Provider registration did not reach Registered in time.'
+}
+
+function Ensure-ResourceGroup {
+  Write-Host ''
+  Write-Host "Ensuring resource group '$ResourceGroup'..."
+  & az group show --name $ResourceGroup -o none 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "Resource group '$ResourceGroup' already exists. Skip create."
+    return
+  }
+  & az group create --name $ResourceGroup --location $ResourceGroupLocation -o none
+}
+
+function Ensure-FoundryAccount {
+  Write-Host ''
+  Write-Host "Ensuring Azure AI Foundry resource '$AccountName'..."
+  & az cognitiveservices account show --name $AccountName --resource-group $ResourceGroup -o none 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "Azure AI Foundry resource '$AccountName' already exists. Skip create."
+  } else {
+    & az cognitiveservices account create --name $AccountName --resource-group $ResourceGroup --kind AIServices --sku s0 --location $AccountLocation --allow-project-management -o none
+  }
+
+  Write-Host "Ensuring custom domain '$AccountName'..."
+  & az cognitiveservices account update --name $AccountName --resource-group $ResourceGroup --custom-domain $AccountName -o none
+}
+
+function Ensure-FoundryProject {
+  Write-Host ''
+  Write-Host "Ensuring Azure AI Foundry project '$ProjectName'..."
+  & az cognitiveservices account project show --name $AccountName --resource-group $ResourceGroup --project-name $ProjectName -o none 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "Azure AI Foundry project '$ProjectName' already exists. Skip create."
+    return
+  }
+  & az cognitiveservices account project create --name $AccountName --resource-group $ResourceGroup --project-name $ProjectName --location $AccountLocation -o none
+}
+
+function Deployment-Exists {
+  param([string]$DeploymentName)
+  & az cognitiveservices account deployment show --name $AccountName --resource-group $ResourceGroup --deployment-name $DeploymentName -o none 2>$null
+  return $LASTEXITCODE -eq 0
+}
+
+function Get-DeploymentState {
+  param([string]$DeploymentName)
+  $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/resourceGroups/' + $ResourceGroup + '/providers/Microsoft.CognitiveServices/accounts/' + $AccountName + '/deployments/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
+  $state = (& az rest --method get --url $url --query properties.provisioningState -o tsv 2>$null)
+  if ($LASTEXITCODE -ne 0) { return '' }
+  return $state
+}
+
+function Get-ExistingCapacityIfSameModel {
+  param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/resourceGroups/' + $ResourceGroup + '/providers/Microsoft.CognitiveServices/accounts/' + $AccountName + '/deployments/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
+  $deployment = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$url,'-o','json')
+  if (-not $deployment) { return 0 }
+  if ($deployment.properties.model.format -eq $ModelFormat -and $deployment.properties.model.name -eq $ModelName -and $deployment.properties.model.version -eq $ModelVersion -and $deployment.sku.name -eq $SkuName) {
+    if ($deployment.sku.capacity) { return [int]$deployment.sku.capacity }
+    if ($deployment.properties.currentCapacity) { return [int]$deployment.properties.currentCapacity }
+  }
+  return 0
+}
+
+function Get-AvailableCapacity {
+  param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/providers/Microsoft.CognitiveServices/modelCapacities?api-version=' + $CapacityApiVersion + '&modelFormat=' + $ModelFormat + '&modelName=' + $ModelName + '&modelVersion=' + $ModelVersion
+  $json = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$url,'-o','json')
+  if (-not $json -or -not $json.value) { return $null }
+  $values = @()
+  foreach ($item in $json.value) {
+    $location = if ($item.location) { $item.location } else { $item.properties.location }
+    $sku = if ($item.properties.skuName) { $item.properties.skuName } elseif ($item.sku.name) { $item.sku.name } else { $item.name }
+    if ($location -and $sku -and $location.ToLowerInvariant() -eq $AccountLocation.ToLowerInvariant() -and $sku.ToLowerInvariant() -eq $SkuName.ToLowerInvariant()) {
+      $capacity = if ($item.properties.availableCapacity -ne $null) { $item.properties.availableCapacity } else { $item.availableCapacity }
+      if ($capacity -ne $null) { $values += [int][math]::Floor([double]$capacity) }
+    }
+  }
+  if ($values.Count -eq 0) { return $null }
+  return ($values | Measure-Object -Maximum).Maximum
+}
+
+function Wait-UntilSucceeded {
+  param([string]$DeploymentName, [int]$MaxAttempts = 120, [int]$SleepSeconds = 10)
+  Write-Host "Waiting for '$DeploymentName' to reach Succeeded..."
+  for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    $state = Get-DeploymentState -DeploymentName $DeploymentName
+    $displayState = if ($state) { $state } else { 'Unknown' }
+    Write-Host ('  [{0}/{1}] {2}: {3}' -f $attempt, $MaxAttempts, $DeploymentName, $displayState)
+    if ($state -eq 'Succeeded') { return $true }
+    if ($state -in @('Failed','Canceled','Cancelled')) { return $false }
+    Start-Sleep -Seconds $SleepSeconds
+  }
+  return $false
+}
+
+function Deploy-ModelWithMaxCapacity {
+  param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  Write-Host ''
+  Write-Host '============================================================'
+  Write-Host "Deployment name: $DeploymentName"
+  Write-Host "Model format:    $ModelFormat"
+  Write-Host "Model name:      $ModelName"
+  Write-Host "Model version:   $ModelVersion"
+  Write-Host "SKU:             $SkuName"
+  Write-Host "Region:          $AccountLocation"
+  Write-Host '============================================================'
+
+  if (Deployment-Exists -DeploymentName $DeploymentName) {
+    Write-Host "Deployment '$DeploymentName' already exists."
+    if ($OverwriteExisting -ne 'true') {
+      Write-Host "Skip '$DeploymentName' because OVERWRITE_EXISTING is not true."
+      return 2
+    }
+    Write-Host 'OVERWRITE_EXISTING=true, this deployment may be updated.'
+  }
+
+  $availableCapacity = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
+  if ($null -eq $availableCapacity) {
+    Write-Warning "No $SkuName availableCapacity found for $ModelName $ModelVersion in $AccountLocation."
+    return 2
+  }
+  $existingCapacity = Get-ExistingCapacityIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
+  $targetCapacity = [int]$availableCapacity + [int]$existingCapacity
+  if ($targetCapacity -le 0) {
+    Write-Warning "Max deployable capacity is $targetCapacity; skip '$DeploymentName'."
+    return 2
+  }
+
+  Write-Host "Available capacity:           $availableCapacity"
+  Write-Host "Existing same-model capacity: $existingCapacity"
+  Write-Host "Target deployment capacity:   $targetCapacity"
+  & az cognitiveservices account deployment create --name $AccountName --resource-group $ResourceGroup --deployment-name $DeploymentName --model-format $ModelFormat --model-name $ModelName --model-version $ModelVersion --sku-name $SkuName --sku-capacity $targetCapacity -o jsonc
+  if ($LASTEXITCODE -ne 0) { return 1 }
+  if (-not (Wait-UntilSucceeded -DeploymentName $DeploymentName)) { return 1 }
+  return 0
+}
+
+function Print-CopyableModelImportList {
+  Write-Host ''
+  Write-Host '============================================================'
+  Write-Host 'Copyable model import list'
+  Write-Host '============================================================'
+  $baseUrl = "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.CognitiveServices/accounts/$AccountName/deployments"
+  $json = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',($baseUrl + '?api-version=' + $DeploymentApiVersion),'-o','json')
+  if (-not $json -or -not $json.value) {
+    Write-Host 'No succeeded deployments found.'
+    return
+  }
+  $names = New-Object System.Collections.Generic.List[string]
+  foreach ($item in $json.value) {
+    if ($item.properties.provisioningState -ne 'Succeeded') { continue }
+    foreach ($name in @($item.properties.model.name, $item.name)) {
+      if ($name -and -not $names.Contains($name)) { $names.Add($name) }
+    }
+  }
+  if ($names.Count -eq 0) { Write-Host 'No succeeded deployments found.' } else { Write-Host ($names -join ', ') }
+}
+
+function Print-AccountKeySummary {
+  $key1 = (& az cognitiveservices account keys list --name $AccountName --resource-group $ResourceGroup --query key1 -o tsv 2>$null)
+  Write-Host ''
+  Write-Host '============================================================'
+  Write-Host 'Account access summary'
+  Write-Host '============================================================'
+  Write-Host "Subscription ID:  $SubscriptionId"
+  Write-Host "Region:           $AccountLocation"
+  Write-Host "Resource name:    $AccountName"
+  Write-Host "Foundry endpoint: https://$AccountName.services.ai.azure.com/api/projects/$ProjectName"
+  Write-Host "OpenAI endpoint:  https://$AccountName.openai.azure.com"
+  Write-Host "Key1:             $key1"
+}
+
+Login-AndSelectSubscription
+Write-Host 'Current Azure account:'
+& az account show --query "{subscriptionName:name, subscriptionId:id, state:state, user:user.name}" -o table
+Ensure-ProviderRegistered
+Ensure-ResourceGroup
+Ensure-FoundryAccount
+Ensure-FoundryProject
+
+$BaseUrl = "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.CognitiveServices/accounts/$AccountName/deployments"
+$Models = @(
+${modelRows}
+)
+
+foreach ($item in $Models) {
+  $parts = $item -split '\\|', 4
+  if ($parts.Count -lt 4) { continue }
+  $rc = Deploy-ModelWithMaxCapacity -DeploymentName $parts[0] -ModelFormat $parts[1] -ModelName $parts[2] -ModelVersion $parts[3]
+  if ($rc -eq 0) {
+    Write-Host "SUCCESS: $($parts[0])"
+    $SucceededDeployments += $parts[0]
+  } elseif ($rc -eq 2) {
+    Write-Host "SKIPPED: $($parts[0])"
+    $SkippedDeployments += $parts[0]
+  } else {
+    Write-Host "FAILED: $($parts[0])"
+    $FailedDeployments += $parts[0]
+  }
+  Write-Host 'Continue to next deployment...'
+}
+
+Write-Host ''
+Write-Host '============================================================'
+Write-Host 'Deployment summary'
+Write-Host '============================================================'
+Write-Host "Succeeded: $($SucceededDeployments.Count)"
+$SucceededDeployments | ForEach-Object { Write-Host "  OK      $_" }
+Write-Host ''
+Write-Host "Skipped: $($SkippedDeployments.Count)"
+$SkippedDeployments | ForEach-Object { Write-Host "  SKIP    $_" }
+Write-Host ''
+Write-Host "Failed: $($FailedDeployments.Count)"
+$FailedDeployments | ForEach-Object { Write-Host "  FAIL    $_" }
+
+Write-Host ''
+Write-Host "Final deployments under account '$AccountName'"
+& az rest --method get --url ($BaseUrl + '?api-version=' + $DeploymentApiVersion) --query "value[].{deploymentName:name,modelName:properties.model.name,modelVersion:properties.model.version,sku:sku.name,capacity:sku.capacity,state:properties.provisioningState,raiPolicy:properties.raiPolicyName}" -o table 2>$null
+
+Print-CopyableModelImportList
+Print-AccountKeySummary
+`;
+}
+
+export function buildAzureCliPowerShellDeploymentScript(
+  input: AzureCliDeploymentInput
+): string {
+  const validation = validateAzureCliDeploymentInput(input);
+  if (!validation.valid) {
+    throw new Error(validation.errors.join('; '));
+  }
+
+  const identity = deriveIdentity(input);
+  if (!identity) {
+    throw new Error('Unable to derive Azure CLI deployment identity');
+  }
+
+  return buildAzureCliPowerShellDeploymentScriptBody(
+    identity,
+    stringifyPowerShellModelRows(input.models),
+    input.servicePrincipal
+  );
+}
+
+export function buildAzureCliPowerShellMultiRegionDeploymentScript(
+  input: AzureCliMultiRegionDeploymentInput
+): string {
+  const subscriptionId = input.subscriptionId?.trim() || '';
+  const resourceGroupName = input.resourceGroupName.trim();
+  const targets = input.targets.filter((target) => target.models.length > 0);
+
+  if (!subscriptionId && !hasCompleteServicePrincipal(input.servicePrincipal)) {
+    throw new Error('subscriptionId or complete servicePrincipal is required');
+  }
+  if (!resourceGroupName) {
+    throw new Error('resourceGroupName is required');
+  }
+  if (targets.length === 0) {
+    throw new Error('targets are required');
+  }
+
+  return targets
+    .map((target, index) => {
+      const label = target.label?.trim() || `Region ${index + 1}`;
+      const script = buildAzureCliPowerShellDeploymentScript({
+        subscriptionId,
+        servicePrincipal: input.servicePrincipal,
+        resourceGroupName,
+        resourceName: target.resourceName,
+        location: target.location,
+        foundryProjectEndpoint: target.foundryProjectEndpoint,
+        models: target.models,
+      });
+
+      return [
+        `# ============================================================`,
+        `# ${label.replace(/\r?\n/g, ' ')}`,
         `# ============================================================`,
         script,
       ].join('\n');

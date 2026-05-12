@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 
 import {
   AZURE_CLI_DEPLOYMENT_COMMAND,
+  AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND,
   buildAzureCliMultiRegionDeploymentScript,
   buildAzureCliDeploymentScript,
+  buildAzureCliPowerShellDeploymentScript,
+  buildAzureCliPowerShellMultiRegionDeploymentScript,
   getAzureCliDeploymentIdentity,
   resolveAzureCliDeploymentRows,
   toAzureCliDeploymentModels,
@@ -145,6 +148,76 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('already exists. Skip create.');
   });
 
+  it('supports Service Principal login and subscription discovery when subscriptionId is empty', () => {
+    const script = buildAzureCliDeploymentScript({
+      ...baseInput,
+      subscriptionId: '',
+      servicePrincipal: {
+        appId: 'app-id',
+        password: 'secret',
+        tenant: 'tenant-id',
+      },
+    });
+
+    expect(script).toContain('az login --service-principal');
+    expect(script).toContain('SP_APP_ID="app-id"');
+    expect(script).toContain('az account list --query "[?state==');
+    expect(script).toContain('Multiple enabled subscriptions found');
+    expect(script).toContain('Select subscription number');
+    expect(script).toContain('az account set --subscription "${SUBSCRIPTION_ID}"');
+  });
+
+  it('uses configured subscription directly when present with Service Principal', () => {
+    const script = buildAzureCliDeploymentScript({
+      ...baseInput,
+      servicePrincipal: {
+        appId: 'app-id',
+        password: 'secret',
+        tenant: 'tenant-id',
+      },
+    });
+
+    expect(script).toContain(
+      `CONFIGURED_SUBSCRIPTION_ID="${baseInput.subscriptionId}"`
+    );
+    expect(script).toContain('Using configured subscription');
+  });
+
+  it('prints account key and endpoint summary after deployment', () => {
+    const script = buildAzureCliDeploymentScript(baseInput);
+
+    expect(script).toContain('az cognitiveservices account keys list \\');
+    expect(script).toContain('Account access summary');
+    expect(script).toContain('Subscription ID:');
+    expect(script).toContain('Foundry endpoint: https://${ACCOUNT_NAME}.services.ai.azure.com/api/projects/${PROJECT_NAME}');
+    expect(script).toContain('OpenAI endpoint:  https://${ACCOUNT_NAME}.openai.azure.com');
+    expect(script).toContain('Key1:');
+  });
+
+  it('generates PowerShell deployment script with official idempotent commands and key output', () => {
+    const script = buildAzureCliPowerShellDeploymentScript({
+      ...baseInput,
+      servicePrincipal: {
+        appId: 'app-id',
+        password: 'secret',
+        tenant: 'tenant-id',
+      },
+    });
+
+    expect(script).toContain('deploy-foundry.ps1');
+    expect(script).toContain('az login --service-principal');
+    expect(script).toContain('Read-Host');
+    expect(script).toContain('az group show --name $ResourceGroup');
+    expect(script).toContain('az cognitiveservices account create');
+    expect(script).toContain('--kind AIServices');
+    expect(script).toContain('--allow-project-management');
+    expect(script).toContain('az cognitiveservices account project show');
+    expect(script).toContain('az cognitiveservices account deployment create');
+    expect(script).toContain('modelCapacities');
+    expect(script).toContain('az cognitiveservices account keys list');
+    expect(script).toContain('Account access summary');
+  });
+
   it('includes modelCapacities and max capacity logic', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
@@ -221,7 +294,9 @@ describe('azureCliDeployment', () => {
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('subscriptionId is required');
+    expect(result.errors).toContain(
+      'subscriptionId or complete servicePrincipal is required'
+    );
     expect(result.errors).toContain('resourceName is required');
     expect(result.errors).toContain('location is required');
     expect(result.errors).toContain('deploymentName is required');
@@ -237,5 +312,42 @@ describe('azureCliDeployment', () => {
         './deploy-models.sh',
       ].join('\n')
     );
+    expect(AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND).toBe(
+      [
+        'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass',
+        '.\\deploy-foundry.ps1',
+      ].join('\n')
+    );
+  });
+
+  it('builds a multi-region PowerShell script with shared resource group and per-region identity', () => {
+    const script = buildAzureCliPowerShellMultiRegionDeploymentScript({
+      subscriptionId: baseInput.subscriptionId,
+      resourceGroupName: 'rg-first-region',
+      targets: [
+        {
+          label: 'eastus2',
+          resourceName: 'first-resource',
+          location: 'eastus2',
+          models: [baseInput.models[0]],
+        },
+        {
+          label: 'swedencentral',
+          resourceName: 'second-resource',
+          location: 'swedencentral',
+          models: [baseInput.models[1]],
+        },
+      ],
+    });
+
+    expect(script).toContain('# eastus2');
+    expect(script).toContain('# swedencentral');
+    expect(script.match(/\$ResourceGroup = 'rg-first-region'/g)).toHaveLength(
+      2
+    );
+    expect(script).toContain("$AccountName = 'first-resource'");
+    expect(script).toContain("$AccountName = 'second-resource'");
+    expect(script).toContain("$AccountLocation = 'eastus2'");
+    expect(script).toContain("$AccountLocation = 'swedencentral'");
   });
 });

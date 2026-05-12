@@ -27,6 +27,7 @@ import type {
   LocalRegion as ImportedLocalRegion,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
+  ServicePrincipalCredential,
 } from '../../../hooks/useLocalAzureAccounts';
 
 import {
@@ -35,10 +36,13 @@ import {
 } from '../../../utils/armTemplate';
 import {
   AZURE_CLI_DEPLOYMENT_COMMAND,
+  AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND,
   buildAzureCliDeploymentScript,
+  buildAzureCliPowerShellDeploymentScript,
   resolveAzureCliDeploymentRows,
   toAzureCliDeploymentModels,
 } from '../../../utils/azureCliDeployment';
+import { isCompleteServicePrincipal } from '../../../utils/servicePrincipal';
 
 export type LocalRegion = ImportedLocalRegion;
 
@@ -49,6 +53,7 @@ export interface RegionCardProps {
   accountId: string;
   accountName: string;
   subscriptionId?: string;
+  servicePrincipal?: ServicePrincipalCredential;
   azureCliResourceGroupName?: string;
   masterModels: string[];
   masterGroups: string[][];
@@ -133,6 +138,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   privacyMode = false,
   accountName,
   subscriptionId = '',
+  servicePrincipal,
   azureCliResourceGroupName,
   masterModels,
   masterGroups,
@@ -516,8 +522,8 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     [selectedDeploymentRows]
   );
 
-  const handleAzureCliDeployCode = useCallback((mode: 'selected' | 'all') => {
-    if (!subscriptionId.trim()) {
+  const handleAzureCliDeployCode = useCallback((mode: 'selected' | 'all', shell: 'bash' | 'powershell' = 'bash') => {
+    if (!subscriptionId.trim() && !isCompleteServicePrincipal(servicePrincipal)) {
       toast.error(t('regions.deployMissingSubscriptionId'));
       return;
     }
@@ -540,17 +546,26 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     }
 
     try {
-      const script = buildAzureCliDeploymentScript({
+      const input = {
         subscriptionId,
+        servicePrincipal,
         resourceName,
         location: region.name || '',
         resourceGroupName: azureCliResourceGroupName,
         foundryProjectEndpoint: region.foundryProjectEndpoint || '',
         models,
-      });
+      };
+      const script =
+        shell === 'powershell'
+          ? buildAzureCliPowerShellDeploymentScript(input)
+          : buildAzureCliDeploymentScript(input);
       onCopy(
         script,
-        `${displayRegionName} - ${t('regions.azureCliDeployCode')} ${
+        `${displayRegionName} - ${t(
+          shell === 'powershell'
+            ? 'regions.azureCliDeployPowerShellCode'
+            : 'regions.azureCliDeployCode'
+        )} ${
           mode === 'selected'
             ? t('regions.azureCliDeploySelected')
             : t('regions.azureCliDeployAll')
@@ -573,15 +588,22 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     region.foundryProjectEndpoint,
     region.name,
     selectedAzureCliModels,
+    servicePrincipal,
     subscriptionId,
     toast,
     t,
   ]);
 
-  const handleAzureCliDeployCommand = useCallback(() => {
+  const handleAzureCliDeployCommand = useCallback((shell: 'bash' | 'powershell' = 'bash') => {
     onCopy(
-      AZURE_CLI_DEPLOYMENT_COMMAND,
-      `${displayRegionName} - ${t('regions.azureCliDeployCommand')}`
+      shell === 'powershell'
+        ? AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND
+        : AZURE_CLI_DEPLOYMENT_COMMAND,
+      `${displayRegionName} - ${t(
+        shell === 'powershell'
+          ? 'regions.azureCliDeployPowerShellCommand'
+          : 'regions.azureCliDeployCommand'
+      )}`
     );
     toast.success(t('regions.azureCliDeployCommandCopied'));
   }, [displayRegionName, onCopy, t, toast]);
@@ -1150,6 +1172,42 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 >
                   {t('regions.azureCliDeployAll')}
                 </button>
+                <span className="text-current/60">|</span>
+                <button
+                  type="button"
+                  disabled={privacyMode || selectedAzureCliModels.length === 0}
+                  aria-label={`${t('regions.azureCliDeployPowerShellCode')} ${t(
+                    'regions.azureCliDeploySelected'
+                  )}`}
+                  onClick={() =>
+                    handleAzureCliDeployCode('selected', 'powershell')
+                  }
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || selectedAzureCliModels.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  PS {t('regions.azureCliDeploySelected')}
+                </button>
+                <span className="text-current/60">|</span>
+                <button
+                  type="button"
+                  disabled={privacyMode || allMasterAzureCliModels.length === 0}
+                  aria-label={`${t('regions.azureCliDeployPowerShellCode')} ${t(
+                    'regions.azureCliDeployAll'
+                  )}`}
+                  onClick={() => handleAzureCliDeployCode('all', 'powershell')}
+                  className={clsx(
+                    'px-1.5 py-0.5 transition-colors',
+                    privacyMode || allMasterAzureCliModels.length === 0
+                      ? 'cursor-not-allowed text-gray-500'
+                      : 'cursor-pointer hover:bg-emerald-900/40'
+                  )}
+                >
+                  PS {t('regions.azureCliDeployAll')}
+                </button>
                 <span className="px-2 py-0.5 border-l border-current/30">
                   )
                 </span>
@@ -1157,7 +1215,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               <button
                 type="button"
                 disabled={privacyMode}
-                onClick={handleAzureCliDeployCommand}
+                onClick={() => handleAzureCliDeployCommand('bash')}
                 className={clsx(
                   'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
                   privacyMode
@@ -1166,6 +1224,19 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 )}
               >
                 {t('regions.azureCliDeployCommand')}
+              </button>
+              <button
+                type="button"
+                disabled={privacyMode}
+                onClick={() => handleAzureCliDeployCommand('powershell')}
+                className={clsx(
+                  'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
+                  privacyMode
+                    ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
+                    : 'border-blue-500 bg-blue-900/20 text-blue-200 hover:bg-blue-900/30'
+                )}
+              >
+                {t('regions.azureCliDeployPowerShellCommand')}
               </button>
             </div>
           </div>
