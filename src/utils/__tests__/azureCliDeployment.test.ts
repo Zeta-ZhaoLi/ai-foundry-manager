@@ -233,21 +233,23 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('--kind AIServices');
     expect(script).toContain('--allow-project-management');
     expect(script).toContain('az cognitiveservices account project show');
-    expect(script).toContain('az cognitiveservices account deployment create');
+    expect(script).toContain("Invoke-AzureCli -Arguments @('rest','--method','put'");
     expect(script).toContain('modelCapacities');
+    expect(script).toContain("$RaiPolicyName = 'Microsoft.Nil'");
+    expect(script).toContain('raiPolicyName = $RaiPolicyName');
     expect(script).toContain('$SkuCandidates = @(');
     expect(script).toContain('DataZoneStandard');
     expect(script).toContain('Standard');
     expect(script).toContain('Select-BestSkuCapacity');
     expect(script).toContain('Get-ExistingDeploymentIfSameModel');
     expect(script).toContain("preserving this SKU");
-    expect(script).toContain('--sku-name $selectedSkuName');
+    expect(script).toContain('name = $selectedSkuName');
     expect(script).toContain('function Invoke-AzureCli');
     expect(script).toContain('function Invoke-AzureCliQuiet');
     expect(script).toContain("if ($Value -like '*&*')");
     expect(script).toContain("Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$url");
     expect(script).toContain('-QuietOnError');
-    expect(script).toContain('-o jsonc | Out-Host');
+    expect(script).toContain("'-o','jsonc') | Out-Host");
     expect(script).toContain('az cognitiveservices account keys list');
     expect(script).toContain('Account access summary');
     expect(script).toContain('Prepare-AccountResources');
@@ -264,13 +266,15 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('select_best_sku_capacity');
     expect(script).toContain('get_existing_deployment_if_same_model');
     expect(script).toContain("preserving this SKU");
-    expect(script).toContain('--sku-name "${selected_sku}"');
+    expect(script).toContain('RAI_POLICY_NAME="Microsoft.Nil"');
+    expect(script).toContain('raiPolicyName: $rai_policy_name');
+    expect(script).toContain('--method put \\');
     expect(script).toContain(
       'target_capacity=$((available_capacity + existing_same_model_capacity))'
     );
     expect(script).toContain('deploy_model_with_max_capacity');
-    expect(script).toContain('az cognitiveservices account deployment create \\');
-    expect(script).toContain('--sku-capacity "${target_capacity}"');
+    expect(script).toContain('--url "${BASE_URL}/${deployment_name}?api-version=${DEPLOYMENT_API_VERSION}" \\');
+    expect(script).toContain('--body "${deployment_payload}" \\');
   });
 
   it('includes preflight, provider registration, and deployment summary logic', () => {
@@ -298,9 +302,7 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('SKIPPED: ${deployment_name}');
     expect(script).toContain('FAILED: ${deployment_name}');
     expect(script).toContain('Continue to next deployment...');
-    expect(script).toContain(
-      'if ! az cognitiveservices account deployment create \\'
-    );
+    expect(script).toContain('if ! az rest \\');
   });
 
   it('prints a copyable import list with succeeded model and deployment names', () => {

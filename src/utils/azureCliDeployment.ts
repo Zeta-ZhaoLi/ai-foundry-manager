@@ -288,6 +288,8 @@ ACCOUNT_LOCATION="${shellDoubleQuote(identity.location)}"
 PROJECT_NAME="${shellDoubleQuote(identity.projectId)}"
 DEPLOYMENT_API_VERSION="2025-09-01"
 CAPACITY_API_VERSION="2025-06-01"
+RAI_POLICY_NAME="Microsoft.Nil"
+VERSION_UPGRADE_OPTION="OnceNewDefaultVersionAvailable"
 
 SKU_CANDIDATES=(
   "\${AZURE_FOUNDRY_PREFERRED_SKU:-GlobalStandard}"
@@ -986,18 +988,38 @@ deploy_model_with_max_capacity() {
   echo "Target deployment capacity:    \${target_capacity}"
   echo "Creating or updating deployment '\${deployment_name}'..."
 
-  if ! az cognitiveservices account deployment create \\
-    --name "\${ACCOUNT_NAME}" \\
-    --resource-group "\${RESOURCE_GROUP}" \\
-    --deployment-name "\${deployment_name}" \\
-    --model-format "\${model_format}" \\
-    --model-name "\${model_name}" \\
-    --model-version "\${model_version}" \\
-    --sku-name "\${selected_sku}" \\
-    --sku-capacity "\${target_capacity}" \\
+  local deployment_payload
+  deployment_payload="$(jq -n \\
+    --arg model_format "\${model_format}" \\
+    --arg model_name "\${model_name}" \\
+    --arg model_version "\${model_version}" \\
+    --arg version_upgrade_option "\${VERSION_UPGRADE_OPTION}" \\
+    --arg rai_policy_name "\${RAI_POLICY_NAME}" \\
+    --arg sku_name "\${selected_sku}" \\
+    --argjson sku_capacity "\${target_capacity}" '{
+      properties: {
+        model: {
+          format: $model_format,
+          name: $model_name,
+          version: $model_version
+        },
+        versionUpgradeOption: $version_upgrade_option,
+        raiPolicyName: $rai_policy_name
+      },
+      sku: {
+        name: $sku_name,
+        capacity: $sku_capacity
+      }
+    }')"
+
+  if ! az rest \\
+    --method put \\
+    --url "\${BASE_URL}/\${deployment_name}?api-version=\${DEPLOYMENT_API_VERSION}" \\
+    --headers "Content-Type=application/json" \\
+    --body "\${deployment_payload}" \\
     -o jsonc; then
 
-    echo "ERROR: Azure CLI deployment create failed for '\${deployment_name}'."
+    echo "ERROR: Azure CLI deployment PUT failed for '\${deployment_name}'."
     echo "Skip to next deployment."
     return 1
   fi
@@ -1234,6 +1256,8 @@ $AccountLocation = '${powershellSingleQuote(identity.location)}'
 $ProjectName = '${powershellSingleQuote(identity.projectId)}'
 $DeploymentApiVersion = '2025-09-01'
 $CapacityApiVersion = '2025-06-01'
+$RaiPolicyName = 'Microsoft.Nil'
+$VersionUpgradeOption = 'OnceNewDefaultVersionAvailable'
 $SkuCandidates = @(
   $(if ($env:AZURE_FOUNDRY_PREFERRED_SKU) { $env:AZURE_FOUNDRY_PREFERRED_SKU } else { 'GlobalStandard' }),
   'DataZoneStandard',
@@ -1612,7 +1636,23 @@ function Deploy-ModelWithMaxCapacity {
   Write-Host "Selected SKU:                 $selectedSkuName"
   Write-Host "Existing same-model capacity: $existingCapacity"
   Write-Host "Target deployment capacity:   $targetCapacity"
-  & az cognitiveservices account deployment create --name $AccountName --resource-group $ResourceGroup --deployment-name $DeploymentName --model-format $ModelFormat --model-name $ModelName --model-version $ModelVersion --sku-name $selectedSkuName --sku-capacity $targetCapacity -o jsonc | Out-Host
+  $deploymentUrl = $BaseUrl + '/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
+  $deploymentPayload = @{
+    properties = @{
+      model = @{
+        format = $ModelFormat
+        name = $ModelName
+        version = $ModelVersion
+      }
+      versionUpgradeOption = $VersionUpgradeOption
+      raiPolicyName = $RaiPolicyName
+    }
+    sku = @{
+      name = $selectedSkuName
+      capacity = $targetCapacity
+    }
+  } | ConvertTo-Json -Depth 10 -Compress
+  Invoke-AzureCli -Arguments @('rest','--method','put','--url',$deploymentUrl,'--headers','Content-Type=application/json','--body',$deploymentPayload,'-o','jsonc') | Out-Host
   if ($LASTEXITCODE -ne 0) { return 1 }
   if (-not (Wait-UntilSucceeded -DeploymentName $DeploymentName)) { return 1 }
   return 0
