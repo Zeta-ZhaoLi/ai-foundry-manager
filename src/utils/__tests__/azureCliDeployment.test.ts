@@ -223,6 +223,10 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('Standard');
     expect(script).toContain('Select-BestSkuCapacity');
     expect(script).toContain('--sku-name $selectedSkuName');
+    expect(script).toContain('function Invoke-AzureCli');
+    expect(script).toContain('function Invoke-AzureCliQuiet');
+    expect(script).toContain("if ($Value -like '*&*')");
+    expect(script).toContain("Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$url");
     expect(script).toContain('az cognitiveservices account keys list');
     expect(script).toContain('Account access summary');
   });

@@ -1180,7 +1180,7 @@ Ensure-AzureCli
 
 function Invoke-AzCliJson {
   param([Parameter(Mandatory=$true)][string[]]$Arguments)
-  $output = & az @Arguments 2>&1
+  $output = Invoke-AzureCli -Arguments $Arguments
   if ($LASTEXITCODE -ne 0) {
     Write-Warning ('Azure CLI command failed: az ' + ($Arguments -join ' '))
     if ($output) {
@@ -1192,6 +1192,26 @@ function Invoke-AzCliJson {
     return $null
   }
   return ($output | ConvertFrom-Json)
+}
+
+function ConvertTo-AzureCliArgument {
+  param([Parameter(Mandatory=$true)][string]$Value)
+  if ($Value -like '*&*') {
+    return ('"' + ($Value -replace '"', '\\"') + '"')
+  }
+  return $Value
+}
+
+function Invoke-AzureCli {
+  param([Parameter(Mandatory=$true)][string[]]$Arguments)
+  $safeArguments = @($Arguments | ForEach-Object { ConvertTo-AzureCliArgument -Value $_ })
+  return (& az @safeArguments 2>&1)
+}
+
+function Invoke-AzureCliQuiet {
+  param([Parameter(Mandatory=$true)][string[]]$Arguments)
+  $safeArguments = @($Arguments | ForEach-Object { ConvertTo-AzureCliArgument -Value $_ })
+  & az @safeArguments 2>$null
 }
 
 function Login-AndSelectSubscription {
@@ -1320,7 +1340,7 @@ function Deployment-Exists {
 function Get-DeploymentState {
   param([string]$DeploymentName)
   $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/resourceGroups/' + $ResourceGroup + '/providers/Microsoft.CognitiveServices/accounts/' + $AccountName + '/deployments/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
-  $state = (& az rest --method get --url $url --query properties.provisioningState -o tsv 2>$null)
+  $state = Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$url,'--query','properties.provisioningState','-o','tsv')
   if ($LASTEXITCODE -ne 0) { return '' }
   return $state
 }
@@ -1381,7 +1401,7 @@ function Print-CapacityDebug {
   param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
   Write-Host 'Capacity rows returned by modelCapacities API:'
   $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/providers/Microsoft.CognitiveServices/locations/' + $AccountLocation + '/modelCapacities?api-version=' + $CapacityApiVersion + '&modelFormat=' + $ModelFormat + '&modelName=' + $ModelName + '&modelVersion=' + $ModelVersion
-  & az rest --method get --url $url --query 'value[].{location:location,propertiesLocation:properties.location,sku:properties.skuName,skuName:sku.name,topSkuName:skuName,name:name,availableCapacity:properties.availableCapacity,topAvailableCapacity:availableCapacity,modelName:properties.model.name,modelVersion:properties.model.version}' -o table
+  Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$url,'--query','value[].{location:location,propertiesLocation:properties.location,sku:properties.skuName,skuName:sku.name,topSkuName:skuName,name:name,availableCapacity:properties.availableCapacity,topAvailableCapacity:availableCapacity,modelName:properties.model.name,modelVersion:properties.model.version}','-o','table')
 }
 
 function Wait-UntilSucceeded {
@@ -1492,6 +1512,7 @@ $BaseUrl = "https://management.azure.com/subscriptions/$SubscriptionId/resourceG
 $Models = @(
 ${modelRows}
 )
+$FinalDeploymentsUrl = $BaseUrl + '?api-version=' + $DeploymentApiVersion
 
 foreach ($item in $Models) {
   $parts = $item -split '\\|', 4
@@ -1525,7 +1546,7 @@ $FailedDeployments | ForEach-Object { Write-Host "  FAIL    $_" }
 
 Write-Host ''
 Write-Host "Final deployments under account '$AccountName'"
-& az rest --method get --url ($BaseUrl + '?api-version=' + $DeploymentApiVersion) --query "value[].{deploymentName:name,modelName:properties.model.name,modelVersion:properties.model.version,sku:sku.name,capacity:sku.capacity,state:properties.provisioningState,raiPolicy:properties.raiPolicyName}" -o table 2>$null
+Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$FinalDeploymentsUrl,'--query','value[].{deploymentName:name,modelName:properties.model.name,modelVersion:properties.model.version,sku:sku.name,capacity:sku.capacity,state:properties.provisioningState,raiPolicy:properties.raiPolicyName}','-o','table')
 
 Print-CopyableModelImportList
 Print-AccountKeySummary
