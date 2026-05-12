@@ -302,6 +302,11 @@ OVERWRITE_EXISTING="\${OVERWRITE_EXISTING:-true}"
 # Optional: try to register provider before deployment
 AUTO_REGISTER_PROVIDER="\${AUTO_REGISTER_PROVIDER:-true}"
 
+# all = prepare resources, print account summary, deploy models, print final summary
+# prepare-only = prepare resources and print account summary, skip model deployment
+# deploy-only = skip resource preparation and deploy models
+DEPLOYMENT_RUN_MODE="\${AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE:-all}"
+
 # ============================================================
 # Result arrays
 # ============================================================
@@ -575,10 +580,6 @@ ensure_foundry_project() {
     -o none
 }
 
-ensure_resource_group
-ensure_foundry_account
-ensure_foundry_project
-
 echo
 echo "Account location: \${ACCOUNT_LOCATION}"
 echo "Project name:     \${PROJECT_NAME}"
@@ -838,6 +839,13 @@ print_account_key_summary() {
   echo "Key1:             \${key1}"
 }
 
+prepare_account_resources() {
+  ensure_resource_group
+  ensure_foundry_account
+  ensure_foundry_project
+  print_account_key_summary
+}
+
 wait_until_succeeded() {
   local deployment_name="$1"
   local max_attempts="\${2:-120}"
@@ -1003,79 +1011,95 @@ deploy_model_with_max_capacity() {
   return 0
 }
 
-# ============================================================
-# Main deployment loop
-# ============================================================
-for item in "\${MODELS[@]}"; do
-  IFS='|' read -r deployment_name model_format model_name model_version <<< "\${item}"
+deploy_all_models() {
+  # ============================================================
+  # Main deployment loop
+  # ============================================================
+  for item in "\${MODELS[@]}"; do
+    IFS='|' read -r deployment_name model_format model_name model_version <<< "\${item}"
 
-  deploy_model_with_max_capacity "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}"
-  rc=$?
+    deploy_model_with_max_capacity "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}"
+    rc=$?
 
-  case "\${rc}" in
-    0)
-      echo "SUCCESS: \${deployment_name}"
-      SUCCEEDED_DEPLOYMENTS+=("\${deployment_name}")
-      ;;
-    2)
-      echo "SKIPPED: \${deployment_name}"
-      SKIPPED_DEPLOYMENTS+=("\${deployment_name}")
-      ;;
-    *)
-      echo "FAILED: \${deployment_name}"
-      FAILED_DEPLOYMENTS+=("\${deployment_name}")
-      ;;
-  esac
+    case "\${rc}" in
+      0)
+        echo "SUCCESS: \${deployment_name}"
+        SUCCEEDED_DEPLOYMENTS+=("\${deployment_name}")
+        ;;
+      2)
+        echo "SKIPPED: \${deployment_name}"
+        SKIPPED_DEPLOYMENTS+=("\${deployment_name}")
+        ;;
+      *)
+        echo "FAILED: \${deployment_name}"
+        FAILED_DEPLOYMENTS+=("\${deployment_name}")
+        ;;
+    esac
 
-  echo "Continue to next deployment..."
-done
+    echo "Continue to next deployment..."
+  done
+}
 
-# ============================================================
-# Summary
-# ============================================================
-echo
-echo "============================================================"
-echo "Deployment summary"
-echo "============================================================"
+print_deployment_summary() {
+  # ============================================================
+  # Summary
+  # ============================================================
+  echo
+  echo "============================================================"
+  echo "Deployment summary"
+  echo "============================================================"
 
-echo "Succeeded: \${#SUCCEEDED_DEPLOYMENTS[@]}"
-for name in "\${SUCCEEDED_DEPLOYMENTS[@]}"; do
-  echo "  OK      \${name}"
-done
+  echo "Succeeded: \${#SUCCEEDED_DEPLOYMENTS[@]}"
+  for name in "\${SUCCEEDED_DEPLOYMENTS[@]}"; do
+    echo "  OK      \${name}"
+  done
 
-echo
-echo "Skipped: \${#SKIPPED_DEPLOYMENTS[@]}"
-for name in "\${SKIPPED_DEPLOYMENTS[@]}"; do
-  echo "  SKIP    \${name}"
-done
+  echo
+  echo "Skipped: \${#SKIPPED_DEPLOYMENTS[@]}"
+  for name in "\${SKIPPED_DEPLOYMENTS[@]}"; do
+    echo "  SKIP    \${name}"
+  done
 
-echo
-echo "Failed: \${#FAILED_DEPLOYMENTS[@]}"
-for name in "\${FAILED_DEPLOYMENTS[@]}"; do
-  echo "  FAIL    \${name}"
-done
+  echo
+  echo "Failed: \${#FAILED_DEPLOYMENTS[@]}"
+  for name in "\${FAILED_DEPLOYMENTS[@]}"; do
+    echo "  FAIL    \${name}"
+  done
+}
 
-# ============================================================
-# Final deployment list
-# ============================================================
-echo
-echo "============================================================"
-echo "Final deployments under account '\${ACCOUNT_NAME}'"
-echo "============================================================"
+print_final_deployments() {
+  # ============================================================
+  # Final deployment list
+  # ============================================================
+  echo
+  echo "============================================================"
+  echo "Final deployments under account '\${ACCOUNT_NAME}'"
+  echo "============================================================"
 
-az rest \\
-  --method get \\
-  --url "\${BASE_URL}?api-version=\${DEPLOYMENT_API_VERSION}" \\
-  --query "value[].{
-    deploymentName:name,
-    modelName:properties.model.name,
-    modelVersion:properties.model.version,
-    sku:sku.name,
-    capacity:sku.capacity,
-    state:properties.provisioningState,
-    raiPolicy:properties.raiPolicyName
-  }" \\
-  -o table 2>/dev/null || true
+  az rest \\
+    --method get \\
+    --url "\${BASE_URL}?api-version=\${DEPLOYMENT_API_VERSION}" \\
+    --query "value[].{
+      deploymentName:name,
+      modelName:properties.model.name,
+      modelVersion:properties.model.version,
+      sku:sku.name,
+      capacity:sku.capacity,
+      state:properties.provisioningState,
+      raiPolicy:properties.raiPolicyName
+    }" \\
+    -o table 2>/dev/null || true
+}
+
+if [ "\${DEPLOYMENT_RUN_MODE}" != "deploy-only" ]; then
+  prepare_account_resources
+fi
+
+if [ "\${DEPLOYMENT_RUN_MODE}" != "prepare-only" ]; then
+  deploy_all_models
+  print_deployment_summary
+  print_final_deployments
+fi
 
 print_copyable_model_import_list
 print_account_key_summary
@@ -1119,8 +1143,11 @@ export function buildAzureCliMultiRegionDeploymentScript(
     throw new Error('targets are required');
   }
 
-  return targets
-    .map((target, index) => {
+  return [
+    '# ============================================================',
+    '# Prepare all selected regions first',
+    '# ============================================================',
+    ...targets.map((target, index) => {
       const label = target.label?.trim() || `Region ${index + 1}`;
       const script = buildAzureCliDeploymentScript({
         subscriptionId,
@@ -1134,12 +1161,37 @@ export function buildAzureCliMultiRegionDeploymentScript(
 
       return [
         `# ============================================================`,
-        `# ${shellDoubleQuote(label)}`,
+        `# Prepare ${shellDoubleQuote(label)}`,
         `# ============================================================`,
+        'export AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE="prepare-only"',
         script,
       ].join('\n');
-    })
-    .join('\n\n');
+    }),
+    '# ============================================================',
+    '# Deploy models after all selected regions are prepared',
+    '# ============================================================',
+    ...targets.map((target, index) => {
+      const label = target.label?.trim() || `Region ${index + 1}`;
+      const script = buildAzureCliDeploymentScript({
+        subscriptionId,
+        servicePrincipal: input.servicePrincipal,
+        resourceGroupName,
+        resourceName: target.resourceName,
+        location: target.location,
+        foundryProjectEndpoint: target.foundryProjectEndpoint,
+        models: target.models,
+      });
+
+      return [
+        `# ============================================================`,
+        `# Deploy ${shellDoubleQuote(label)}`,
+        `# ============================================================`,
+        'export AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE="deploy-only"',
+        script,
+      ].join('\n');
+    }),
+    'unset AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE',
+  ].join('\n\n');
 }
 
 function stringifyPowerShellModelRows(models: AzureCliDeploymentModel[]): string {
@@ -1189,6 +1241,7 @@ $SkuCandidates = @(
 )
 $OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } else { 'true' }
 $AutoRegisterProvider = if ($env:AUTO_REGISTER_PROVIDER) { $env:AUTO_REGISTER_PROVIDER } else { 'true' }
+$DeploymentRunMode = if ($env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE) { $env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE } else { 'all' }
 
 $SucceededDeployments = @()
 $SkippedDeployments = @()
@@ -1600,53 +1653,73 @@ function Print-AccountKeySummary {
   Write-Host "Key1:             $key1"
 }
 
+function Prepare-AccountResources {
+  Ensure-ResourceGroup
+  Ensure-FoundryAccount
+  Ensure-FoundryProject
+  Print-AccountKeySummary
+}
+
+function Deploy-AllModels {
+  foreach ($item in $Models) {
+    $parts = $item -split '\\|', 4
+    if ($parts.Count -lt 4) { continue }
+    $rc = Deploy-ModelWithMaxCapacity -DeploymentName $parts[0] -ModelFormat $parts[1] -ModelName $parts[2] -ModelVersion $parts[3]
+    if ($rc -eq 0) {
+      Write-Host "SUCCESS: $($parts[0])"
+      $SucceededDeployments += $parts[0]
+    } elseif ($rc -eq 2) {
+      Write-Host "SKIPPED: $($parts[0])"
+      $SkippedDeployments += $parts[0]
+    } else {
+      Write-Host "FAILED: $($parts[0])"
+      $FailedDeployments += $parts[0]
+    }
+    Write-Host 'Continue to next deployment...'
+  }
+}
+
+function Print-DeploymentSummary {
+  Write-Host ''
+  Write-Host '============================================================'
+  Write-Host 'Deployment summary'
+  Write-Host '============================================================'
+  Write-Host "Succeeded: $($SucceededDeployments.Count)"
+  $SucceededDeployments | ForEach-Object { Write-Host "  OK      $_" }
+  Write-Host ''
+  Write-Host "Skipped: $($SkippedDeployments.Count)"
+  $SkippedDeployments | ForEach-Object { Write-Host "  SKIP    $_" }
+  Write-Host ''
+  Write-Host "Failed: $($FailedDeployments.Count)"
+  $FailedDeployments | ForEach-Object { Write-Host "  FAIL    $_" }
+}
+
+function Print-FinalDeployments {
+  $finalDeploymentsUrl = $BaseUrl + '?api-version=' + $DeploymentApiVersion
+  Write-Host ''
+  Write-Host "Final deployments under account '$AccountName'"
+  Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$finalDeploymentsUrl,'--query','value[].{deploymentName:name,modelName:properties.model.name,modelVersion:properties.model.version,sku:sku.name,capacity:sku.capacity,state:properties.provisioningState,raiPolicy:properties.raiPolicyName}','-o','table')
+}
+
 Login-AndSelectSubscription
 Write-Host 'Current Azure account:'
 & az account show --query "{subscriptionName:name, subscriptionId:id, state:state, user:user.name}" -o table
 Ensure-ProviderRegistered
-Ensure-ResourceGroup
-Ensure-FoundryAccount
-Ensure-FoundryProject
 
 $BaseUrl = "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.CognitiveServices/accounts/$AccountName/deployments"
 $Models = @(
 ${modelRows}
 )
-$FinalDeploymentsUrl = $BaseUrl + '?api-version=' + $DeploymentApiVersion
 
-foreach ($item in $Models) {
-  $parts = $item -split '\\|', 4
-  if ($parts.Count -lt 4) { continue }
-  $rc = Deploy-ModelWithMaxCapacity -DeploymentName $parts[0] -ModelFormat $parts[1] -ModelName $parts[2] -ModelVersion $parts[3]
-  if ($rc -eq 0) {
-    Write-Host "SUCCESS: $($parts[0])"
-    $SucceededDeployments += $parts[0]
-  } elseif ($rc -eq 2) {
-    Write-Host "SKIPPED: $($parts[0])"
-    $SkippedDeployments += $parts[0]
-  } else {
-    Write-Host "FAILED: $($parts[0])"
-    $FailedDeployments += $parts[0]
-  }
-  Write-Host 'Continue to next deployment...'
+if ($DeploymentRunMode -ne 'deploy-only') {
+  Prepare-AccountResources
 }
 
-Write-Host ''
-Write-Host '============================================================'
-Write-Host 'Deployment summary'
-Write-Host '============================================================'
-Write-Host "Succeeded: $($SucceededDeployments.Count)"
-$SucceededDeployments | ForEach-Object { Write-Host "  OK      $_" }
-Write-Host ''
-Write-Host "Skipped: $($SkippedDeployments.Count)"
-$SkippedDeployments | ForEach-Object { Write-Host "  SKIP    $_" }
-Write-Host ''
-Write-Host "Failed: $($FailedDeployments.Count)"
-$FailedDeployments | ForEach-Object { Write-Host "  FAIL    $_" }
-
-Write-Host ''
-Write-Host "Final deployments under account '$AccountName'"
-Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$FinalDeploymentsUrl,'--query','value[].{deploymentName:name,modelName:properties.model.name,modelVersion:properties.model.version,sku:sku.name,capacity:sku.capacity,state:properties.provisioningState,raiPolicy:properties.raiPolicyName}','-o','table')
+if ($DeploymentRunMode -ne 'prepare-only') {
+  Deploy-AllModels
+  Print-DeploymentSummary
+  Print-FinalDeployments
+}
 
 Print-CopyableModelImportList
 Print-AccountKeySummary
@@ -1690,8 +1763,11 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     throw new Error('targets are required');
   }
 
-  return targets
-    .map((target, index) => {
+  return [
+    '# ============================================================',
+    '# Prepare all selected regions first',
+    '# ============================================================',
+    ...targets.map((target, index) => {
       const label = target.label?.trim() || `Region ${index + 1}`;
       const script = buildAzureCliPowerShellDeploymentScript({
         subscriptionId,
@@ -1705,10 +1781,35 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
 
       return [
         `# ============================================================`,
-        `# ${label.replace(/\r?\n/g, ' ')}`,
+        `# Prepare ${label.replace(/\r?\n/g, ' ')}`,
         `# ============================================================`,
+        `$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'prepare-only'`,
         script,
       ].join('\n');
-    })
-    .join('\n\n');
+    }),
+    '# ============================================================',
+    '# Deploy models after all selected regions are prepared',
+    '# ============================================================',
+    ...targets.map((target, index) => {
+      const label = target.label?.trim() || `Region ${index + 1}`;
+      const script = buildAzureCliPowerShellDeploymentScript({
+        subscriptionId,
+        servicePrincipal: input.servicePrincipal,
+        resourceGroupName,
+        resourceName: target.resourceName,
+        location: target.location,
+        foundryProjectEndpoint: target.foundryProjectEndpoint,
+        models: target.models,
+      });
+
+      return [
+        `# ============================================================`,
+        `# Deploy ${label.replace(/\r?\n/g, ' ')}`,
+        `# ============================================================`,
+        `$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'deploy-only'`,
+        script,
+      ].join('\n');
+    }),
+    'Remove-Item Env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE -ErrorAction SilentlyContinue',
+  ].join('\n\n');
 }

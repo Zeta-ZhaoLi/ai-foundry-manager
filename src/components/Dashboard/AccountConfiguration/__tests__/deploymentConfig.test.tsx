@@ -195,9 +195,11 @@ describe('deployment configuration contract', () => {
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
-    expect(copied).toContain('# eastus2');
-    expect(copied).not.toContain('# swedencentral');
-    expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(1);
+    expect(copied).toContain('# Prepare eastus2');
+    expect(copied).toContain('# Deploy eastus2');
+    expect(copied).not.toContain('# Prepare swedencentral');
+    expect(copied).not.toContain('# Deploy swedencentral');
+    expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(2);
     expect(copied).toContain('ACCOUNT_NAME="first-resource"');
     expect(copied).not.toContain('ACCOUNT_NAME="second-resource"');
     expect(copied).toContain('ACCOUNT_LOCATION="eastus2"');
@@ -266,9 +268,14 @@ describe('deployment configuration contract', () => {
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
-    expect(copied).toContain('# eastus2');
-    expect(copied).toContain('# swedencentral');
-    expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(2);
+    expect(copied).toContain('# Prepare eastus2');
+    expect(copied).toContain('# Prepare swedencentral');
+    expect(copied).toContain('# Deploy eastus2');
+    expect(copied).toContain('# Deploy swedencentral');
+    expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(4);
+    expect(copied.indexOf('# Prepare swedencentral')).toBeLessThan(
+      copied.indexOf('# Deploy eastus2')
+    );
     expect(copied).toContain('ACCOUNT_NAME="first-resource"');
     expect(copied).toContain('ACCOUNT_NAME="second-resource"');
     expect(copied).toContain('ACCOUNT_LOCATION="eastus2"');

@@ -121,15 +121,30 @@ describe('azureCliDeployment', () => {
       ],
     });
 
-    expect(script).toContain('# eastus2');
-    expect(script).toContain('# swedencentral');
-    expect(script.match(/RESOURCE_GROUP="rg-first-region"/g)).toHaveLength(2);
+    expect(script).toContain('# Prepare eastus2');
+    expect(script).toContain('# Prepare swedencentral');
+    expect(script).toContain('# Deploy eastus2');
+    expect(script).toContain('# Deploy swedencentral');
+    expect(script.match(/RESOURCE_GROUP="rg-first-region"/g)).toHaveLength(4);
     expect(script).toContain('ACCOUNT_NAME="first-resource"');
     expect(script).toContain('ACCOUNT_NAME="second-resource"');
     expect(script).toContain('ACCOUNT_LOCATION="eastus2"');
     expect(script).toContain('ACCOUNT_LOCATION="swedencentral"');
     expect(script).toContain('PROJECT_NAME="first"');
     expect(script).toContain('PROJECT_NAME="second"');
+    expect(script).toContain('Prepare all selected regions first');
+    expect(script).toContain('Deploy models after all selected regions are prepared');
+    expect(script).toContain('export AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE="prepare-only"');
+    expect(script).toContain('export AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE="deploy-only"');
+    expect(script.indexOf('# Prepare eastus2')).toBeLessThan(
+      script.indexOf('# Prepare swedencentral')
+    );
+    expect(script.indexOf('# Prepare swedencentral')).toBeLessThan(
+      script.indexOf('# Deploy eastus2')
+    );
+    expect(script.indexOf('# Deploy eastus2')).toBeLessThan(
+      script.indexOf('# Deploy swedencentral')
+    );
   });
 
   it('includes idempotent official Foundry resource and project setup', () => {
@@ -188,6 +203,8 @@ describe('azureCliDeployment', () => {
 
     expect(script).toContain('az cognitiveservices account keys list \\');
     expect(script).toContain('Account access summary');
+    expect(script).toContain('prepare_account_resources');
+    expect(script).toContain('deploy_all_models');
     expect(script).toContain('Subscription ID:');
     expect(script).toContain('Foundry endpoint: https://${ACCOUNT_NAME}.services.ai.azure.com/api/projects/${PROJECT_NAME}');
     expect(script).toContain('OpenAI endpoint:  https://${ACCOUNT_NAME}.openai.azure.com');
@@ -233,6 +250,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('-o jsonc | Out-Host');
     expect(script).toContain('az cognitiveservices account keys list');
     expect(script).toContain('Account access summary');
+    expect(script).toContain('Prepare-AccountResources');
+    expect(script).toContain('Deploy-AllModels');
   });
 
   it('includes modelCapacities and max capacity logic', () => {
@@ -370,14 +389,29 @@ describe('azureCliDeployment', () => {
       ],
     });
 
-    expect(script).toContain('# eastus2');
-    expect(script).toContain('# swedencentral');
+    expect(script).toContain('# Prepare eastus2');
+    expect(script).toContain('# Prepare swedencentral');
+    expect(script).toContain('# Deploy eastus2');
+    expect(script).toContain('# Deploy swedencentral');
     expect(script.match(/\$ResourceGroup = 'rg-first-region'/g)).toHaveLength(
-      2
+      4
     );
     expect(script).toContain("$AccountName = 'first-resource'");
     expect(script).toContain("$AccountName = 'second-resource'");
     expect(script).toContain("$AccountLocation = 'eastus2'");
     expect(script).toContain("$AccountLocation = 'swedencentral'");
+    expect(script).toContain('Prepare all selected regions first');
+    expect(script).toContain('Deploy models after all selected regions are prepared');
+    expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'prepare-only'");
+    expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'deploy-only'");
+    expect(script.indexOf('# Prepare eastus2')).toBeLessThan(
+      script.indexOf('# Prepare swedencentral')
+    );
+    expect(script.indexOf('# Prepare swedencentral')).toBeLessThan(
+      script.indexOf('# Deploy eastus2')
+    );
+    expect(script.indexOf('# Deploy eastus2')).toBeLessThan(
+      script.indexOf('# Deploy swedencentral')
+    );
   });
 });
