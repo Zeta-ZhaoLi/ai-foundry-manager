@@ -205,6 +205,7 @@ describe('azureCliDeployment', () => {
     });
 
     expect(script).toContain('deploy-foundry.ps1');
+    expect(script).toContain("$ErrorActionPreference = 'Continue'");
     expect(script).toContain('function Ensure-AzureCli');
     expect(script).toContain('winget install -e --id Microsoft.AzureCLI');
     expect(script).toContain('Refresh-AzureCliPath');

@@ -1047,7 +1047,9 @@ function buildAzureCliPowerShellDeploymentScriptBody(
   return `# Deployment method: save as deploy-foundry.ps1, then run:
 # ${AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND.split('\n').join('\n# ')}
 
-$ErrorActionPreference = 'Stop'
+# Azure CLI writes expected "not found" checks to stderr. Keep native command
+# failures non-terminating and handle them explicitly through $LASTEXITCODE.
+$ErrorActionPreference = 'Continue'
 
 # ============================================================
 # Basic configuration
