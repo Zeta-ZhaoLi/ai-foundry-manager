@@ -205,6 +205,9 @@ describe('azureCliDeployment', () => {
     });
 
     expect(script).toContain('deploy-foundry.ps1');
+    expect(script).toContain('function Ensure-AzureCli');
+    expect(script).toContain('winget install -e --id Microsoft.AzureCLI');
+    expect(script).toContain('Refresh-AzureCliPath');
     expect(script).toContain('az login --service-principal');
     expect(script).toContain('Read-Host');
     expect(script).toContain('az group show --name $ResourceGroup');
@@ -234,6 +237,11 @@ describe('azureCliDeployment', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
     expect(script).toContain('set -uo pipefail');
+    expect(script).toContain('install_azure_cli_if_missing');
+    expect(script).toContain('https://aka.ms/InstallAzureCLIDeb');
+    expect(script).toContain('brew install azure-cli');
+    expect(script).toContain('install_jq_if_missing');
+    expect(script).toContain('apt-get install -y jq');
     expect(script).toContain('AUTO_REGISTER_PROVIDER="${AUTO_REGISTER_PROVIDER:-true}"');
     expect(script).toContain('ensure_provider_registered || true');
     expect(script).toContain('command -v jq');

@@ -308,11 +308,78 @@ FAILED_DEPLOYMENTS=()
 # ============================================================
 # Preflight
 # ============================================================
-if ! command -v jq >/dev/null 2>&1; then
-  echo "ERROR: jq is required but not installed."
-  echo "Azure Cloud Shell normally includes jq."
-  exit 1
-fi
+install_azure_cli_if_missing() {
+  if command -v az >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Azure CLI was not found. Attempting automatic installation..."
+
+  if command -v apt-get >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
+    if command -v sudo >/dev/null 2>&1; then
+      curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+    else
+      curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+    fi
+  elif command -v brew >/dev/null 2>&1; then
+    brew update
+    brew install azure-cli
+  else
+    echo "ERROR: Azure CLI is required but was not found."
+    echo "Install it from: https://learn.microsoft.com/cli/azure/install-azure-cli"
+    exit 1
+  fi
+
+  if ! command -v az >/dev/null 2>&1; then
+    echo "ERROR: Azure CLI installation did not put 'az' on PATH."
+    echo "Open a new shell or install Azure CLI manually."
+    exit 1
+  fi
+}
+
+install_jq_if_missing() {
+  if command -v jq >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "jq was not found. Attempting automatic installation..."
+
+  if command -v apt-get >/dev/null 2>&1; then
+    if command -v sudo >/dev/null 2>&1; then
+      sudo apt-get update
+      sudo apt-get install -y jq
+    else
+      apt-get update
+      apt-get install -y jq
+    fi
+  elif command -v brew >/dev/null 2>&1; then
+    brew install jq
+  elif command -v dnf >/dev/null 2>&1; then
+    if command -v sudo >/dev/null 2>&1; then
+      sudo dnf install -y jq
+    else
+      dnf install -y jq
+    fi
+  elif command -v yum >/dev/null 2>&1; then
+    if command -v sudo >/dev/null 2>&1; then
+      sudo yum install -y jq
+    else
+      yum install -y jq
+    fi
+  else
+    echo "ERROR: jq is required but was not found."
+    echo "Azure Cloud Shell normally includes jq."
+    exit 1
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "ERROR: jq installation did not put 'jq' on PATH."
+    exit 1
+  fi
+}
+
+install_azure_cli_if_missing
+install_jq_if_missing
 
 login_and_select_subscription() {
   if [ -n "\${SP_APP_ID}" ] || [ -n "\${SP_PASSWORD}" ] || [ -n "\${SP_TENANT}" ]; then
@@ -1004,6 +1071,45 @@ $AutoRegisterProvider = if ($env:AUTO_REGISTER_PROVIDER) { $env:AUTO_REGISTER_PR
 $SucceededDeployments = @()
 $SkippedDeployments = @()
 $FailedDeployments = @()
+
+function Refresh-AzureCliPath {
+  $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+  $candidatePaths = @(
+    "$env:ProgramFiles\\Microsoft SDKs\\Azure\\CLI2\\wbin",
+    "$programFilesX86\\Microsoft SDKs\\Azure\\CLI2\\wbin",
+    "$env:LocalAppData\\Programs\\Azure CLI\\wbin"
+  ) | Where-Object { $_ -and (Test-Path $_) }
+
+  foreach ($candidatePath in $candidatePaths) {
+    if (($env:Path -split ';') -notcontains $candidatePath) {
+      $env:Path = "$candidatePath;$env:Path"
+    }
+  }
+}
+
+function Ensure-AzureCli {
+  Refresh-AzureCliPath
+  if (Get-Command az -ErrorAction SilentlyContinue) {
+    return
+  }
+
+  Write-Host 'Azure CLI was not found. Attempting automatic installation with winget...'
+  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    throw 'Azure CLI is required, and winget was not found. Install Azure CLI from https://learn.microsoft.com/cli/azure/install-azure-cli-windows, then rerun this script.'
+  }
+
+  & winget install -e --id Microsoft.AzureCLI --accept-package-agreements --accept-source-agreements
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Azure CLI installation with winget failed. Install Azure CLI manually, then rerun this script.'
+  }
+
+  Refresh-AzureCliPath
+  if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+    throw 'Azure CLI installed, but az is still not on PATH. Open a new PowerShell window and rerun this script.'
+  }
+}
+
+Ensure-AzureCli
 
 function Invoke-AzCliJson {
   param([Parameter(Mandatory=$true)][string[]]$Arguments)
