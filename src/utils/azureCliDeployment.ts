@@ -1179,12 +1179,17 @@ function Ensure-AzureCli {
 Ensure-AzureCli
 
 function Invoke-AzCliJson {
-  param([Parameter(Mandatory=$true)][string[]]$Arguments)
+  param(
+    [Parameter(Mandatory=$true)][string[]]$Arguments,
+    [switch]$QuietOnError
+  )
   $output = Invoke-AzureCli -Arguments $Arguments
   if ($LASTEXITCODE -ne 0) {
-    Write-Warning ('Azure CLI command failed: az ' + ($Arguments -join ' '))
-    if ($output) {
-      $output | ForEach-Object { Write-Warning $_ }
+    if (-not $QuietOnError) {
+      Write-Warning ('Azure CLI command failed: az ' + ($Arguments -join ' '))
+      if ($output) {
+        $output | ForEach-Object { Write-Warning $_ }
+      }
     }
     return $null
   }
@@ -1348,7 +1353,7 @@ function Get-DeploymentState {
 function Get-ExistingCapacityIfSameModel {
   param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion, [string]$SkuName)
   $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/resourceGroups/' + $ResourceGroup + '/providers/Microsoft.CognitiveServices/accounts/' + $AccountName + '/deployments/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
-  $deployment = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$url,'-o','json')
+  $deployment = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$url,'-o','json') -QuietOnError
   if (-not $deployment) { return 0 }
   if ($deployment.properties.model.format -eq $ModelFormat -and $deployment.properties.model.name -eq $ModelName -and $deployment.properties.model.version -eq $ModelVersion -and $deployment.sku.name -eq $SkuName) {
     if ($deployment.sku.capacity) { return [int]$deployment.sku.capacity }
@@ -1459,7 +1464,7 @@ function Deploy-ModelWithMaxCapacity {
   Write-Host "Selected SKU:                 $selectedSkuName"
   Write-Host "Existing same-model capacity: $existingCapacity"
   Write-Host "Target deployment capacity:   $targetCapacity"
-  & az cognitiveservices account deployment create --name $AccountName --resource-group $ResourceGroup --deployment-name $DeploymentName --model-format $ModelFormat --model-name $ModelName --model-version $ModelVersion --sku-name $selectedSkuName --sku-capacity $targetCapacity -o jsonc
+  & az cognitiveservices account deployment create --name $AccountName --resource-group $ResourceGroup --deployment-name $DeploymentName --model-format $ModelFormat --model-name $ModelName --model-version $ModelVersion --sku-name $selectedSkuName --sku-capacity $targetCapacity -o jsonc | Out-Host
   if ($LASTEXITCODE -ne 0) { return 1 }
   if (-not (Wait-UntilSucceeded -DeploymentName $DeploymentName)) { return 1 }
   return 0

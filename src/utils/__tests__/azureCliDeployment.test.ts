@@ -227,6 +227,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('function Invoke-AzureCliQuiet');
     expect(script).toContain("if ($Value -like '*&*')");
     expect(script).toContain("Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$url");
+    expect(script).toContain('-QuietOnError');
+    expect(script).toContain('-o jsonc | Out-Host');
     expect(script).toContain('az cognitiveservices account keys list');
     expect(script).toContain('Account access summary');
   });
