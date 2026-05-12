@@ -654,6 +654,38 @@ get_existing_capacity_if_same_model() {
     ' 2>/dev/null || echo "0"
 }
 
+get_existing_deployment_if_same_model() {
+  local deployment_name="$1"
+  local model_format="$2"
+  local model_name="$3"
+  local model_version="$4"
+
+  local deployment_json
+  deployment_json="$(az rest \\
+    --method get \\
+    --url "\${BASE_URL}/\${deployment_name}?api-version=\${DEPLOYMENT_API_VERSION}" \\
+    -o json 2>/dev/null || true)"
+
+  if [ -z "\${deployment_json}" ]; then
+    return 0
+  fi
+
+  echo "\${deployment_json}" | jq -r \\
+    --arg fmt "\${model_format}" \\
+    --arg model "\${model_name}" \\
+    --arg ver "\${model_version}" '
+      if
+        (.properties.model.format == $fmt) and
+        (.properties.model.name == $model) and
+        (.properties.model.version == $ver)
+      then
+        [(.sku.name // ""), ((.sku.capacity // .properties.currentCapacity // 0) | tostring)] | @tsv
+      else
+        empty
+      end
+    ' 2>/dev/null || true
+}
+
 get_available_capacity() {
   local model_format="$1"
   local model_name="$2"
@@ -863,7 +895,9 @@ deploy_model_with_max_capacity() {
   echo "Region:          \${ACCOUNT_LOCATION}"
   echo "============================================================"
 
+  local deployment_already_exists="false"
   if deployment_exists "\${deployment_name}"; then
+    deployment_already_exists="true"
     echo "Deployment '\${deployment_name}' already exists."
 
     if [ "\${OVERWRITE_EXISTING}" != "true" ]; then
@@ -874,34 +908,55 @@ deploy_model_with_max_capacity() {
     echo "OVERWRITE_EXISTING=true, this deployment may be updated."
   fi
 
-  local selected_sku_capacity
-  selected_sku_capacity="$(select_best_sku_capacity "\${model_format}" "\${model_name}" "\${model_version}")"
-  local capacity_rc=$?
-
-  if [ "\${capacity_rc}" -ne 0 ]; then
-    if [ "\${capacity_rc}" -eq 2 ]; then
-      echo "WARNING: No availableCapacity found for candidate SKUs in \${ACCOUNT_LOCATION}."
-      print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
-      echo "Skip '\${deployment_name}'."
-      return 2
-    fi
-    echo "ERROR: Failed to query available capacity for \${model_name} \${model_version}."
-    print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
-    return 1
-  fi
-
   local selected_sku
   local available_capacity
-  IFS='|' read -r selected_sku available_capacity <<< "\${selected_sku_capacity}"
+  local existing_same_model_capacity="0"
+
+  if [ "\${deployment_already_exists}" = "true" ]; then
+    local existing_same_model
+    existing_same_model="$(get_existing_deployment_if_same_model "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}")"
+    if [ -n "\${existing_same_model}" ]; then
+      IFS=$'\\t' read -r selected_sku existing_same_model_capacity <<< "\${existing_same_model}"
+      echo "Existing same-model deployment uses SKU '\${selected_sku}', preserving this SKU."
+      available_capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}" "\${selected_sku}")"
+      capacity_rc=$?
+      if [ "\${capacity_rc}" -ne 0 ]; then
+        echo "ERROR: Failed to query available capacity for existing SKU \${selected_sku}."
+        print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
+        return 1
+      fi
+      if [ -z "\${available_capacity}" ]; then
+        available_capacity="0"
+      fi
+    fi
+  fi
+
+  if [ -z "\${selected_sku:-}" ]; then
+    local selected_sku_capacity
+    selected_sku_capacity="$(select_best_sku_capacity "\${model_format}" "\${model_name}" "\${model_version}")"
+    local capacity_rc=$?
+
+    if [ "\${capacity_rc}" -ne 0 ]; then
+      if [ "\${capacity_rc}" -eq 2 ]; then
+        echo "WARNING: No availableCapacity found for candidate SKUs in \${ACCOUNT_LOCATION}."
+        print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
+        echo "Skip '\${deployment_name}'."
+        return 2
+      fi
+      echo "ERROR: Failed to query available capacity for \${model_name} \${model_version}."
+      print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
+      return 1
+    fi
+
+    IFS='|' read -r selected_sku available_capacity <<< "\${selected_sku_capacity}"
+    existing_same_model_capacity="$(get_existing_capacity_if_same_model "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}" "\${selected_sku}")"
+  fi
 
   if ! [[ "\${available_capacity}" =~ ^[0-9]+$ ]]; then
     echo "ERROR: Invalid available capacity value: \${available_capacity}"
     print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
     return 1
   fi
-
-  local existing_same_model_capacity
-  existing_same_model_capacity="$(get_existing_capacity_if_same_model "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}" "\${selected_sku}")"
 
   if ! [[ "\${existing_same_model_capacity}" =~ ^[0-9]+$ ]]; then
     echo "WARNING: Invalid existing capacity value '\${existing_same_model_capacity}', assume 0."
@@ -1362,6 +1417,23 @@ function Get-ExistingCapacityIfSameModel {
   return 0
 }
 
+function Get-ExistingDeploymentIfSameModel {
+  param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/resourceGroups/' + $ResourceGroup + '/providers/Microsoft.CognitiveServices/accounts/' + $AccountName + '/deployments/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
+  $deployment = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$url,'-o','json') -QuietOnError
+  if (-not $deployment) { return $null }
+  if ($deployment.properties.model.format -ne $ModelFormat -or $deployment.properties.model.name -ne $ModelName -or $deployment.properties.model.version -ne $ModelVersion) {
+    return $null
+  }
+  $capacity = 0
+  if ($deployment.sku.capacity) { $capacity = [int]$deployment.sku.capacity }
+  elseif ($deployment.properties.currentCapacity) { $capacity = [int]$deployment.properties.currentCapacity }
+  return [pscustomobject]@{
+    SkuName = $deployment.sku.name
+    Capacity = $capacity
+  }
+}
+
 function Get-AvailableCapacity {
   param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion, [string]$SkuName)
   $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/providers/Microsoft.CognitiveServices/locations/' + $AccountLocation + '/modelCapacities?api-version=' + $CapacityApiVersion + '&modelFormat=' + $ModelFormat + '&modelName=' + $ModelName + '&modelVersion=' + $ModelVersion
@@ -1435,7 +1507,8 @@ function Deploy-ModelWithMaxCapacity {
   Write-Host "Region:          $AccountLocation"
   Write-Host '============================================================'
 
-  if (Deployment-Exists -DeploymentName $DeploymentName) {
+  $deploymentAlreadyExists = Deployment-Exists -DeploymentName $DeploymentName
+  if ($deploymentAlreadyExists) {
     Write-Host "Deployment '$DeploymentName' already exists."
     if ($OverwriteExisting -ne 'true') {
       Write-Host "Skip '$DeploymentName' because OVERWRITE_EXISTING is not true."
@@ -1444,15 +1517,37 @@ function Deploy-ModelWithMaxCapacity {
     Write-Host 'OVERWRITE_EXISTING=true, this deployment may be updated.'
   }
 
-  $selectedSkuCapacity = Select-BestSkuCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
-  if ($null -eq $selectedSkuCapacity) {
-    Write-Warning "No availableCapacity found for candidate SKUs in $AccountLocation."
-    Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
-    return 2
+  $selectedSkuCapacity = $null
+  if ($deploymentAlreadyExists) {
+    $existingDeployment = Get-ExistingDeploymentIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
+    if ($null -ne $existingDeployment -and $existingDeployment.SkuName) {
+      Write-Host "Existing same-model deployment uses SKU '$($existingDeployment.SkuName)', preserving this SKU."
+      $availableForExistingSku = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $existingDeployment.SkuName
+      if ($null -eq $availableForExistingSku) { $availableForExistingSku = 0 }
+      $selectedSkuCapacity = [pscustomobject]@{
+        SkuName = $existingDeployment.SkuName
+        Capacity = [int]$availableForExistingSku
+        ExistingCapacity = [int]$existingDeployment.Capacity
+      }
+    }
   }
+
+  if ($null -eq $selectedSkuCapacity) {
+    $selectedSkuCapacity = Select-BestSkuCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
+    if ($null -eq $selectedSkuCapacity) {
+      Write-Warning "No availableCapacity found for candidate SKUs in $AccountLocation."
+      Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
+      return 2
+    }
+  }
+
   $selectedSkuName = $selectedSkuCapacity.SkuName
   $availableCapacity = [int]$selectedSkuCapacity.Capacity
-  $existingCapacity = Get-ExistingCapacityIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $selectedSkuName
+  if ($selectedSkuCapacity.PSObject.Properties.Name -contains 'ExistingCapacity') {
+    $existingCapacity = [int]$selectedSkuCapacity.ExistingCapacity
+  } else {
+    $existingCapacity = Get-ExistingCapacityIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $selectedSkuName
+  }
   $targetCapacity = $availableCapacity + [int]$existingCapacity
   if ($targetCapacity -le 0) {
     Write-Warning "Max deployable capacity is $targetCapacity; skip '$DeploymentName'."

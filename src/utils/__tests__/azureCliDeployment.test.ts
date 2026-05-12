@@ -222,6 +222,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('DataZoneStandard');
     expect(script).toContain('Standard');
     expect(script).toContain('Select-BestSkuCapacity');
+    expect(script).toContain('Get-ExistingDeploymentIfSameModel');
+    expect(script).toContain("preserving this SKU");
     expect(script).toContain('--sku-name $selectedSkuName');
     expect(script).toContain('function Invoke-AzureCli');
     expect(script).toContain('function Invoke-AzureCliQuiet');
@@ -241,6 +243,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('DataZoneStandard');
     expect(script).toContain('Standard');
     expect(script).toContain('select_best_sku_capacity');
+    expect(script).toContain('get_existing_deployment_if_same_model');
+    expect(script).toContain("preserving this SKU");
     expect(script).toContain('--sku-name "${selected_sku}"');
     expect(script).toContain(
       'target_capacity=$((available_capacity + existing_same_model_capacity))'
