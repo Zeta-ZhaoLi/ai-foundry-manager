@@ -1637,7 +1637,8 @@ function Deploy-ModelWithMaxCapacity {
   Write-Host "Existing same-model capacity: $existingCapacity"
   Write-Host "Target deployment capacity:   $targetCapacity"
   $deploymentUrl = $BaseUrl + '/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
-  $deploymentPayload = @{
+  $deploymentPayloadPath = Join-Path ([System.IO.Path]::GetTempPath()) ('foundry-deployment-' + [System.Guid]::NewGuid().ToString('N') + '.json')
+  @{
     properties = @{
       model = @{
         format = $ModelFormat
@@ -1651,9 +1652,13 @@ function Deploy-ModelWithMaxCapacity {
       name = $selectedSkuName
       capacity = $targetCapacity
     }
-  } | ConvertTo-Json -Depth 10 -Compress
-  Invoke-AzureCli -Arguments @('rest','--method','put','--url',$deploymentUrl,'--headers','Content-Type=application/json','--body',$deploymentPayload,'-o','jsonc') | Out-Host
-  if ($LASTEXITCODE -ne 0) { return 1 }
+  } | ConvertTo-Json -Depth 10 -Compress | Set-Content -LiteralPath $deploymentPayloadPath -Encoding UTF8
+  try {
+    Invoke-AzureCli -Arguments @('rest','--method','put','--url',$deploymentUrl,'--headers','Content-Type=application/json','--body',('@' + $deploymentPayloadPath),'-o','jsonc') | Out-Host
+    if ($LASTEXITCODE -ne 0) { return 1 }
+  } finally {
+    Remove-Item -LiteralPath $deploymentPayloadPath -Force -ErrorAction SilentlyContinue
+  }
   if (-not (Wait-UntilSucceeded -DeploymentName $DeploymentName)) { return 1 }
   return 0
 }

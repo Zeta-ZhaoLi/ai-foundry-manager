@@ -237,6 +237,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('modelCapacities');
     expect(script).toContain("$RaiPolicyName = 'Microsoft.Nil'");
     expect(script).toContain('raiPolicyName = $RaiPolicyName');
+    expect(script).toContain('$deploymentPayloadPath = Join-Path');
+    expect(script).toContain("'--body',('@' + $deploymentPayloadPath)");
+    expect(script).toContain('Remove-Item -LiteralPath $deploymentPayloadPath');
     expect(script).toContain('$SkuCandidates = @(');
     expect(script).toContain('DataZoneStandard');
     expect(script).toContain('Standard');
