@@ -13,6 +13,7 @@ import {
 const baseInput = {
   subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
   resourceName: 'arthurphillips-6272-resource',
+  location: 'eastus2',
   foundryProjectEndpoint:
     'https://arthurphillips-6272-resource.services.ai.azure.com/api/projects/arthurphillips-6272',
   models: [
@@ -38,6 +39,7 @@ describe('azureCliDeployment', () => {
       resourceGroup: 'rg-arthurphillips-6272',
       accountName: 'arthurphillips-6272-resource',
       projectId: 'arthurphillips-6272',
+      location: 'eastus2',
     });
   });
 
@@ -52,6 +54,7 @@ describe('azureCliDeployment', () => {
       resourceGroup: 'rg-arthurphillips-6272',
       accountName: 'arthurphillips-6272-resource',
       projectId: 'arthurphillips-6272',
+      location: 'eastus2',
     });
   });
 
@@ -66,6 +69,7 @@ describe('azureCliDeployment', () => {
       resourceGroup: 'rg-first-region',
       accountName: 'arthurphillips-6272-resource',
       projectId: 'arthurphillips-6272',
+      location: 'eastus2',
     });
   });
 
@@ -78,6 +82,7 @@ describe('azureCliDeployment', () => {
       modelName: 'gpt-5.1',
       version: '2025-11-13',
       modelFormat: 'OpenAI',
+      capacity: 10000,
     });
   });
 
@@ -101,11 +106,13 @@ describe('azureCliDeployment', () => {
         {
           label: 'eastus2',
           resourceName: 'first-resource',
+          location: 'eastus2',
           models: [baseInput.models[0]],
         },
         {
           label: 'swedencentral',
           resourceName: 'second-resource',
+          location: 'swedencentral',
           models: [baseInput.models[1]],
         },
       ],
@@ -116,6 +123,26 @@ describe('azureCliDeployment', () => {
     expect(script.match(/RESOURCE_GROUP="rg-first-region"/g)).toHaveLength(2);
     expect(script).toContain('ACCOUNT_NAME="first-resource"');
     expect(script).toContain('ACCOUNT_NAME="second-resource"');
+    expect(script).toContain('ACCOUNT_LOCATION="eastus2"');
+    expect(script).toContain('ACCOUNT_LOCATION="swedencentral"');
+    expect(script).toContain('PROJECT_NAME="first"');
+    expect(script).toContain('PROJECT_NAME="second"');
+  });
+
+  it('includes idempotent official Foundry resource and project setup', () => {
+    const script = buildAzureCliDeploymentScript(baseInput);
+
+    expect(script).toContain('az group show --name "${RESOURCE_GROUP}"');
+    expect(script).toContain('az group create \\');
+    expect(script).toContain('az cognitiveservices account show \\');
+    expect(script).toContain('az cognitiveservices account create \\');
+    expect(script).toContain('--kind AIServices');
+    expect(script).toContain('--allow-project-management');
+    expect(script).toContain('az cognitiveservices account update \\');
+    expect(script).toContain('--custom-domain "${ACCOUNT_NAME}"');
+    expect(script).toContain('az cognitiveservices account project show \\');
+    expect(script).toContain('az cognitiveservices account project create \\');
+    expect(script).toContain('already exists. Skip create.');
   });
 
   it('includes modelCapacities and max capacity logic', () => {
@@ -126,6 +153,8 @@ describe('azureCliDeployment', () => {
       'target_capacity=$((available_capacity + existing_same_model_capacity))'
     );
     expect(script).toContain('deploy_model_with_max_capacity');
+    expect(script).toContain('az cognitiveservices account deployment create \\');
+    expect(script).toContain('--sku-capacity "${target_capacity}"');
   });
 
   it('includes preflight, provider registration, and deployment summary logic', () => {
@@ -148,7 +177,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('SKIPPED: ${deployment_name}');
     expect(script).toContain('FAILED: ${deployment_name}');
     expect(script).toContain('Continue to next deployment...');
-    expect(script).toContain('if ! az rest \\');
+    expect(script).toContain(
+      'if ! az cognitiveservices account deployment create \\'
+    );
   });
 
   it('prints a copyable import list with succeeded model and deployment names', () => {
@@ -177,6 +208,7 @@ describe('azureCliDeployment', () => {
       ...baseInput,
       subscriptionId: '',
       resourceName: '',
+      location: '',
       foundryProjectEndpoint: '',
       models: [
         {
@@ -191,6 +223,7 @@ describe('azureCliDeployment', () => {
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('subscriptionId is required');
     expect(result.errors).toContain('resourceName is required');
+    expect(result.errors).toContain('location is required');
     expect(result.errors).toContain('deploymentName is required');
     expect(result.errors).toContain('modelFormat is required');
     expect(result.errors).toContain('version is required');

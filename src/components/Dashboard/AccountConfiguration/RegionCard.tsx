@@ -543,6 +543,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       const script = buildAzureCliDeploymentScript({
         subscriptionId,
         resourceName,
+        location: region.name || '',
         resourceGroupName: azureCliResourceGroupName,
         foundryProjectEndpoint: region.foundryProjectEndpoint || '',
         models,
@@ -570,6 +571,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     displayRegionName,
     onCopy,
     region.foundryProjectEndpoint,
+    region.name,
     selectedAzureCliModels,
     subscriptionId,
     toast,

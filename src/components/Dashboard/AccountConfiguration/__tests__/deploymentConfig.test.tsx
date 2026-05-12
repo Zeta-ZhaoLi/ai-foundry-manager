@@ -156,6 +156,7 @@ describe('deployment configuration contract', () => {
           name: 'swedencentral',
           modelsText: 'gpt-5.1',
           deployment: { resourceName: 'second-resource' },
+          enabled: false,
         },
       ],
     };
@@ -195,11 +196,14 @@ describe('deployment configuration contract', () => {
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
     expect(copied).toContain('# eastus2');
-    expect(copied).toContain('# swedencentral');
-    expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(2);
+    expect(copied).not.toContain('# swedencentral');
+    expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(1);
     expect(copied).toContain('ACCOUNT_NAME="first-resource"');
-    expect(copied).toContain('ACCOUNT_NAME="second-resource"');
-    expect(copied.match(/gpt-5.1-2025-11-13\\|OpenAI\\|gpt-5.1\\|2025-11-13/g)).toHaveLength(2);
+    expect(copied).not.toContain('ACCOUNT_NAME="second-resource"');
+    expect(copied).toContain('ACCOUNT_LOCATION="eastus2"');
+    expect(copied).toContain(
+      '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
+    );
   });
 
   it('copies Azure CLI deployment code for selected models in all regions', () => {
@@ -267,8 +271,14 @@ describe('deployment configuration contract', () => {
     expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(2);
     expect(copied).toContain('ACCOUNT_NAME="first-resource"');
     expect(copied).toContain('ACCOUNT_NAME="second-resource"');
-    expect(copied.match(/gpt-5.1-2025-11-13\\|OpenAI\\|gpt-5.1\\|2025-11-13/g)).toHaveLength(1);
-    expect(copied.match(/gpt-5-2025-08-07\\|OpenAI\\|gpt-5\\|2025-08-07/g)).toHaveLength(1);
+    expect(copied).toContain('ACCOUNT_LOCATION="eastus2"');
+    expect(copied).toContain('ACCOUNT_LOCATION="swedencentral"');
+    expect(copied).toContain(
+      '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
+    );
+    expect(copied).toContain(
+      '"gpt-5-2025-08-07|OpenAI|gpt-5|2025-08-07"'
+    );
   });
 
   it('shows region Resource Name after API Key and supports manual editing', () => {
@@ -630,7 +640,7 @@ describe('deployment configuration contract', () => {
     expect(getByDisplayValue('30000')).toBeTruthy();
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).toHaveBeenCalledTimes(1);
@@ -687,7 +697,7 @@ describe('deployment configuration contract', () => {
     );
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).toHaveBeenCalledTimes(1);
@@ -846,7 +856,7 @@ describe('deployment configuration contract', () => {
     );
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).not.toHaveBeenCalled();
@@ -933,7 +943,7 @@ describe('deployment configuration contract', () => {
 
     expect(getByDisplayValue('2025-12-11')).toBeTruthy();
     expect(getByDisplayValue('OpenAI')).toBeTruthy();
-    expect(getByDisplayValue('1000')).toBeTruthy();
+    expect(getByDisplayValue('10000')).toBeTruthy();
   });
 
   it('allows export when deploymentName includes modelName case-insensitively', () => {
@@ -1000,7 +1010,7 @@ describe('deployment configuration contract', () => {
     });
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).toHaveBeenCalledTimes(1);
@@ -1070,7 +1080,7 @@ describe('deployment configuration contract', () => {
     });
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).toHaveBeenCalledTimes(1);
@@ -1142,7 +1152,7 @@ describe('deployment configuration contract', () => {
     expect(getByText('gpt-5.2')).toBeTruthy();
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).not.toHaveBeenCalled();
@@ -1186,7 +1196,7 @@ describe('deployment configuration contract', () => {
     expect(getByDisplayValue('gpt-5.1-2025-11-13')).toBeTruthy();
     expect(getByDisplayValue('2025-11-13')).toBeTruthy();
     expect(getByDisplayValue('OpenAI')).toBeTruthy();
-    expect(getByDisplayValue('1000')).toBeTruthy();
+    expect(getByDisplayValue('10000')).toBeTruthy();
   });
 
   it('defaults base model unchecked when both modelName and deploymentName variant are selected', () => {
@@ -1255,7 +1265,7 @@ describe('deployment configuration contract', () => {
     expect(rowCheckboxes[1].checked).toBe(true);
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).toHaveBeenCalledTimes(1);
@@ -1341,7 +1351,7 @@ describe('deployment configuration contract', () => {
     expect(getByDisplayValue('DeepSeek')).toBeTruthy();
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).toHaveBeenCalledTimes(1);
@@ -1511,7 +1521,7 @@ describe('deployment configuration contract', () => {
     );
 
     fireEvent.click(
-      getByRole('button', { name: /复制部署代码|Copy deployment code/i })
+      getByRole('button', { name: /ARM/i })
     );
 
     expect(onCopy).not.toHaveBeenCalled();

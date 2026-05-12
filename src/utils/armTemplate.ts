@@ -46,6 +46,7 @@ export const AZURE_DEPLOYMENT_RESOURCE_API_VERSION = '2021-04-01';
 export const AZURE_FOUNDRY_PROJECT_API_VERSION = '2025-09-01';
 
 export const DEFAULT_OPENAI_ACCOUNT_SKU = 'S0';
+export const DEFAULT_FOUNDRY_ACCOUNT_KIND = 'AIServices';
 export const DEFAULT_DEPLOYMENT_SKU = 'GlobalStandard';
 
 // NOTE: template lives at repo root and is treated as canonical.
@@ -276,8 +277,9 @@ export function buildAzureOpenAiArmTemplate(input: ArmTemplateInput) {
         sku: {
           name: DEFAULT_OPENAI_ACCOUNT_SKU,
         },
-        kind: 'OpenAI',
+        kind: DEFAULT_FOUNDRY_ACCOUNT_KIND,
         properties: {
+          allowProjectManagement: true,
           customSubDomainName: "[parameters('resourceName')]",
           networkAcls: {
             defaultAction: 'Allow',
@@ -390,6 +392,18 @@ export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
   }
 
   template.resources = template.resources.map((resource: any) => {
+    if (resource?.type === 'Microsoft.CognitiveServices/accounts') {
+      return {
+        ...resource,
+        kind: DEFAULT_FOUNDRY_ACCOUNT_KIND,
+        properties: {
+          ...(resource.properties || {}),
+          allowProjectManagement: true,
+          customSubDomainName: "[parameters('resourceName')]",
+        },
+      };
+    }
+
     if (
       resource?.type === 'Microsoft.CognitiveServices/accounts/deployments' ||
       resource?.type === 'Microsoft.Resources/deployments'

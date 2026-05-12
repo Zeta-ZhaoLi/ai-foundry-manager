@@ -175,8 +175,10 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     if (!firstRegion) return '';
 
     const identity = getAzureCliDeploymentIdentity({
-      subscriptionId: account.subscriptionId || '00000000-0000-0000-0000-000000000000',
+      subscriptionId:
+        account.subscriptionId || '00000000-0000-0000-0000-000000000000',
       resourceName: firstRegion.deployment?.resourceName || '',
+      location: firstRegion.name || '',
       foundryProjectEndpoint: firstRegion.foundryProjectEndpoint || '',
       models: [
         {
@@ -215,6 +217,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             : masterModels;
         return {
           resourceName,
+          location: region.name || '',
           resourceGroupName: firstRegionResourceGroupName,
           foundryProjectEndpoint: region.foundryProjectEndpoint || '',
           label:
@@ -228,7 +231,10 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           ),
         };
       })
-      .filter((target) => target.resourceName && target.models.length > 0);
+      .filter(
+        (target) =>
+          target.resourceName && target.location && target.models.length > 0
+      );
 
     if (targets.length === 0) {
       toast.error(

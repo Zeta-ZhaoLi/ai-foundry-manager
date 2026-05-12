@@ -34,6 +34,8 @@ describe('armTemplate', () => {
     expect(template.resources[0].type).toBe(
       'Microsoft.CognitiveServices/accounts'
     );
+    expect(template.resources[0].kind).toBe('AIServices');
+    expect(template.resources[0].properties.allowProjectManagement).toBe(true);
     expect(
       template.resources.some(
         (resource: any) =>
@@ -72,6 +74,7 @@ describe('armTemplate', () => {
     ) as any;
     expect(template.kind).toBeUndefined();
     expect(template.resources[0].kind).toBe('AIServices');
+    expect(template.resources[0].properties.allowProjectManagement).toBe(true);
     expect(template.parameters.resourceName.defaultValue).toBe(
       SAMPLE_ARM_TEMPLATE_INPUT.resourceName
     );

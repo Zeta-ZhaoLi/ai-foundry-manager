@@ -10,6 +10,7 @@ export interface AzureCliDeploymentModel {
   modelFormat: string;
   modelName: string;
   version: string;
+  capacity?: number;
 }
 
 export interface AzureCliDeploymentModelOverride {
@@ -29,6 +30,7 @@ export interface AzureCliDeploymentRow extends AzureCliDeploymentModel {
 export interface AzureCliDeploymentInput {
   subscriptionId: string;
   resourceName: string;
+  location: string;
   resourceGroupName?: string;
   foundryProjectEndpoint?: string;
   models: AzureCliDeploymentModel[];
@@ -36,6 +38,7 @@ export interface AzureCliDeploymentInput {
 
 export interface AzureCliDeploymentTargetInput {
   resourceName: string;
+  location: string;
   resourceGroupName?: string;
   foundryProjectEndpoint?: string;
   label?: string;
@@ -53,6 +56,7 @@ export interface AzureCliDeploymentIdentity {
   resourceGroup: string;
   accountName: string;
   projectId: string;
+  location: string;
 }
 
 export interface AzureCliDeploymentValidation {
@@ -79,6 +83,7 @@ function deriveIdentity(
 ): AzureCliDeploymentIdentity | null {
   const subscriptionId = input.subscriptionId.trim();
   const resourceName = input.resourceName.trim();
+  const location = input.location.trim();
   const endpoint = (input.foundryProjectEndpoint || '').trim();
 
   let accountName = resourceName;
@@ -100,13 +105,14 @@ function deriveIdentity(
     }
   }
 
-  if (!subscriptionId || !accountName || !projectId) return null;
+  if (!subscriptionId || !accountName || !projectId || !location) return null;
 
   return {
     subscriptionId,
     resourceGroup: input.resourceGroupName?.trim() || `rg-${projectId}`,
     accountName,
     projectId,
+    location,
   };
 }
 
@@ -123,6 +129,7 @@ export function validateAzureCliDeploymentInput(
 
   if (!input.subscriptionId.trim()) errors.push('subscriptionId is required');
   if (!input.resourceName.trim()) errors.push('resourceName is required');
+  if (!input.location.trim()) errors.push('location is required');
   if (input.models.length === 0) errors.push('models are required');
   if (!deriveIdentity(input)) {
     errors.push('Foundry Project Endpoint or resourceName is invalid');
@@ -202,9 +209,7 @@ export function resolveAzureCliDeploymentRows(
         fallback.deploymentName,
       version: cfg.version ?? templateDefaults?.version ?? fallback.version,
       modelFormat:
-        cfg.modelFormat ??
-        templateDefaults?.modelFormat ??
-        fallback.modelFormat,
+        cfg.modelFormat ?? templateDefaults?.modelFormat ?? fallback.modelFormat,
       capacity: cfg.capacity ?? templateDefaults?.capacity ?? fallback.capacity,
     };
   });
@@ -221,6 +226,7 @@ export function toAzureCliDeploymentModels(
       modelName: row.modelName.trim(),
       version: row.version.trim(),
       modelFormat: row.modelFormat.trim(),
+      capacity: row.capacity,
     }));
 }
 
@@ -228,7 +234,7 @@ function buildAzureCliDeploymentScriptBody(
   identity: AzureCliDeploymentIdentity,
   modelRows: string
 ): string {
-  return `# 部署方法：保存为 deploy-models.sh 后执行：
+  return `# Deployment method: save as deploy-models.sh, then run:
 # ${AZURE_CLI_DEPLOYMENT_COMMAND.split('\n').join('\n# ')}
 
 #!/usr/bin/env bash
@@ -237,19 +243,19 @@ set -uo pipefail
 # ============================================================
 # Basic configuration
 # ============================================================
-SUBSCRIPTION_ID="${shellDoubleQuote(identity.subscriptionId)}" #订阅 ID
-RESOURCE_GROUP="${shellDoubleQuote(identity.resourceGroup)}" #资源组
-ACCOUNT_NAME="${shellDoubleQuote(identity.accountName)}" #项目名
-
+SUBSCRIPTION_ID="${shellDoubleQuote(identity.subscriptionId)}"
+RESOURCE_GROUP="${shellDoubleQuote(identity.resourceGroup)}"
+RESOURCE_GROUP_LOCATION="${shellDoubleQuote(identity.location)}"
+ACCOUNT_NAME="${shellDoubleQuote(identity.accountName)}"
+ACCOUNT_LOCATION="${shellDoubleQuote(identity.location)}"
+PROJECT_NAME="${shellDoubleQuote(identity.projectId)}"
 DEPLOYMENT_API_VERSION="2025-09-01"
 CAPACITY_API_VERSION="2024-10-01"
 
 SKU_NAME="GlobalStandard"
-RAI_POLICY_NAME="Microsoft.Nil"
-VERSION_UPGRADE_OPTION="OnceNewDefaultVersionAvailable"
 
-# false = deployment 已存在时跳过，防止覆盖
-# true  = deployment 已存在时更新
+# false = skip existing deployments
+# true  = update existing deployments
 OVERWRITE_EXISTING="\${OVERWRITE_EXISTING:-true}"
 
 # Optional: try to register provider before deployment
@@ -336,30 +342,84 @@ ensure_provider_registered() {
 ensure_provider_registered || true
 
 # ============================================================
-# Account metadata
+# Resource and project setup
 # ============================================================
-ACCOUNT_LOCATION="$(az cognitiveservices account show \\
-  -g "\${RESOURCE_GROUP}" \\
-  -n "\${ACCOUNT_NAME}" \\
-  --query "location" \\
-  -o tsv 2>/dev/null || true)"
+ensure_resource_group() {
+  echo
+  echo "Ensuring resource group '\${RESOURCE_GROUP}'..."
 
-if [ -z "\${ACCOUNT_LOCATION}" ]; then
-  echo "ERROR: Could not read account location."
-  echo "Check RESOURCE_GROUP and ACCOUNT_NAME:"
-  echo "  RESOURCE_GROUP=\${RESOURCE_GROUP}"
-  echo "  ACCOUNT_NAME=\${ACCOUNT_NAME}"
-  exit 1
-fi
+  if az group show --name "\${RESOURCE_GROUP}" -o none 2>/dev/null; then
+    echo "Resource group '\${RESOURCE_GROUP}' already exists. Skip create."
+    return 0
+  fi
+
+  az group create \\
+    --name "\${RESOURCE_GROUP}" \\
+    --location "\${RESOURCE_GROUP_LOCATION}" \\
+    -o none
+}
+
+ensure_foundry_account() {
+  echo
+  echo "Ensuring Azure AI Foundry resource '\${ACCOUNT_NAME}'..."
+
+  if az cognitiveservices account show \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    -o none 2>/dev/null; then
+
+    echo "Azure AI Foundry resource '\${ACCOUNT_NAME}' already exists. Skip create."
+  else
+    az cognitiveservices account create \\
+      --name "\${ACCOUNT_NAME}" \\
+      --resource-group "\${RESOURCE_GROUP}" \\
+      --kind AIServices \\
+      --sku s0 \\
+      --location "\${ACCOUNT_LOCATION}" \\
+      --allow-project-management \\
+      -o none
+  fi
+
+  echo "Ensuring custom domain '\${ACCOUNT_NAME}'..."
+  az cognitiveservices account update \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    --custom-domain "\${ACCOUNT_NAME}" \\
+    -o none
+}
+
+ensure_foundry_project() {
+  echo
+  echo "Ensuring Azure AI Foundry project '\${PROJECT_NAME}'..."
+
+  if az cognitiveservices account project show \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    --project-name "\${PROJECT_NAME}" \\
+    -o none 2>/dev/null; then
+
+    echo "Azure AI Foundry project '\${PROJECT_NAME}' already exists. Skip create."
+    return 0
+  fi
+
+  az cognitiveservices account project create \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    --project-name "\${PROJECT_NAME}" \\
+    --location "\${ACCOUNT_LOCATION}" \\
+    -o none
+}
+
+ensure_resource_group
+ensure_foundry_account
+ensure_foundry_project
 
 echo
 echo "Account location: \${ACCOUNT_LOCATION}"
+echo "Project name:     \${PROJECT_NAME}"
 
 BASE_URL="https://management.azure.com/subscriptions/\${SUBSCRIPTION_ID}/resourceGroups/\${RESOURCE_GROUP}/providers/Microsoft.CognitiveServices/accounts/\${ACCOUNT_NAME}/deployments"
 CAPACITY_URL="https://management.azure.com/subscriptions/\${SUBSCRIPTION_ID}/providers/Microsoft.CognitiveServices/modelCapacities"
-
-WORKDIR="$(mktemp -d)"
-trap 'rm -rf "\${WORKDIR}"' EXIT
 
 # ============================================================
 # Model list
@@ -376,11 +436,11 @@ ${modelRows}
 deployment_exists() {
   local deployment_name="$1"
 
-  az rest \\
-    --method get \\
-    --url "\${BASE_URL}/\${deployment_name}?api-version=\${DEPLOYMENT_API_VERSION}" \\
-    --query "name" \\
-    -o tsv >/dev/null 2>&1
+  az cognitiveservices account deployment show \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    --deployment-name "\${deployment_name}" \\
+    -o none >/dev/null 2>&1
 }
 
 get_deployment_state() {
@@ -508,36 +568,6 @@ print_copyable_model_import_list() {
   echo "\${model_list}"
 }
 
-make_payload() {
-  local deployment_name="$1"
-  local model_format="$2"
-  local model_name="$3"
-  local model_version="$4"
-  local capacity="$5"
-
-  local payload_file="\${WORKDIR}/payload-\${deployment_name}.json"
-
-  cat > "\${payload_file}" <<EOF
-{
-  "properties": {
-    "model": {
-      "format": "\${model_format}",
-      "name": "\${model_name}",
-      "version": "\${model_version}"
-    },
-    "versionUpgradeOption": "\${VERSION_UPGRADE_OPTION}",
-    "raiPolicyName": "\${RAI_POLICY_NAME}"
-  },
-  "sku": {
-    "name": "\${SKU_NAME}",
-    "capacity": \${capacity}
-  }
-}
-EOF
-
-  echo "\${payload_file}"
-}
-
 wait_until_succeeded() {
   local deployment_name="$1"
   local max_attempts="\${2:-120}"
@@ -649,20 +679,20 @@ deploy_model_with_max_capacity() {
   echo "Available capacity:            \${available_capacity}"
   echo "Existing same-model capacity:  \${existing_same_model_capacity}"
   echo "Target deployment capacity:    \${target_capacity}"
-
-  local payload_file
-  payload_file="$(make_payload "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}" "\${target_capacity}")"
-
   echo "Creating or updating deployment '\${deployment_name}'..."
 
-  if ! az rest \\
-    --method put \\
-    --url "\${BASE_URL}/\${deployment_name}?api-version=\${DEPLOYMENT_API_VERSION}" \\
-    --headers "Content-Type=application/json" \\
-    --body @"\${payload_file}" \\
+  if ! az cognitiveservices account deployment create \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    --deployment-name "\${deployment_name}" \\
+    --model-format "\${model_format}" \\
+    --model-name "\${model_name}" \\
+    --model-version "\${model_version}" \\
+    --sku-name "\${SKU_NAME}" \\
+    --sku-capacity "\${target_capacity}" \\
     -o jsonc; then
 
-    echo "ERROR: PUT failed for deployment '\${deployment_name}'."
+    echo "ERROR: Azure CLI deployment create failed for '\${deployment_name}'."
     echo "Skip to next deployment."
     return 1
   fi
@@ -797,6 +827,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
         subscriptionId,
         resourceGroupName,
         resourceName: target.resourceName,
+        location: target.location,
         foundryProjectEndpoint: target.foundryProjectEndpoint,
         models: target.models,
       });

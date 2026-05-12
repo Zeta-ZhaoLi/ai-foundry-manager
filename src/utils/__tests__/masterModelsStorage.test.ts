@@ -24,8 +24,10 @@ describe('loadInitialMasterModelsText', () => {
 
     // Spot-check formatting constraints
     expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT).toContain('\n\n');
-    expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT).toContain(',,');
-    expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT.endsWith('\n')).toBe(true);
+    expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT).not.toContain(',,');
+    expect(DEFAULT_MASTER_MODEL_DIRECTORY_TEXT.trimEnd()).toBe(
+      DEFAULT_MASTER_MODEL_DIRECTORY_TEXT
+    );
   });
 
   it('loads the editable default model list file as the seed source', () => {
