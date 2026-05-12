@@ -9,7 +9,7 @@ RESOURCE_GROUP="rg-vasquez-1002" #资源组
 ACCOUNT_NAME="vasquez-1002-resource" #项目名
 
 DEPLOYMENT_API_VERSION="2025-09-01"
-CAPACITY_API_VERSION="2024-10-01"
+CAPACITY_API_VERSION="2025-06-01"
 
 SKU_NAME="GlobalStandard"
 RAI_POLICY_NAME="Microsoft.Nil"
@@ -123,7 +123,7 @@ echo
 echo "Account location: ${ACCOUNT_LOCATION}"
 
 BASE_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.CognitiveServices/accounts/${ACCOUNT_NAME}/deployments"
-CAPACITY_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.CognitiveServices/modelCapacities"
+CAPACITY_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.CognitiveServices/locations/${ACCOUNT_LOCATION}/modelCapacities"
 
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "${WORKDIR}"' EXIT
@@ -264,8 +264,8 @@ get_available_capacity() {
     --arg sku "${SKU_NAME}" '
       [
         .value[]
-        | select(((.location // .properties.location // "") | ascii_downcase) == ($location | ascii_downcase))
-        | select(((.properties.skuName // .sku.name // .name // "") | ascii_downcase) == ($sku | ascii_downcase))
+        | select((((.location // .properties.location // $location) | ascii_downcase) == ($location | ascii_downcase)))
+        | select(((.properties.skuName // .sku.name // .skuName // .name // "") | ascii_downcase) == ($sku | ascii_downcase))
         | (.properties.availableCapacity // .availableCapacity // 0)
       ]
       | map(tonumber? // 0)
@@ -285,8 +285,13 @@ print_capacity_debug() {
     --url "${CAPACITY_URL}?api-version=${CAPACITY_API_VERSION}&modelFormat=${model_format}&modelName=${model_name}&modelVersion=${model_version}" \
     --query "value[].{
       location:location,
+      propertiesLocation:properties.location,
       sku:properties.skuName,
+      skuName:sku.name,
+      topSkuName:skuName,
+      name:name,
       availableCapacity:properties.availableCapacity,
+      topAvailableCapacity:availableCapacity,
       modelName:properties.model.name,
       modelVersion:properties.model.version
     }" \

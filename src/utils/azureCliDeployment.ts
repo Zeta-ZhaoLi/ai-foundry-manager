@@ -287,9 +287,13 @@ ACCOUNT_NAME="${shellDoubleQuote(identity.accountName)}"
 ACCOUNT_LOCATION="${shellDoubleQuote(identity.location)}"
 PROJECT_NAME="${shellDoubleQuote(identity.projectId)}"
 DEPLOYMENT_API_VERSION="2025-09-01"
-CAPACITY_API_VERSION="2024-10-01"
+CAPACITY_API_VERSION="2025-06-01"
 
-SKU_NAME="GlobalStandard"
+SKU_CANDIDATES=(
+  "\${AZURE_FOUNDRY_PREFERRED_SKU:-GlobalStandard}"
+  "DataZoneStandard"
+  "Standard"
+)
 
 # false = skip existing deployments
 # true  = update existing deployments
@@ -580,7 +584,7 @@ echo "Account location: \${ACCOUNT_LOCATION}"
 echo "Project name:     \${PROJECT_NAME}"
 
 BASE_URL="https://management.azure.com/subscriptions/\${SUBSCRIPTION_ID}/resourceGroups/\${RESOURCE_GROUP}/providers/Microsoft.CognitiveServices/accounts/\${ACCOUNT_NAME}/deployments"
-CAPACITY_URL="https://management.azure.com/subscriptions/\${SUBSCRIPTION_ID}/providers/Microsoft.CognitiveServices/modelCapacities"
+CAPACITY_URL="https://management.azure.com/subscriptions/\${SUBSCRIPTION_ID}/providers/Microsoft.CognitiveServices/locations/\${ACCOUNT_LOCATION}/modelCapacities"
 
 # ============================================================
 # Model list
@@ -619,6 +623,7 @@ get_existing_capacity_if_same_model() {
   local model_format="$2"
   local model_name="$3"
   local model_version="$4"
+  local sku_name="$5"
 
   local deployment_json
   deployment_json="$(az rest \\
@@ -635,7 +640,7 @@ get_existing_capacity_if_same_model() {
     --arg fmt "\${model_format}" \\
     --arg model "\${model_name}" \\
     --arg ver "\${model_version}" \\
-    --arg sku "\${SKU_NAME}" '
+    --arg sku "\${sku_name}" '
       if
         (.properties.model.format == $fmt) and
         (.properties.model.name == $model) and
@@ -653,25 +658,72 @@ get_available_capacity() {
   local model_format="$1"
   local model_name="$2"
   local model_version="$3"
+  local sku_name="$4"
 
   local capacity_json
-  capacity_json="$(az rest \\
+  local capacity_error
+  capacity_error="$(mktemp)"
+  if ! capacity_json="$(az rest \\
     --method get \\
     --url "\${CAPACITY_URL}?api-version=\${CAPACITY_API_VERSION}&modelFormat=\${model_format}&modelName=\${model_name}&modelVersion=\${model_version}" \\
-    -o json 2>/dev/null)"
+    -o json 2>"\${capacity_error}")"; then
+    echo "ERROR: Capacity API query failed for \${model_name} \${model_version}." >&2
+    cat "\${capacity_error}" >&2
+    rm -f "\${capacity_error}"
+    return 1
+  fi
+  rm -f "\${capacity_error}"
 
   echo "\${capacity_json}" | jq -r \\
     --arg location "\${ACCOUNT_LOCATION}" \\
-    --arg sku "\${SKU_NAME}" '
+    --arg sku "\${sku_name}" '
       [
         .value[]
-        | select(((.location // .properties.location // "") | ascii_downcase) == ($location | ascii_downcase))
-        | select(((.properties.skuName // .sku.name // .name // "") | ascii_downcase) == ($sku | ascii_downcase))
+        | select((((.location // .properties.location // $location) | ascii_downcase) == ($location | ascii_downcase)))
+        | select(((.properties.skuName // .sku.name // .skuName // .name // "") | ascii_downcase) == ($sku | ascii_downcase))
         | (.properties.availableCapacity // .availableCapacity // 0)
       ]
       | map(tonumber? // 0)
       | if length == 0 then empty else max | floor end
     '
+}
+
+select_best_sku_capacity() {
+  local model_format="$1"
+  local model_name="$2"
+  local model_version="$3"
+  local best_sku=""
+  local best_capacity=""
+
+  for sku_name in "\${SKU_CANDIDATES[@]}"; do
+    local capacity
+    capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}" "\${sku_name}")"
+    local rc=$?
+
+    if [ "\${rc}" -ne 0 ]; then
+      return "\${rc}"
+    fi
+    if [ -z "\${capacity}" ]; then
+      echo "No availableCapacity for SKU \${sku_name}." >&2
+      continue
+    fi
+    if ! [[ "\${capacity}" =~ ^[0-9]+$ ]]; then
+      echo "ERROR: Invalid available capacity value for SKU \${sku_name}: \${capacity}"
+      return 1
+    fi
+
+    echo "Candidate SKU \${sku_name}: availableCapacity=\${capacity}" >&2
+    if [ -z "\${best_capacity}" ] || [ "\${capacity}" -gt "\${best_capacity}" ]; then
+      best_sku="\${sku_name}"
+      best_capacity="\${capacity}"
+    fi
+  done
+
+  if [ -z "\${best_sku}" ]; then
+    return 2
+  fi
+
+  echo "\${best_sku}|\${best_capacity}"
 }
 
 print_capacity_debug() {
@@ -686,8 +738,13 @@ print_capacity_debug() {
     --url "\${CAPACITY_URL}?api-version=\${CAPACITY_API_VERSION}&modelFormat=\${model_format}&modelName=\${model_name}&modelVersion=\${model_version}" \\
     --query "value[].{
       location:location,
+      propertiesLocation:properties.location,
       sku:properties.skuName,
+      skuName:sku.name,
+      topSkuName:skuName,
+      name:name,
       availableCapacity:properties.availableCapacity,
+      topAvailableCapacity:availableCapacity,
       modelName:properties.model.name,
       modelVersion:properties.model.version
     }" \\
@@ -802,7 +859,7 @@ deploy_model_with_max_capacity() {
   echo "Model format:    \${model_format}"
   echo "Model name:      \${model_name}"
   echo "Model version:   \${model_version}"
-  echo "SKU:             \${SKU_NAME}"
+  echo "SKU candidates:  \${SKU_CANDIDATES[*]}"
   echo "Region:          \${ACCOUNT_LOCATION}"
   echo "============================================================"
 
@@ -817,22 +874,25 @@ deploy_model_with_max_capacity() {
     echo "OVERWRITE_EXISTING=true, this deployment may be updated."
   fi
 
-  local available_capacity
-  available_capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}")"
+  local selected_sku_capacity
+  selected_sku_capacity="$(select_best_sku_capacity "\${model_format}" "\${model_name}" "\${model_version}")"
   local capacity_rc=$?
 
   if [ "\${capacity_rc}" -ne 0 ]; then
+    if [ "\${capacity_rc}" -eq 2 ]; then
+      echo "WARNING: No availableCapacity found for candidate SKUs in \${ACCOUNT_LOCATION}."
+      print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
+      echo "Skip '\${deployment_name}'."
+      return 2
+    fi
     echo "ERROR: Failed to query available capacity for \${model_name} \${model_version}."
     print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
     return 1
   fi
 
-  if [ -z "\${available_capacity}" ]; then
-    echo "WARNING: No \${SKU_NAME} availableCapacity found for \${model_name} \${model_version} in \${ACCOUNT_LOCATION}."
-    print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
-    echo "Skip '\${deployment_name}'."
-    return 2
-  fi
+  local selected_sku
+  local available_capacity
+  IFS='|' read -r selected_sku available_capacity <<< "\${selected_sku_capacity}"
 
   if ! [[ "\${available_capacity}" =~ ^[0-9]+$ ]]; then
     echo "ERROR: Invalid available capacity value: \${available_capacity}"
@@ -841,7 +901,7 @@ deploy_model_with_max_capacity() {
   fi
 
   local existing_same_model_capacity
-  existing_same_model_capacity="$(get_existing_capacity_if_same_model "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}")"
+  existing_same_model_capacity="$(get_existing_capacity_if_same_model "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}" "\${selected_sku}")"
 
   if ! [[ "\${existing_same_model_capacity}" =~ ^[0-9]+$ ]]; then
     echo "WARNING: Invalid existing capacity value '\${existing_same_model_capacity}', assume 0."
@@ -858,6 +918,7 @@ deploy_model_with_max_capacity() {
   fi
 
   echo "Available capacity:            \${available_capacity}"
+  echo "Selected SKU:                  \${selected_sku}"
   echo "Existing same-model capacity:  \${existing_same_model_capacity}"
   echo "Target deployment capacity:    \${target_capacity}"
   echo "Creating or updating deployment '\${deployment_name}'..."
@@ -869,7 +930,7 @@ deploy_model_with_max_capacity() {
     --model-format "\${model_format}" \\
     --model-name "\${model_name}" \\
     --model-version "\${model_version}" \\
-    --sku-name "\${SKU_NAME}" \\
+    --sku-name "\${selected_sku}" \\
     --sku-capacity "\${target_capacity}" \\
     -o jsonc; then
 
@@ -1065,8 +1126,12 @@ $AccountName = '${powershellSingleQuote(identity.accountName)}'
 $AccountLocation = '${powershellSingleQuote(identity.location)}'
 $ProjectName = '${powershellSingleQuote(identity.projectId)}'
 $DeploymentApiVersion = '2025-09-01'
-$CapacityApiVersion = '2024-10-01'
-$SkuName = 'GlobalStandard'
+$CapacityApiVersion = '2025-06-01'
+$SkuCandidates = @(
+  $(if ($env:AZURE_FOUNDRY_PREFERRED_SKU) { $env:AZURE_FOUNDRY_PREFERRED_SKU } else { 'GlobalStandard' }),
+  'DataZoneStandard',
+  'Standard'
+)
 $OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } else { 'true' }
 $AutoRegisterProvider = if ($env:AUTO_REGISTER_PROVIDER) { $env:AUTO_REGISTER_PROVIDER } else { 'true' }
 
@@ -1115,8 +1180,12 @@ Ensure-AzureCli
 
 function Invoke-AzCliJson {
   param([Parameter(Mandatory=$true)][string[]]$Arguments)
-  $output = & az @Arguments 2>$null
+  $output = & az @Arguments 2>&1
   if ($LASTEXITCODE -ne 0) {
+    Write-Warning ('Azure CLI command failed: az ' + ($Arguments -join ' '))
+    if ($output) {
+      $output | ForEach-Object { Write-Warning $_ }
+    }
     return $null
   }
   if (-not $output) {
@@ -1257,7 +1326,7 @@ function Get-DeploymentState {
 }
 
 function Get-ExistingCapacityIfSameModel {
-  param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion, [string]$SkuName)
   $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/resourceGroups/' + $ResourceGroup + '/providers/Microsoft.CognitiveServices/accounts/' + $AccountName + '/deployments/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
   $deployment = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$url,'-o','json')
   if (-not $deployment) { return 0 }
@@ -1269,14 +1338,14 @@ function Get-ExistingCapacityIfSameModel {
 }
 
 function Get-AvailableCapacity {
-  param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
-  $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/providers/Microsoft.CognitiveServices/modelCapacities?api-version=' + $CapacityApiVersion + '&modelFormat=' + $ModelFormat + '&modelName=' + $ModelName + '&modelVersion=' + $ModelVersion
+  param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion, [string]$SkuName)
+  $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/providers/Microsoft.CognitiveServices/locations/' + $AccountLocation + '/modelCapacities?api-version=' + $CapacityApiVersion + '&modelFormat=' + $ModelFormat + '&modelName=' + $ModelName + '&modelVersion=' + $ModelVersion
   $json = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$url,'-o','json')
   if (-not $json -or -not $json.value) { return $null }
   $values = @()
   foreach ($item in $json.value) {
-    $location = if ($item.location) { $item.location } else { $item.properties.location }
-    $sku = if ($item.properties.skuName) { $item.properties.skuName } elseif ($item.sku.name) { $item.sku.name } else { $item.name }
+    $location = if ($item.location) { $item.location } elseif ($item.properties.location) { $item.properties.location } else { $AccountLocation }
+    $sku = if ($item.properties.skuName) { $item.properties.skuName } elseif ($item.sku.name) { $item.sku.name } elseif ($item.skuName) { $item.skuName } else { $item.name }
     if ($location -and $sku -and $location.ToLowerInvariant() -eq $AccountLocation.ToLowerInvariant() -and $sku.ToLowerInvariant() -eq $SkuName.ToLowerInvariant()) {
       $capacity = if ($item.properties.availableCapacity -ne $null) { $item.properties.availableCapacity } else { $item.availableCapacity }
       if ($capacity -ne $null) { $values += [int][math]::Floor([double]$capacity) }
@@ -1284,6 +1353,35 @@ function Get-AvailableCapacity {
   }
   if ($values.Count -eq 0) { return $null }
   return ($values | Measure-Object -Maximum).Maximum
+}
+
+function Select-BestSkuCapacity {
+  param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  $best = $null
+
+  foreach ($skuName in $SkuCandidates) {
+    $capacity = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $skuName
+    if ($null -eq $capacity) {
+      Write-Host "No availableCapacity for SKU $skuName."
+      continue
+    }
+    Write-Host ('Candidate SKU {0}: availableCapacity={1}' -f $skuName, $capacity)
+    if ($null -eq $best -or [int]$capacity -gt [int]$best.Capacity) {
+      $best = [pscustomobject]@{
+        SkuName = $skuName
+        Capacity = [int]$capacity
+      }
+    }
+  }
+
+  return $best
+}
+
+function Print-CapacityDebug {
+  param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  Write-Host 'Capacity rows returned by modelCapacities API:'
+  $url = 'https://management.azure.com/subscriptions/' + $SubscriptionId + '/providers/Microsoft.CognitiveServices/locations/' + $AccountLocation + '/modelCapacities?api-version=' + $CapacityApiVersion + '&modelFormat=' + $ModelFormat + '&modelName=' + $ModelName + '&modelVersion=' + $ModelVersion
+  & az rest --method get --url $url --query 'value[].{location:location,propertiesLocation:properties.location,sku:properties.skuName,skuName:sku.name,topSkuName:skuName,name:name,availableCapacity:properties.availableCapacity,topAvailableCapacity:availableCapacity,modelName:properties.model.name,modelVersion:properties.model.version}' -o table
 }
 
 function Wait-UntilSucceeded {
@@ -1308,7 +1406,7 @@ function Deploy-ModelWithMaxCapacity {
   Write-Host "Model format:    $ModelFormat"
   Write-Host "Model name:      $ModelName"
   Write-Host "Model version:   $ModelVersion"
-  Write-Host "SKU:             $SkuName"
+  Write-Host "SKU candidates:  $($SkuCandidates -join ', ')"
   Write-Host "Region:          $AccountLocation"
   Write-Host '============================================================'
 
@@ -1321,22 +1419,27 @@ function Deploy-ModelWithMaxCapacity {
     Write-Host 'OVERWRITE_EXISTING=true, this deployment may be updated.'
   }
 
-  $availableCapacity = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
-  if ($null -eq $availableCapacity) {
-    Write-Warning "No $SkuName availableCapacity found for $ModelName $ModelVersion in $AccountLocation."
+  $selectedSkuCapacity = Select-BestSkuCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
+  if ($null -eq $selectedSkuCapacity) {
+    Write-Warning "No availableCapacity found for candidate SKUs in $AccountLocation."
+    Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
     return 2
   }
-  $existingCapacity = Get-ExistingCapacityIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
-  $targetCapacity = [int]$availableCapacity + [int]$existingCapacity
+  $selectedSkuName = $selectedSkuCapacity.SkuName
+  $availableCapacity = [int]$selectedSkuCapacity.Capacity
+  $existingCapacity = Get-ExistingCapacityIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $selectedSkuName
+  $targetCapacity = $availableCapacity + [int]$existingCapacity
   if ($targetCapacity -le 0) {
     Write-Warning "Max deployable capacity is $targetCapacity; skip '$DeploymentName'."
+    Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
     return 2
   }
 
   Write-Host "Available capacity:           $availableCapacity"
+  Write-Host "Selected SKU:                 $selectedSkuName"
   Write-Host "Existing same-model capacity: $existingCapacity"
   Write-Host "Target deployment capacity:   $targetCapacity"
-  & az cognitiveservices account deployment create --name $AccountName --resource-group $ResourceGroup --deployment-name $DeploymentName --model-format $ModelFormat --model-name $ModelName --model-version $ModelVersion --sku-name $SkuName --sku-capacity $targetCapacity -o jsonc
+  & az cognitiveservices account deployment create --name $AccountName --resource-group $ResourceGroup --deployment-name $DeploymentName --model-format $ModelFormat --model-name $ModelName --model-version $ModelVersion --sku-name $selectedSkuName --sku-capacity $targetCapacity -o jsonc
   if ($LASTEXITCODE -ne 0) { return 1 }
   if (-not (Wait-UntilSucceeded -DeploymentName $DeploymentName)) { return 1 }
   return 0

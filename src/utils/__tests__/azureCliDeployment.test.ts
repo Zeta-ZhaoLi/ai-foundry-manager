@@ -218,6 +218,11 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('az cognitiveservices account project show');
     expect(script).toContain('az cognitiveservices account deployment create');
     expect(script).toContain('modelCapacities');
+    expect(script).toContain('$SkuCandidates = @(');
+    expect(script).toContain('DataZoneStandard');
+    expect(script).toContain('Standard');
+    expect(script).toContain('Select-BestSkuCapacity');
+    expect(script).toContain('--sku-name $selectedSkuName');
     expect(script).toContain('az cognitiveservices account keys list');
     expect(script).toContain('Account access summary');
   });
@@ -226,6 +231,11 @@ describe('azureCliDeployment', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
     expect(script).toContain('modelCapacities');
+    expect(script).toContain('SKU_CANDIDATES=(');
+    expect(script).toContain('DataZoneStandard');
+    expect(script).toContain('Standard');
+    expect(script).toContain('select_best_sku_capacity');
+    expect(script).toContain('--sku-name "${selected_sku}"');
     expect(script).toContain(
       'target_capacity=$((available_capacity + existing_same_model_capacity))'
     );
@@ -279,8 +289,9 @@ describe('azureCliDeployment', () => {
   it('uses the resilient model capacity JSON shape from the template', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
-    expect(script).toContain('.location // .properties.location // ""');
-    expect(script).toContain('.properties.skuName // .sku.name // .name // ""');
+    expect(script).toContain('locations/${ACCOUNT_LOCATION}/modelCapacities');
+    expect(script).toContain('.location // .properties.location // $location');
+    expect(script).toContain('.properties.skuName // .sku.name // .skuName // .name // ""');
     expect(script).toContain('.properties.availableCapacity // .availableCapacity // 0');
     expect(script).toContain('map(tonumber? // 0)');
   });
