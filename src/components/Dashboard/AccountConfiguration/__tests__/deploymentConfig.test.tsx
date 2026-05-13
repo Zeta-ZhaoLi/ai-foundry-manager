@@ -203,8 +203,8 @@ describe('deployment configuration contract', () => {
     expect(copied).toContain('ACCOUNT_NAME="first-resource"');
     expect(copied).not.toContain('ACCOUNT_NAME="second-resource"');
     expect(copied).toContain('ACCOUNT_LOCATION="eastus2"');
-    expect(copied).toContain(
-      '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
+    expect(copied).toMatch(
+      /"gpt-5\.1-2025-11-13\|OpenAI\|gpt-5\.1\|2025-11-13\|\d+"/
     );
   });
 
@@ -280,11 +280,11 @@ describe('deployment configuration contract', () => {
     expect(copied).toContain('ACCOUNT_NAME="second-resource"');
     expect(copied).toContain('ACCOUNT_LOCATION="eastus2"');
     expect(copied).toContain('ACCOUNT_LOCATION="swedencentral"');
-    expect(copied).toContain(
-      '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
+    expect(copied).toMatch(
+      /"gpt-5\.1-2025-11-13\|OpenAI\|gpt-5\.1\|2025-11-13\|\d+"/
     );
-    expect(copied).toContain(
-      '"gpt-5-2025-08-07|OpenAI|gpt-5|2025-08-07"'
+    expect(copied).toMatch(
+      /"gpt-5-2025-08-07\|OpenAI\|gpt-5\|2025-08-07\|\d+"/
     );
   });
 
@@ -952,9 +952,11 @@ describe('deployment configuration contract', () => {
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
     expect(copied).toContain('RESOURCE_GROUP="rg-first-region"');
-    expect(copied).toContain('"gpt-5-2025-08-07|OpenAI|gpt-5|2025-08-07"');
-    expect(copied).toContain(
-      '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
+    expect(copied).toMatch(
+      /"gpt-5-2025-08-07\|OpenAI\|gpt-5\|2025-08-07\|\d+"/
+    );
+    expect(copied).toMatch(
+      /"gpt-5\.1-2025-11-13\|OpenAI\|gpt-5\.1\|2025-11-13\|\d+"/
     );
   });
 
@@ -1006,9 +1008,11 @@ describe('deployment configuration contract', () => {
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
-    expect(copied).not.toContain('"gpt-5-2025-08-07|OpenAI|gpt-5|2025-08-07"');
-    expect(copied).toContain(
-      '"gpt-5.1-2025-11-13|OpenAI|gpt-5.1|2025-11-13"'
+    expect(copied).not.toMatch(
+      /"gpt-5-2025-08-07\|OpenAI\|gpt-5\|2025-08-07\|\d+"/
+    );
+    expect(copied).toMatch(
+      /"gpt-5\.1-2025-11-13\|OpenAI\|gpt-5\.1\|2025-11-13\|\d+"/
     );
   });
 

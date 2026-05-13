@@ -199,7 +199,7 @@ export function stringifyAzureCliModelRows(
           model.modelFormat.trim()
         )}|${shellDoubleQuote(model.modelName.trim())}|${shellDoubleQuote(
           model.version.trim()
-        )}"`
+        )}|${Math.max(0, Math.floor(model.capacity ?? 0))}"`
     )
     .join('\n');
 }
@@ -535,6 +535,7 @@ ensure_foundry_account() {
   echo
   echo "Ensuring Azure AI Foundry resource '\${ACCOUNT_NAME}'..."
 
+  local account_json
   if az cognitiveservices account show \\
     --name "\${ACCOUNT_NAME}" \\
     --resource-group "\${RESOURCE_GROUP}" \\
@@ -552,12 +553,36 @@ ensure_foundry_account() {
       -o none
   fi
 
+  account_json="$(az cognitiveservices account show \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    -o json 2>/dev/null || true)"
+
+  local existing_custom_domain
+  existing_custom_domain="$(echo "\${account_json}" | jq -r '.properties.customSubDomainName // .properties.customSubdomainName // .customSubDomainName // ""' 2>/dev/null || true)"
+
+  if [ -n "\${existing_custom_domain}" ]; then
+    echo "Custom domain is already set to '\${existing_custom_domain}'. Skip custom domain update."
+    return 0
+  fi
+
   echo "Ensuring custom domain '\${ACCOUNT_NAME}'..."
-  az cognitiveservices account update \\
+  local custom_domain_error
+  custom_domain_error="$(mktemp)"
+  if az cognitiveservices account update \\
     --name "\${ACCOUNT_NAME}" \\
     --resource-group "\${RESOURCE_GROUP}" \\
     --custom-domain "\${ACCOUNT_NAME}" \\
-    -o none
+    -o none 2>"\${custom_domain_error}"; then
+    rm -f "\${custom_domain_error}"
+    return 0
+  fi
+
+  echo "WARNING: Could not set custom domain for '\${ACCOUNT_NAME}'."
+  cat "\${custom_domain_error}" >&2
+  rm -f "\${custom_domain_error}"
+  echo "Skip Foundry project creation for this resource; model deployment will continue against the existing account."
+  return 2
 }
 
 ensure_foundry_project() {
@@ -574,12 +599,23 @@ ensure_foundry_project() {
     return 0
   fi
 
-  az cognitiveservices account project create \\
+  local project_error
+  project_error="$(mktemp)"
+  if az cognitiveservices account project create \\
     --name "\${ACCOUNT_NAME}" \\
     --resource-group "\${RESOURCE_GROUP}" \\
     --project-name "\${PROJECT_NAME}" \\
     --location "\${ACCOUNT_LOCATION}" \\
-    -o none
+    -o none 2>"\${project_error}"; then
+    rm -f "\${project_error}"
+    return 0
+  fi
+
+  echo "WARNING: Could not create Foundry project '\${PROJECT_NAME}'."
+  cat "\${project_error}" >&2
+  rm -f "\${project_error}"
+  echo "Skip project creation and continue."
+  return 2
 }
 
 echo
@@ -592,7 +628,7 @@ CAPACITY_URL="https://management.azure.com/subscriptions/\${SUBSCRIPTION_ID}/pro
 # ============================================================
 # Model list
 # Format:
-# deploymentName|modelFormat|modelName|version
+# deploymentName|modelFormat|modelName|version|maxCapacity
 # ============================================================
 MODELS=(
 ${modelRows}
@@ -829,8 +865,13 @@ print_account_key_summary() {
 
 prepare_account_resources() {
   ensure_resource_group
-  ensure_foundry_account
-  ensure_foundry_project
+  local account_rc=0
+  ensure_foundry_account || account_rc=$?
+  if [ "\${account_rc}" -eq 0 ]; then
+    ensure_foundry_project || true
+  else
+    echo "Skip Foundry project creation because custom domain is not ready."
+  fi
   print_account_key_summary
 }
 
@@ -880,6 +921,7 @@ deploy_model_with_max_capacity() {
   local model_format="$2"
   local model_name="$3"
   local model_version="$4"
+  local configured_max_capacity="\${5:-0}"
 
   echo
   echo "============================================================"
@@ -907,6 +949,7 @@ deploy_model_with_max_capacity() {
   local selected_sku
   local available_capacity
   local existing_same_model_capacity="0"
+  local force_configured_capacity="false"
 
   if [ "\${deployment_already_exists}" = "true" ]; then
     local existing_same_model
@@ -927,8 +970,11 @@ deploy_model_with_max_capacity() {
         fi
       else
         echo "Existing same-model deployment uses SKU '\${selected_sku}', but this script only deploys \${SKU_NAME}."
-        selected_sku=""
+        echo "Will force redeploy to \${SKU_NAME} using configured max capacity."
+        selected_sku="\${SKU_NAME}"
+        available_capacity="0"
         existing_same_model_capacity="0"
+        force_configured_capacity="true"
       fi
     fi
   fi
@@ -970,6 +1016,15 @@ deploy_model_with_max_capacity() {
   # When overwriting the same model deployment, add its current capacity back
   # so a fully allocated quota does not collapse the deployment to 0.
   target_capacity=$((available_capacity + existing_same_model_capacity))
+  if [ "\${force_configured_capacity}" = "true" ]; then
+    if ! [[ "\${configured_max_capacity}" =~ ^[0-9]+$ ]]; then
+      configured_max_capacity="0"
+    fi
+    if [ "\${configured_max_capacity}" -gt "\${target_capacity}" ]; then
+      echo "Force GlobalStandard target capacity from configured max capacity: \${configured_max_capacity}"
+      target_capacity="\${configured_max_capacity}"
+    fi
+  fi
 
   if [ "\${target_capacity}" -le 0 ]; then
     echo "WARNING: Max deployable capacity is \${target_capacity}; skip '\${deployment_name}'."
@@ -1033,9 +1088,9 @@ deploy_all_models() {
   # Main deployment loop
   # ============================================================
   for item in "\${MODELS[@]}"; do
-    IFS='|' read -r deployment_name model_format model_name model_version <<< "\${item}"
+    IFS='|' read -r deployment_name model_format model_name model_version configured_max_capacity <<< "\${item}"
 
-    deploy_model_with_max_capacity "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}"
+    deploy_model_with_max_capacity "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}" "\${configured_max_capacity:-0}"
     rc=$?
 
     case "\${rc}" in
@@ -1222,7 +1277,7 @@ function stringifyPowerShellModelRows(models: AzureCliDeploymentModel[]): string
           model.modelFormat.trim()
         )}|${powershellSingleQuote(model.modelName.trim())}|${powershellSingleQuote(
           model.version.trim()
-        )}'`
+        )}|${Math.max(0, Math.floor(model.capacity ?? 0))}'`
     )
     .join(',\n');
 }
@@ -1442,15 +1497,38 @@ function Ensure-ResourceGroup {
 function Ensure-FoundryAccount {
   Write-Host ''
   Write-Host "Ensuring Azure AI Foundry resource '$AccountName'..."
-  & az cognitiveservices account show --name $AccountName --resource-group $ResourceGroup -o none 2>$null
-  if ($LASTEXITCODE -eq 0) {
+  $account = Invoke-AzCliJson -Arguments @('cognitiveservices','account','show','--name',$AccountName,'--resource-group',$ResourceGroup,'-o','json') -QuietOnError
+  if ($account) {
     Write-Host "Azure AI Foundry resource '$AccountName' already exists. Skip create."
   } else {
     & az cognitiveservices account create --name $AccountName --resource-group $ResourceGroup --kind AIServices --sku s0 --location $AccountLocation --allow-project-management -o none
+    $account = Invoke-AzCliJson -Arguments @('cognitiveservices','account','show','--name',$AccountName,'--resource-group',$ResourceGroup,'-o','json') -QuietOnError
+  }
+
+  $existingCustomDomain = ''
+  if ($account -and $account.properties) {
+    if ($account.properties.customSubDomainName) {
+      $existingCustomDomain = $account.properties.customSubDomainName
+    } elseif ($account.properties.customSubdomainName) {
+      $existingCustomDomain = $account.properties.customSubdomainName
+    }
+  }
+
+  if ($existingCustomDomain) {
+    Write-Host "Custom domain is already set to '$existingCustomDomain'. Skip custom domain update."
+    return $true
   }
 
   Write-Host "Ensuring custom domain '$AccountName'..."
-  & az cognitiveservices account update --name $AccountName --resource-group $ResourceGroup --custom-domain $AccountName -o none
+  $output = Invoke-AzureCli -Arguments @('cognitiveservices','account','update','--name',$AccountName,'--resource-group',$ResourceGroup,'--custom-domain',$AccountName,'-o','none')
+  if ($LASTEXITCODE -eq 0) {
+    return $true
+  }
+
+  Write-Warning "Could not set custom domain for '$AccountName'."
+  if ($output) { $output | ForEach-Object { Write-Warning $_ } }
+  Write-Host 'Skip Foundry project creation for this resource; model deployment will continue against the existing account.'
+  return $false
 }
 
 function Ensure-FoundryProject {
@@ -1461,7 +1539,12 @@ function Ensure-FoundryProject {
     Write-Host "Azure AI Foundry project '$ProjectName' already exists. Skip create."
     return
   }
-  & az cognitiveservices account project create --name $AccountName --resource-group $ResourceGroup --project-name $ProjectName --location $AccountLocation -o none
+  $output = Invoke-AzureCli -Arguments @('cognitiveservices','account','project','create','--name',$AccountName,'--resource-group',$ResourceGroup,'--project-name',$ProjectName,'--location',$AccountLocation,'-o','none')
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Could not create Foundry project '$ProjectName'."
+    if ($output) { $output | ForEach-Object { Write-Warning $_ } }
+    Write-Host 'Skip project creation and continue.'
+  }
 }
 
 function Deployment-Exists {
@@ -1561,7 +1644,7 @@ function Wait-UntilSucceeded {
 }
 
 function Deploy-ModelWithMaxCapacity {
-  param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
+  param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion, [int]$ConfiguredMaxCapacity = 0)
   Write-Host ''
   Write-Host '============================================================'
   Write-Host "Deployment name: $DeploymentName"
@@ -1583,6 +1666,7 @@ function Deploy-ModelWithMaxCapacity {
   }
 
   $selectedSkuCapacity = $null
+  $forceConfiguredCapacity = $false
   if ($deploymentAlreadyExists) {
     $existingDeployment = Get-ExistingDeploymentIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
     if ($null -ne $existingDeployment -and $existingDeployment.SkuName) {
@@ -1597,6 +1681,13 @@ function Deploy-ModelWithMaxCapacity {
         }
       } else {
         Write-Host "Existing same-model deployment uses SKU '$($existingDeployment.SkuName)', but this script only deploys $SkuName."
+        Write-Host "Will force redeploy to $SkuName using configured max capacity."
+        $selectedSkuCapacity = [pscustomobject]@{
+          SkuName = $SkuName
+          Capacity = 0
+          ExistingCapacity = 0
+        }
+        $forceConfiguredCapacity = $true
       }
     }
   }
@@ -1621,6 +1712,10 @@ function Deploy-ModelWithMaxCapacity {
   # Azure reports availableCapacity after existing deployments consume quota.
   # When overwriting the same model deployment, add its current capacity back
   # so a fully allocated quota does not collapse the deployment to 0.
+  if ($forceConfiguredCapacity -and $ConfiguredMaxCapacity -gt $targetCapacity) {
+    Write-Host "Force GlobalStandard target capacity from configured max capacity: $ConfiguredMaxCapacity"
+    $targetCapacity = $ConfiguredMaxCapacity
+  }
   if ($targetCapacity -le 0) {
     Write-Warning "Max deployable capacity is $targetCapacity; skip '$DeploymentName'."
     Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
@@ -1695,16 +1790,24 @@ function Print-AccountKeySummary {
 
 function Prepare-AccountResources {
   Ensure-ResourceGroup
-  Ensure-FoundryAccount
-  Ensure-FoundryProject
+  $accountReadyForProject = Ensure-FoundryAccount
+  if ($accountReadyForProject) {
+    Ensure-FoundryProject
+  } else {
+    Write-Host 'Skip Foundry project creation because custom domain is not ready.'
+  }
   Print-AccountKeySummary
 }
 
 function Deploy-AllModels {
   foreach ($item in $Models) {
-    $parts = $item -split '\\|', 4
+    $parts = $item -split '\\|', 5
     if ($parts.Count -lt 4) { continue }
-    $rc = Deploy-ModelWithMaxCapacity -DeploymentName $parts[0] -ModelFormat $parts[1] -ModelName $parts[2] -ModelVersion $parts[3]
+    $configuredMaxCapacity = 0
+    if ($parts.Count -ge 5) {
+      [void][int]::TryParse($parts[4], [ref]$configuredMaxCapacity)
+    }
+    $rc = Deploy-ModelWithMaxCapacity -DeploymentName $parts[0] -ModelFormat $parts[1] -ModelName $parts[2] -ModelVersion $parts[3] -ConfiguredMaxCapacity $configuredMaxCapacity
     if ($rc -eq 0) {
       Write-Host "SUCCESS: $($parts[0])"
       $SucceededDeployments += $parts[0]

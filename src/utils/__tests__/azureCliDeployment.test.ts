@@ -96,7 +96,7 @@ describe('azureCliDeployment', () => {
     });
 
     expect(script).toContain(
-      '"gpt-4o-2024-11-20|OpenAI|gpt-4o|2024-11-20"'
+      '"gpt-4o-2024-11-20|OpenAI|gpt-4o|2024-11-20|0"'
     );
     expect(script).not.toContain('gpt-4o-mini-2024-07-18');
   });
@@ -158,6 +158,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('--allow-project-management');
     expect(script).toContain('az cognitiveservices account update \\');
     expect(script).toContain('--custom-domain "${ACCOUNT_NAME}"');
+    expect(script).toContain('Custom domain is already set to');
+    expect(script).toContain('Skip Foundry project creation because custom domain is not ready.');
     expect(script).toContain('az cognitiveservices account project show \\');
     expect(script).toContain('az cognitiveservices account project create \\');
     expect(script).toContain('already exists. Skip create.');
@@ -232,6 +234,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('az cognitiveservices account create');
     expect(script).toContain('--kind AIServices');
     expect(script).toContain('--allow-project-management');
+    expect(script).toContain('Custom domain is already set to');
+    expect(script).toContain("Could not set custom domain for '$AccountName'.");
+    expect(script).toContain('Skip Foundry project creation because custom domain is not ready.');
     expect(script).toContain('az cognitiveservices account project show');
     expect(script).toContain("Invoke-AzureCli -Arguments @('rest','--method','put'");
     expect(script).toContain('modelCapacities');
@@ -246,6 +251,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('Select-GlobalStandardCapacity');
     expect(script).toContain('Get-ExistingDeploymentIfSameModel');
     expect(script).toContain("preserving this SKU");
+    expect(script).toContain('Will force redeploy to $SkuName using configured max capacity.');
+    expect(script).toContain('Force GlobalStandard target capacity from configured max capacity: $ConfiguredMaxCapacity');
+    expect(script).toContain("$parts = $item -split '\\|', 5");
     expect(script).toContain(
       '$targetCapacity = $availableCapacity + [int]$existingCapacity'
     );
@@ -273,6 +281,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('select_global_standard_capacity');
     expect(script).toContain('get_existing_deployment_if_same_model');
     expect(script).toContain("preserving this SKU");
+    expect(script).toContain('Will force redeploy to ${SKU_NAME} using configured max capacity.');
+    expect(script).toContain('Force GlobalStandard target capacity from configured max capacity: ${configured_max_capacity}');
+    expect(script).toContain('IFS=\'|\' read -r deployment_name model_format model_name model_version configured_max_capacity');
     expect(script).toContain('RAI_POLICY_NAME="Microsoft.Nil"');
     expect(script).toContain('raiPolicyName: $rai_policy_name');
     expect(script).toContain('--method put \\');
