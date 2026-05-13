@@ -77,6 +77,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     reorderRegions,
     renumberAllAccounts,
     importConfig,
+    importDeploymentResultText,
   } = useLocalAzureAccounts();
 
   // Master models state
@@ -522,6 +523,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         }
         onExportConfig={handleExportConfig}
         onImportConfig={handleImportConfig}
+        onImportDeploymentResult={importDeploymentResultText}
         onRenumberAccounts={renumberAllAccounts}
         onUpdateAccountName={updateAccountName}
         onUpdateAccountSubscriptionId={updateAccountSubscriptionId}

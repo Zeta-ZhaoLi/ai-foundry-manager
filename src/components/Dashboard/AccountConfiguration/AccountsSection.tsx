@@ -26,6 +26,7 @@ import {
   CurrencyType,
   type GeneratedRegionIdentityBundle,
   type ServicePrincipalCredential,
+  type DeploymentResultImportSummary,
   RegionDeploymentConfig,
   RegionDeploymentModelConfig,
   type DefaultRegionModelTemplateConfig,
@@ -61,6 +62,7 @@ export interface AccountsSectionProps {
   ) => void;
   onExportConfig: () => void;
   onImportConfig?: (jsonString: string) => { success: boolean; error?: string };
+  onImportDeploymentResult?: (text: string) => DeploymentResultImportSummary;
   onRenumberAccounts?: () => void;
   onUpdateAccountName: (accountId: string, name: string) => void;
   onUpdateAccountSubscriptionId: (
@@ -176,6 +178,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onReorderDefaultRegionModelTemplateRegions,
   onExportConfig,
   onImportConfig,
+  onImportDeploymentResult,
   onRenumberAccounts,
   onUpdateAccountName,
   onUpdateAccountSubscriptionId,
@@ -209,6 +212,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   const toast = useToast();
   const [showExportWarning, setShowExportWarning] = useState(false);
   const [showRenumberConfirm, setShowRenumberConfirm] = useState(false);
+  const [showDeploymentResultImport, setShowDeploymentResultImport] =
+    useState(false);
+  const [deploymentResultText, setDeploymentResultText] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -261,6 +267,56 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         };
         reader.readAsText(file);
       }
+    };
+    input.click();
+  };
+
+  const showDeploymentResultSummary = (result: DeploymentResultImportSummary) => {
+    if (!result.success) {
+      toast.error(
+        t('toast.deploymentResultImportFailed') +
+          (result.error ? `: ${result.error}` : '')
+      );
+      return;
+    }
+
+    toast.success(
+      t('toast.deploymentResultImported', {
+        accounts: result.updatedAccounts ?? 0,
+        regions: result.updatedRegions ?? 0,
+        added: result.addedRegions ?? 0,
+      })
+    );
+  };
+
+  const importDeploymentResultText = (text: string) => {
+    if (!onImportDeploymentResult) return;
+    const result = onImportDeploymentResult(text);
+    showDeploymentResultSummary(result);
+    if (result.success) {
+      setDeploymentResultText('');
+      setShowDeploymentResultImport(false);
+    }
+  };
+
+  const handleDeploymentResultFileImport = () => {
+    if (!onImportDeploymentResult) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,text/plain';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        importDeploymentResultText(String(event.target?.result || ''));
+      };
+      reader.onerror = () => {
+        toast.error(t('toast.deploymentResultImportFailed'));
+      };
+      reader.readAsText(file);
     };
     input.click();
   };
@@ -353,6 +409,19 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                 )}
               >
                 {t('accounts.importConfig')}
+              </button>
+            )}
+            {onImportDeploymentResult && (
+              <button
+                type="button"
+                onClick={() => setShowDeploymentResultImport(true)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full',
+                  'border border-border bg-background text-foreground',
+                  'text-xs cursor-pointer hover:bg-muted transition-colors'
+                )}
+              >
+                {t('accounts.importDeploymentResult')}
               </button>
             )}
             <button
@@ -625,6 +694,85 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         variant="warning"
         onConfirm={handleRenumber}
       />
+
+      {showDeploymentResultImport && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deployment-result-import-title"
+        >
+          <div className="w-full max-w-2xl rounded-lg border border-border bg-background p-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3
+                  id="deployment-result-import-title"
+                  className="text-base font-semibold"
+                >
+                  {t('accounts.importDeploymentResult')}
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('accounts.importDeploymentResultDescription')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeploymentResultImport(false)}
+                className="rounded-full border border-border px-2 py-1 text-xs hover:bg-muted"
+              >
+                {t('common.close')}
+              </button>
+            </div>
+            <textarea
+              className={clsx(
+                'mt-3 h-64 w-full resize-y rounded-md border border-border',
+                'bg-background p-2 font-mono text-xs text-foreground',
+                'focus:outline-none focus:ring-2 focus:ring-primary'
+              )}
+              value={deploymentResultText}
+              onChange={(event) => setDeploymentResultText(event.target.value)}
+              placeholder={t('accounts.importDeploymentResultPlaceholder')}
+            />
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleDeploymentResultFileImport}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full',
+                  'border border-border bg-background text-foreground',
+                  'text-xs cursor-pointer hover:bg-muted transition-colors'
+                )}
+              >
+                {t('accounts.importDeploymentResultFile')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeploymentResultImport(false)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full',
+                  'border border-border bg-background text-foreground',
+                  'text-xs cursor-pointer hover:bg-muted transition-colors'
+                )}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => importDeploymentResultText(deploymentResultText)}
+                disabled={!deploymentResultText.trim()}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full',
+                  'border border-cyan-500 bg-cyan-600 text-white',
+                  'text-xs cursor-pointer hover:bg-cyan-700 transition-colors',
+                  !deploymentResultText.trim() && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {t('accounts.importDeploymentResultPaste')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

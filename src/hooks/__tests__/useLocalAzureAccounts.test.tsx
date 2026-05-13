@@ -241,4 +241,95 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       reloaded.result.current.accounts[0].servicePrincipal?.password
     ).toBe('plain-secret');
   });
+
+  it('imports deployment result subscription ID and API keys into matched regions', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    const accountId = result.current.accounts[0].id;
+    const regionId = result.current.accounts[0].regions[0].id;
+    act(() => {
+      result.current.updateRegionDeployment(accountId, regionId, {
+        resourceName: 'acct-east',
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.accounts[0].regions[0].deployment?.resourceName
+      ).toBe('acct-east');
+    });
+
+    act(() => {
+      const importResult = result.current.importDeploymentResultText(`
+AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN
+{"subscriptionId":"sub-1","regions":[{"region":"eastus2","resourceName":"acct-east","apiKey":"key-east"}]}
+AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END
+`);
+      expect(importResult.success).toBe(true);
+      expect(importResult.updatedRegions).toBe(1);
+    });
+
+    expect(result.current.accounts[0].subscriptionId).toBe('sub-1');
+    expect(result.current.accounts[0].regions[0].apiKey).toBe('key-east');
+  });
+
+  it('adds missing regions under a matched deployment result account', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    const accountId = result.current.accounts[0].id;
+    act(() => {
+      result.current.updateAccountSubscriptionId(accountId, 'sub-1');
+    });
+
+    await waitFor(() => {
+      expect(result.current.accounts[0].subscriptionId).toBe('sub-1');
+    });
+
+    act(() => {
+      const importResult = result.current.importDeploymentResultText(`
+AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN
+{"subscriptionId":"sub-1","regions":[{"region":"newregion","resourceName":"new-resource","apiKey":"new-key"}]}
+AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END
+`);
+      expect(importResult.success).toBe(true);
+      expect(importResult.addedRegions).toBe(1);
+    });
+
+    const added = result.current.accounts[0].regions.find(
+      (region) => region.name === 'newregion'
+    );
+    expect(added).toMatchObject({
+      name: 'newregion',
+      apiKey: 'new-key',
+      modelsText: '',
+      enabled: true,
+    });
+    expect(added?.deployment?.resourceName).toBeUndefined();
+    expect(added?.openaiEndpoint).toBeUndefined();
+  });
+
+  it('returns an error when deployment result has no matching account', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    const importResult = result.current.importDeploymentResultText(`
+AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN
+{"subscriptionId":"unknown-sub","regions":[{"region":"eastus2","resourceName":"unknown-resource","apiKey":"key"}]}
+AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END
+`);
+
+    expect(importResult.success).toBe(false);
+    expect(importResult.error).toContain('No matching account');
+  });
 });

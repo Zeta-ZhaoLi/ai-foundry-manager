@@ -551,6 +551,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       const input = {
         subscriptionId,
         servicePrincipal,
+        accountEmail: accountName,
         resourceName,
         location: region.name || '',
         resourceGroupName: azureCliResourceGroupName,

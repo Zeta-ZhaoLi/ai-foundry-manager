@@ -285,6 +285,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
       const input = {
         subscriptionId: account.subscriptionId,
         servicePrincipal: account.servicePrincipal,
+        accountEmail: account.name,
         resourceGroupName: firstRegionResourceGroupName,
         targets,
         overwriteExisting: overwriteAzureCliDeployments,

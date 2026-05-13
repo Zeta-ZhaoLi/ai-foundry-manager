@@ -15,6 +15,7 @@ import {
 
 const baseInput = {
   subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
+  accountEmail: 'user@example.com',
   resourceName: 'arthurphillips-6272-resource',
   location: 'eastus2',
   foundryProjectEndpoint:
@@ -134,6 +135,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('PROJECT_NAME="second"');
     expect(script).toContain('Prepare all selected regions first');
     expect(script).toContain('Deploy models after all selected regions are prepared');
+    expect(script).toContain('unset AZURE_FOUNDRY_REPORT_PATH');
+    expect(script).toContain('unset AZURE_FOUNDRY_REPORT_TIMESTAMP');
     expect(script).toContain('export AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE="prepare-only"');
     expect(script).toContain('export AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE="deploy-only"');
     expect(script.indexOf('# Prepare eastus2')).toBeLessThan(
@@ -204,6 +207,14 @@ describe('azureCliDeployment', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
     expect(script).toContain('az cognitiveservices account keys list \\');
+    expect(script).toContain('SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"');
+    expect(script).toContain('ACCOUNT_EMAIL="user@example.com"');
+    expect(script).toContain('foundry-deployment-result-${report_account}-${SUBSCRIPTION_ID}-${REPORT_TIMESTAMP}.txt');
+    expect(script).toContain('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN');
+    expect(script).toContain('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END');
+    expect(script).toContain('append_deployment_report');
+    expect(script).toContain('aiServicesEndpoint');
+    expect(script).toContain('deployments: $deployments');
     expect(script).toContain('Account access summary');
     expect(script).toContain('prepare_account_resources');
     expect(script).toContain('deploy_all_models');
@@ -226,6 +237,12 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('deploy-foundry.ps1');
     expect(script).toContain("$ErrorActionPreference = 'Continue'");
     expect(script).toContain('function Ensure-AzureCli');
+    expect(script).toContain('$ScriptDir = if ($PSScriptRoot)');
+    expect(script).toContain("$AccountEmail = 'user@example.com'");
+    expect(script).toContain('foundry-deployment-result-$reportAccount-$SubscriptionId-$ReportTimestamp.txt');
+    expect(script).toContain('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN');
+    expect(script).toContain('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END');
+    expect(script).toContain('function Append-DeploymentReport');
     expect(script).toContain('winget install -e --id Microsoft.AzureCLI');
     expect(script).toContain('Refresh-AzureCliPath');
     expect(script).toContain('az login --service-principal');
@@ -440,6 +457,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain("$AccountLocation = 'swedencentral'");
     expect(script).toContain('Prepare all selected regions first');
     expect(script).toContain('Deploy models after all selected regions are prepared');
+    expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_REPORT_PATH');
+    expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP');
     expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'prepare-only'");
     expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'deploy-only'");
     expect(script.indexOf('# Prepare eastus2')).toBeLessThan(

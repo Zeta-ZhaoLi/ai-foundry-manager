@@ -37,6 +37,7 @@ export interface AzureCliDeploymentRow extends AzureCliDeploymentModel {
 export interface AzureCliDeploymentInput {
   subscriptionId?: string;
   servicePrincipal?: AzureCliServicePrincipal;
+  accountEmail?: string;
   resourceName: string;
   location: string;
   resourceGroupName?: string;
@@ -57,6 +58,7 @@ export interface AzureCliDeploymentTargetInput {
 export interface AzureCliMultiRegionDeploymentInput {
   subscriptionId?: string;
   servicePrincipal?: AzureCliServicePrincipal;
+  accountEmail?: string;
   resourceGroupName: string;
   targets: AzureCliDeploymentTargetInput[];
   overwriteExisting?: boolean;
@@ -266,6 +268,7 @@ function buildAzureCliDeploymentScriptBody(
   identity: AzureCliDeploymentIdentity,
   modelRows: string,
   servicePrincipal?: AzureCliServicePrincipal,
+  accountEmail = '',
   overwriteExisting = true
 ): string {
   const configuredSubscriptionId = identity.subscriptionId;
@@ -285,6 +288,7 @@ SUBSCRIPTION_ID="${shellDoubleQuote(configuredSubscriptionId)}"
 SP_APP_ID="${shellDoubleQuote(sp?.appId || '')}"
 SP_PASSWORD="${shellDoubleQuote(sp?.password || '')}"
 SP_TENANT="${shellDoubleQuote(sp?.tenant || '')}"
+ACCOUNT_EMAIL="${shellDoubleQuote(accountEmail)}"
 RESOURCE_GROUP="${shellDoubleQuote(identity.resourceGroup)}"
 RESOURCE_GROUP_LOCATION="${shellDoubleQuote(identity.location)}"
 ACCOUNT_NAME="${shellDoubleQuote(identity.accountName)}"
@@ -308,6 +312,8 @@ AUTO_REGISTER_PROVIDER="\${AUTO_REGISTER_PROVIDER:-true}"
 # prepare-only = prepare resources and print account summary, skip model deployment
 # deploy-only = skip resource preparation and deploy models
 DEPLOYMENT_RUN_MODE="\${AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE:-all}"
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+REPORT_TIMESTAMP="\${AZURE_FOUNDRY_REPORT_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
 
 # ============================================================
 # Result arrays
@@ -454,6 +460,31 @@ login_and_select_subscription() {
 }
 
 login_and_select_subscription
+
+init_deployment_report() {
+  if [ -n "\${AZURE_FOUNDRY_REPORT_PATH:-}" ]; then
+    REPORT_PATH="\${AZURE_FOUNDRY_REPORT_PATH}"
+    return 0
+  fi
+
+  local report_account
+  report_account="$(printf "%s" "\${ACCOUNT_EMAIL:-\${ACCOUNT_NAME}}" | sed 's/[^A-Za-z0-9._@-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')"
+  if [ -z "\${report_account}" ]; then
+    report_account="\${ACCOUNT_NAME}"
+  fi
+  REPORT_PATH="\${SCRIPT_DIR}/foundry-deployment-result-\${report_account}-\${SUBSCRIPTION_ID}-\${REPORT_TIMESTAMP}.txt"
+  export AZURE_FOUNDRY_REPORT_PATH="\${REPORT_PATH}"
+  export AZURE_FOUNDRY_REPORT_TIMESTAMP="\${REPORT_TIMESTAMP}"
+  {
+    echo "Azure AI Foundry deployment result"
+    echo "Generated at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    echo "Subscription ID: \${SUBSCRIPTION_ID}"
+    echo
+  } > "\${REPORT_PATH}"
+  echo "Deployment result report: \${REPORT_PATH}"
+}
+
+init_deployment_report
 
 echo "Current Azure account:"
 az account show \\
@@ -863,6 +894,86 @@ print_account_key_summary() {
   echo "Key1:             \${key1}"
 }
 
+append_deployment_report() {
+  local key1
+  local deployments_json
+  local payload
+  key1="$(az cognitiveservices account keys list \\
+    --name "\${ACCOUNT_NAME}" \\
+    --resource-group "\${RESOURCE_GROUP}" \\
+    --query "key1" \\
+    -o tsv 2>/dev/null || true)"
+
+  deployments_json="$(az rest \\
+    --method get \\
+    --url "\${BASE_URL}?api-version=\${DEPLOYMENT_API_VERSION}" \\
+    -o json 2>/dev/null | jq -c '
+      [
+        .value[]?
+        | {
+            deploymentName: (.name // ""),
+            modelName: (.properties.model.name // ""),
+            modelVersion: (.properties.model.version // ""),
+            sku: (.sku.name // ""),
+            capacity: (.sku.capacity // 0),
+            state: (.properties.provisioningState // ""),
+            raiPolicy: (.properties.raiPolicyName // "")
+          }
+      ]
+    ' 2>/dev/null || echo '[]')"
+
+  payload="$(jq -n \\
+    --arg subscriptionId "\${SUBSCRIPTION_ID}" \\
+    --arg region "\${ACCOUNT_LOCATION}" \\
+    --arg resourceName "\${ACCOUNT_NAME}" \\
+    --arg foundryProjectEndpoint "https://\${ACCOUNT_NAME}.services.ai.azure.com/api/projects/\${PROJECT_NAME}" \\
+    --arg openaiEndpoint "https://\${ACCOUNT_NAME}.openai.azure.com" \\
+    --arg aiServicesEndpoint "https://\${ACCOUNT_NAME}.services.ai.azure.com" \\
+    --arg apiKey "\${key1}" \\
+    --argjson deployments "\${deployments_json:-[]}" '{
+      schema: "ai-foundry-manager.deployment-result.v1",
+      subscriptionId: $subscriptionId,
+      regions: [
+        {
+          region: $region,
+          resourceName: $resourceName,
+          foundryProjectEndpoint: $foundryProjectEndpoint,
+          openaiEndpoint: $openaiEndpoint,
+          aiServicesEndpoint: $aiServicesEndpoint,
+          apiKey: $apiKey,
+          deployments: $deployments
+        }
+      ]
+    }')"
+
+  {
+    echo
+    echo "============================================================"
+    echo "Account access summary"
+    echo "============================================================"
+    echo "Subscription ID:  \${SUBSCRIPTION_ID}"
+    echo "Region:           \${ACCOUNT_LOCATION}"
+    echo "Resource name:    \${ACCOUNT_NAME}"
+    echo "Foundry endpoint: https://\${ACCOUNT_NAME}.services.ai.azure.com/api/projects/\${PROJECT_NAME}"
+    echo "OpenAI endpoint:  https://\${ACCOUNT_NAME}.openai.azure.com"
+    echo "Key1:             \${key1}"
+    echo
+    echo "Final deployments under account '\${ACCOUNT_NAME}'"
+    echo "\${deployments_json}" | jq -r '
+      if length == 0 then
+        "No deployments found."
+      else
+        .[]
+        | "  - \\(.deploymentName) | \\(.modelName) | \\(.modelVersion) | \\(.sku) | capacity=\\(.capacity) | state=\\(.state) | raiPolicy=\\(.raiPolicy)"
+      end
+    '
+    echo
+    echo "AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN"
+    echo "\${payload}"
+    echo "AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END"
+  } >> "\${REPORT_PATH}"
+}
+
 prepare_account_resources() {
   ensure_resource_group
   local account_rc=0
@@ -1175,6 +1286,8 @@ fi
 
 print_copyable_model_import_list
 print_account_key_summary
+append_deployment_report
+echo "Deployment result report: \${REPORT_PATH}"
 `;
 }
 
@@ -1195,6 +1308,7 @@ export function buildAzureCliDeploymentScript(
     identity,
     stringifyAzureCliModelRows(input.models),
     input.servicePrincipal,
+    input.accountEmail,
     input.overwriteExisting
   );
 }
@@ -1217,6 +1331,8 @@ export function buildAzureCliMultiRegionDeploymentScript(
   }
 
   return [
+    'unset AZURE_FOUNDRY_REPORT_PATH',
+    'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
     '# ============================================================',
     '# Prepare all selected regions first',
     '# ============================================================',
@@ -1225,6 +1341,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
       const script = buildAzureCliDeploymentScript({
         subscriptionId,
         servicePrincipal: input.servicePrincipal,
+        accountEmail: input.accountEmail,
         resourceGroupName,
         resourceName: target.resourceName,
         location: target.location,
@@ -1249,6 +1366,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
       const script = buildAzureCliDeploymentScript({
         subscriptionId,
         servicePrincipal: input.servicePrincipal,
+        accountEmail: input.accountEmail,
         resourceGroupName,
         resourceName: target.resourceName,
         location: target.location,
@@ -1266,6 +1384,8 @@ export function buildAzureCliMultiRegionDeploymentScript(
       ].join('\n');
     }),
     'unset AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE',
+    'unset AZURE_FOUNDRY_REPORT_PATH',
+    'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
   ].join('\n\n');
 }
 
@@ -1286,6 +1406,7 @@ function buildAzureCliPowerShellDeploymentScriptBody(
   identity: AzureCliDeploymentIdentity,
   modelRows: string,
   servicePrincipal?: AzureCliServicePrincipal,
+  accountEmail = '',
   overwriteExisting = true
 ): string {
   const overwriteDefault = overwriteExisting ? 'true' : 'false';
@@ -1304,6 +1425,7 @@ $SubscriptionId = $ConfiguredSubscriptionId
 $SpAppId = '${powershellSingleQuote(servicePrincipal?.appId || '')}'
 $SpPassword = '${powershellSingleQuote(servicePrincipal?.password || '')}'
 $SpTenant = '${powershellSingleQuote(servicePrincipal?.tenant || '')}'
+$AccountEmail = '${powershellSingleQuote(accountEmail)}'
 $ResourceGroup = '${powershellSingleQuote(identity.resourceGroup)}'
 $ResourceGroupLocation = '${powershellSingleQuote(identity.location)}'
 $AccountName = '${powershellSingleQuote(identity.accountName)}'
@@ -1317,6 +1439,8 @@ $SkuName = 'GlobalStandard'
 $OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } else { '${overwriteDefault}' }
 $AutoRegisterProvider = if ($env:AUTO_REGISTER_PROVIDER) { $env:AUTO_REGISTER_PROVIDER } else { 'true' }
 $DeploymentRunMode = if ($env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE) { $env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE } else { 'all' }
+$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+$ReportTimestamp = if ($env:AZURE_FOUNDRY_REPORT_TIMESTAMP) { $env:AZURE_FOUNDRY_REPORT_TIMESTAMP } else { Get-Date -Format 'yyyyMMdd-HHmmss' }
 
 $SucceededDeployments = @()
 $SkippedDeployments = @()
@@ -1788,6 +1912,68 @@ function Print-AccountKeySummary {
   Write-Host "Key1:             $key1"
 }
 
+function Append-DeploymentReport {
+  $key1 = (& az cognitiveservices account keys list --name $AccountName --resource-group $ResourceGroup --query key1 -o tsv 2>$null)
+  $finalDeploymentsUrl = $BaseUrl + '?api-version=' + $DeploymentApiVersion
+  $json = Invoke-AzCliJson -Arguments @('rest','--method','get','--url',$finalDeploymentsUrl,'-o','json') -QuietOnError
+  $deployments = @()
+  if ($json -and $json.value) {
+    foreach ($item in @($json.value)) {
+      $deployments += [pscustomobject]@{
+        deploymentName = $item.name
+        modelName = $item.properties.model.name
+        modelVersion = $item.properties.model.version
+        sku = $item.sku.name
+        capacity = $item.sku.capacity
+        state = $item.properties.provisioningState
+        raiPolicy = $item.properties.raiPolicyName
+      }
+    }
+  }
+
+  $payload = [pscustomobject]@{
+    schema = 'ai-foundry-manager.deployment-result.v1'
+    subscriptionId = $SubscriptionId
+    regions = @(
+      [pscustomobject]@{
+        region = $AccountLocation
+        resourceName = $AccountName
+        foundryProjectEndpoint = "https://$AccountName.services.ai.azure.com/api/projects/$ProjectName"
+        openaiEndpoint = "https://$AccountName.openai.azure.com"
+        aiServicesEndpoint = "https://$AccountName.services.ai.azure.com"
+        apiKey = $key1
+        deployments = $deployments
+      }
+    )
+  } | ConvertTo-Json -Depth 10 -Compress
+
+  $lines = New-Object System.Collections.Generic.List[string]
+  $lines.Add('')
+  $lines.Add('============================================================')
+  $lines.Add('Account access summary')
+  $lines.Add('============================================================')
+  $lines.Add("Subscription ID:  $SubscriptionId")
+  $lines.Add("Region:           $AccountLocation")
+  $lines.Add("Resource name:    $AccountName")
+  $lines.Add("Foundry endpoint: https://$AccountName.services.ai.azure.com/api/projects/$ProjectName")
+  $lines.Add("OpenAI endpoint:  https://$AccountName.openai.azure.com")
+  $lines.Add("Key1:             $key1")
+  $lines.Add('')
+  $lines.Add("Final deployments under account '$AccountName'")
+  if ($deployments.Count -eq 0) {
+    $lines.Add('No deployments found.')
+  } else {
+    foreach ($deployment in $deployments) {
+      $lines.Add("  - $($deployment.deploymentName) | $($deployment.modelName) | $($deployment.modelVersion) | $($deployment.sku) | capacity=$($deployment.capacity) | state=$($deployment.state) | raiPolicy=$($deployment.raiPolicy)")
+    }
+  }
+  $lines.Add('')
+  $lines.Add('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN')
+  $lines.Add($payload)
+  $lines.Add('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END')
+  $lines | Add-Content -LiteralPath $script:ReportPath -Encoding UTF8
+}
+
 function Prepare-AccountResources {
   Ensure-ResourceGroup
   $accountReadyForProject = Ensure-FoundryAccount
@@ -1845,6 +2031,30 @@ function Print-FinalDeployments {
 }
 
 Login-AndSelectSubscription
+
+function Initialize-DeploymentReport {
+  if ($env:AZURE_FOUNDRY_REPORT_PATH) {
+    $script:ReportPath = $env:AZURE_FOUNDRY_REPORT_PATH
+    return
+  }
+
+  $reportAccount = if ($AccountEmail) { $AccountEmail } else { $AccountName }
+  $reportAccount = ($reportAccount -replace '[^A-Za-z0-9._@-]', '-').Trim('-')
+  if (-not $reportAccount) { $reportAccount = $AccountName }
+  $script:ReportPath = Join-Path $ScriptDir ("foundry-deployment-result-$reportAccount-$SubscriptionId-$ReportTimestamp.txt")
+  $env:AZURE_FOUNDRY_REPORT_PATH = $script:ReportPath
+  $env:AZURE_FOUNDRY_REPORT_TIMESTAMP = $ReportTimestamp
+  @(
+    'Azure AI Foundry deployment result'
+    ('Generated at: ' + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))
+    "Subscription ID: $SubscriptionId"
+    ''
+  ) | Set-Content -LiteralPath $script:ReportPath -Encoding UTF8
+  Write-Host "Deployment result report: $script:ReportPath"
+}
+
+Initialize-DeploymentReport
+
 Write-Host 'Current Azure account:'
 & az account show --query "{subscriptionName:name, subscriptionId:id, state:state, user:user.name}" -o table
 Ensure-ProviderRegistered
@@ -1866,6 +2076,8 @@ if ($DeploymentRunMode -ne 'prepare-only') {
 
 Print-CopyableModelImportList
 Print-AccountKeySummary
+Append-DeploymentReport
+Write-Host "Deployment result report: $script:ReportPath"
 `;
 }
 
@@ -1886,6 +2098,7 @@ export function buildAzureCliPowerShellDeploymentScript(
     identity,
     stringifyPowerShellModelRows(input.models),
     input.servicePrincipal,
+    input.accountEmail,
     input.overwriteExisting
   );
 }
@@ -1908,6 +2121,8 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
   }
 
   return [
+    'Remove-Item Env:AZURE_FOUNDRY_REPORT_PATH -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
     '# ============================================================',
     '# Prepare all selected regions first',
     '# ============================================================',
@@ -1916,6 +2131,7 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
       const script = buildAzureCliPowerShellDeploymentScript({
         subscriptionId,
         servicePrincipal: input.servicePrincipal,
+        accountEmail: input.accountEmail,
         resourceGroupName,
         resourceName: target.resourceName,
         location: target.location,
@@ -1940,6 +2156,7 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
       const script = buildAzureCliPowerShellDeploymentScript({
         subscriptionId,
         servicePrincipal: input.servicePrincipal,
+        accountEmail: input.accountEmail,
         resourceGroupName,
         resourceName: target.resourceName,
         location: target.location,
@@ -1957,5 +2174,7 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
       ].join('\n');
     }),
     'Remove-Item Env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_REPORT_PATH -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
   ].join('\n\n');
 }

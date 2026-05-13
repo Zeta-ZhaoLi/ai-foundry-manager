@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../../i18n';
 import { AccountCard } from '../AccountCard';
+import { AccountsSection } from '../AccountsSection';
 import { DefaultRegionModelTemplatePanel } from '../DefaultRegionModelTemplatePanel';
 import { RegionCard } from '../RegionCard';
 import type {
@@ -34,6 +35,69 @@ describe('deployment configuration contract', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('imports deployment result text from paste UI', async () => {
+    const onImportDeploymentResult = vi.fn(() => ({
+      success: true,
+      updatedAccounts: 1,
+      updatedRegions: 1,
+      addedRegions: 0,
+    }));
+
+    const { getByText, getByPlaceholderText } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountsSection
+          accounts={[]}
+          defaultRegionModelTemplate={{ enabled: true, regions: [] }}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          masterModels={[]}
+          filteredModels={[]}
+          modelFilterInput=""
+          onFilterChange={vi.fn()}
+          onAddAccount={vi.fn()}
+          onUpdateDefaultRegionModelTemplateEnabled={vi.fn()}
+          onAddDefaultRegionModelTemplateRegion={vi.fn()}
+          onDeleteDefaultRegionModelTemplateRegion={vi.fn()}
+          onUpdateDefaultRegionModelTemplateRegionName={vi.fn()}
+          onUpdateDefaultRegionModelTemplateRegionModelsText={vi.fn()}
+          onReorderDefaultRegionModelTemplateRegions={vi.fn()}
+          onExportConfig={vi.fn()}
+          onImportDeploymentResult={onImportDeploymentResult}
+          onUpdateAccountName={vi.fn()}
+          onUpdateAccountSubscriptionId={vi.fn()}
+          onUpdateAccountNote={vi.fn()}
+          onUpdateAccountEnabled={vi.fn()}
+          onUpdateAccountTier={vi.fn()}
+          onUpdateAccountQuota={vi.fn()}
+          onDeleteAccount={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(getByText('导入部署结果'));
+    fireEvent.change(
+      getByPlaceholderText('在这里粘贴 foundry-deployment-result txt 完整内容...'),
+      { target: { value: 'deployment-result-content' } }
+    );
+    fireEvent.click(getByText('导入粘贴内容'));
+
+    expect(onImportDeploymentResult).toHaveBeenCalledWith(
+      'deployment-result-content'
+    );
+    expect(toastSuccess).toHaveBeenCalledWith(
+      '部署结果已导入：更新 1 个账号、1 个区域，新增 0 个区域'
+    );
   });
 
   it('hides account-level Resource Name and legacy deployment fields', () => {
@@ -140,7 +204,7 @@ describe('deployment configuration contract', () => {
   it('copies Azure CLI deployment code for all models in all regions from the account region header', () => {
     const account: LocalAccount = {
       id: 'acct-1',
-      name: 'Account 1',
+      name: 'user@example.com',
       note: '',
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
@@ -201,6 +265,10 @@ describe('deployment configuration contract', () => {
     expect(copied).not.toContain('# Deploy swedencentral');
     expect(copied.match(/RESOURCE_GROUP="rg-first"/g)).toHaveLength(2);
     expect(copied).toContain('ACCOUNT_NAME="first-resource"');
+    expect(copied).toContain('ACCOUNT_EMAIL="user@example.com"');
+    expect(copied).toContain(
+      'foundry-deployment-result-${report_account}-${SUBSCRIPTION_ID}-${REPORT_TIMESTAMP}.txt'
+    );
     expect(copied).not.toContain('ACCOUNT_NAME="second-resource"');
     expect(copied).toContain('ACCOUNT_LOCATION="eastus2"');
     expect(copied).toMatch(
@@ -291,7 +359,7 @@ describe('deployment configuration contract', () => {
   it('lets account-level Azure CLI export skip existing deployments', () => {
     const account: LocalAccount = {
       id: 'acct-1',
-      name: 'Account 1',
+      name: 'user@example.com',
       note: '',
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
