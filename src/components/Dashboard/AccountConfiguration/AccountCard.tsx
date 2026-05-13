@@ -149,6 +149,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(account.enabled);
   const [servicePrincipalJson, setServicePrincipalJson] = useState('');
+  const [overwriteAzureCliDeployments, setOverwriteAzureCliDeployments] =
+    useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -285,6 +287,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         servicePrincipal: account.servicePrincipal,
         resourceGroupName: firstRegionResourceGroupName,
         targets,
+        overwriteExisting: overwriteAzureCliDeployments,
       };
       const script =
         shell === 'powershell'
@@ -768,7 +771,26 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           <div className="mb-1.5">
           <div className="flex items-center justify-between mb-1">
             <div className="text-sm font-medium">{t('regions.regionList')}</div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <label
+                className={clsx(
+                  'inline-flex items-center gap-1.5 text-xs',
+                  privacyMode
+                    ? 'text-gray-500 cursor-not-allowed'
+                    : 'text-muted-foreground cursor-pointer'
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={overwriteAzureCliDeployments}
+                  disabled={privacyMode}
+                  onChange={(e) =>
+                    setOverwriteAzureCliDeployments(e.target.checked)
+                  }
+                  className="h-3.5 w-3.5"
+                />
+                <span>{t('regions.azureCliOverwriteExisting')}</span>
+              </label>
               <div
                 className={clsx(
                   'inline-flex items-center rounded-full border text-xs overflow-hidden',

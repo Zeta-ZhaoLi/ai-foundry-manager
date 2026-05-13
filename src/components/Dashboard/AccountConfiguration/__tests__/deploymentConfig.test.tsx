@@ -288,6 +288,62 @@ describe('deployment configuration contract', () => {
     );
   });
 
+  it('lets account-level Azure CLI export skip existing deployments', () => {
+    const account: LocalAccount = {
+      id: 'acct-1',
+      name: 'Account 1',
+      note: '',
+      enabled: true,
+      subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
+      regions: [
+        {
+          id: 'reg-1',
+          name: 'eastus2',
+          modelsText: 'gpt-5',
+          deployment: { resourceName: 'first-resource' },
+        },
+      ],
+    };
+    const onCopy = vi.fn();
+
+    const { getAllByLabelText, getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountCard
+          account={account}
+          masterGroups={[['gpt-5']]}
+          masterGroupLines={[[['gpt-5']]]}
+          masterModels={['gpt-5']}
+          filteredModels={['gpt-5']}
+          onUpdateName={vi.fn()}
+          onUpdateNote={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={onCopy}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getAllByLabelText(i18n.t('regions.azureCliOverwriteExisting'))[0]
+    );
+    fireEvent.click(
+      getByRole('button', {
+        name: /Azure CLI.*所有区域.*全部|Deploy all regions with Azure CLI.*All/i,
+      })
+    );
+
+    const copied = onCopy.mock.calls[0][0] as string;
+    expect(copied).toContain('OVERWRITE_EXISTING="${OVERWRITE_EXISTING:-false}"');
+  });
+
   it('imports Service Principal JSON and uses it for account-level deployment without subscriptionId', () => {
     const account: LocalAccount = {
       id: 'acct-1',

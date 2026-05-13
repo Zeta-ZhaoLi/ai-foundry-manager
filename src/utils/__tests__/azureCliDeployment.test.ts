@@ -240,12 +240,16 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('$deploymentPayloadPath = Join-Path');
     expect(script).toContain("'--body',('@' + $deploymentPayloadPath)");
     expect(script).toContain('Remove-Item -LiteralPath $deploymentPayloadPath');
-    expect(script).toContain('$SkuCandidates = @(');
-    expect(script).toContain('DataZoneStandard');
-    expect(script).toContain('Standard');
-    expect(script).toContain('Select-BestSkuCapacity');
+    expect(script).toContain("$SkuName = 'GlobalStandard'");
+    expect(script).not.toContain('DataZoneStandard');
+    expect(script).not.toContain("'Standard'");
+    expect(script).toContain('Select-GlobalStandardCapacity');
     expect(script).toContain('Get-ExistingDeploymentIfSameModel');
     expect(script).toContain("preserving this SKU");
+    expect(script).toContain(
+      '$targetCapacity = $availableCapacity + [int]$existingCapacity'
+    );
+    expect(script).toContain('Used quota from existing deployment: $existingCapacity');
     expect(script).toContain('name = $selectedSkuName');
     expect(script).toContain('function Invoke-AzureCli');
     expect(script).toContain('function Invoke-AzureCliQuiet');
@@ -263,21 +267,39 @@ describe('azureCliDeployment', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
     expect(script).toContain('modelCapacities');
-    expect(script).toContain('SKU_CANDIDATES=(');
-    expect(script).toContain('DataZoneStandard');
-    expect(script).toContain('Standard');
-    expect(script).toContain('select_best_sku_capacity');
+    expect(script).toContain('SKU_NAME="GlobalStandard"');
+    expect(script).not.toContain('DataZoneStandard');
+    expect(script).not.toContain('"Standard"');
+    expect(script).toContain('select_global_standard_capacity');
     expect(script).toContain('get_existing_deployment_if_same_model');
     expect(script).toContain("preserving this SKU");
     expect(script).toContain('RAI_POLICY_NAME="Microsoft.Nil"');
     expect(script).toContain('raiPolicyName: $rai_policy_name');
     expect(script).toContain('--method put \\');
     expect(script).toContain(
+      'Azure reports availableCapacity after existing deployments consume quota.'
+    );
+    expect(script).toContain(
       'target_capacity=$((available_capacity + existing_same_model_capacity))'
     );
+    expect(script).toContain('Used quota from existing deployment: ${existing_same_model_capacity}');
     expect(script).toContain('deploy_model_with_max_capacity');
     expect(script).toContain('--url "${BASE_URL}/${deployment_name}?api-version=${DEPLOYMENT_API_VERSION}" \\');
     expect(script).toContain('--body "${deployment_payload}" \\');
+  });
+
+  it('allows generated scripts to skip existing deployments by default option', () => {
+    const bashScript = buildAzureCliDeploymentScript({
+      ...baseInput,
+      overwriteExisting: false,
+    });
+    const powerShellScript = buildAzureCliPowerShellDeploymentScript({
+      ...baseInput,
+      overwriteExisting: false,
+    });
+
+    expect(bashScript).toContain('OVERWRITE_EXISTING="${OVERWRITE_EXISTING:-false}"');
+    expect(powerShellScript).toContain("$OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } else { 'false' }");
   });
 
   it('includes preflight, provider registration, and deployment summary logic', () => {

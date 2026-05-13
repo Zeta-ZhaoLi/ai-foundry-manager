@@ -118,6 +118,7 @@
     "azureCliDeployPowerShellCode": "Azure CLI PowerShell 部署代码",
     "azureCliDeployCommand": "Azure CLI 部署命令",
     "azureCliDeployPowerShellCommand": "Azure CLI PowerShell 命令",
+    "azureCliOverwriteExisting": "覆盖已有部署",
     "azureCliDeployCodeCopied": "Azure CLI 部署代码已复制",
     "azureCliDeployAllRegionsCodeCopied": "Azure CLI 所有区域部署代码已复制",
     "azureCliDeployCommandCopied": "Azure CLI 部署命令已复制",

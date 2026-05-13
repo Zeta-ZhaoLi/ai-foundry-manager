@@ -42,6 +42,7 @@ export interface AzureCliDeploymentInput {
   resourceGroupName?: string;
   foundryProjectEndpoint?: string;
   models: AzureCliDeploymentModel[];
+  overwriteExisting?: boolean;
 }
 
 export interface AzureCliDeploymentTargetInput {
@@ -58,6 +59,7 @@ export interface AzureCliMultiRegionDeploymentInput {
   servicePrincipal?: AzureCliServicePrincipal;
   resourceGroupName: string;
   targets: AzureCliDeploymentTargetInput[];
+  overwriteExisting?: boolean;
 }
 
 export interface AzureCliDeploymentIdentity {
@@ -263,10 +265,12 @@ export function toAzureCliDeploymentModels(
 function buildAzureCliDeploymentScriptBody(
   identity: AzureCliDeploymentIdentity,
   modelRows: string,
-  servicePrincipal?: AzureCliServicePrincipal
+  servicePrincipal?: AzureCliServicePrincipal,
+  overwriteExisting = true
 ): string {
   const configuredSubscriptionId = identity.subscriptionId;
   const sp = servicePrincipal;
+  const overwriteDefault = overwriteExisting ? 'true' : 'false';
   return `# Deployment method: save as deploy-models.sh, then run:
 # ${AZURE_CLI_DEPLOYMENT_COMMAND.split('\n').join('\n# ')}
 
@@ -291,15 +295,11 @@ CAPACITY_API_VERSION="2025-06-01"
 RAI_POLICY_NAME="Microsoft.Nil"
 VERSION_UPGRADE_OPTION="OnceNewDefaultVersionAvailable"
 
-SKU_CANDIDATES=(
-  "\${AZURE_FOUNDRY_PREFERRED_SKU:-GlobalStandard}"
-  "DataZoneStandard"
-  "Standard"
-)
+SKU_NAME="GlobalStandard"
 
 # false = skip existing deployments
 # true  = update existing deployments
-OVERWRITE_EXISTING="\${OVERWRITE_EXISTING:-true}"
+OVERWRITE_EXISTING="\${OVERWRITE_EXISTING:-${overwriteDefault}}"
 
 # Optional: try to register provider before deployment
 AUTO_REGISTER_PROVIDER="\${AUTO_REGISTER_PROVIDER:-true}"
@@ -723,42 +723,28 @@ get_available_capacity() {
     '
 }
 
-select_best_sku_capacity() {
+select_global_standard_capacity() {
   local model_format="$1"
   local model_name="$2"
   local model_version="$3"
-  local best_sku=""
-  local best_capacity=""
 
-  for sku_name in "\${SKU_CANDIDATES[@]}"; do
-    local capacity
-    capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}" "\${sku_name}")"
-    local rc=$?
+  local capacity
+  capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}" "\${SKU_NAME}")"
+  local rc=$?
 
-    if [ "\${rc}" -ne 0 ]; then
-      return "\${rc}"
-    fi
-    if [ -z "\${capacity}" ]; then
-      echo "No availableCapacity for SKU \${sku_name}." >&2
-      continue
-    fi
-    if ! [[ "\${capacity}" =~ ^[0-9]+$ ]]; then
-      echo "ERROR: Invalid available capacity value for SKU \${sku_name}: \${capacity}"
-      return 1
-    fi
-
-    echo "Candidate SKU \${sku_name}: availableCapacity=\${capacity}" >&2
-    if [ -z "\${best_capacity}" ] || [ "\${capacity}" -gt "\${best_capacity}" ]; then
-      best_sku="\${sku_name}"
-      best_capacity="\${capacity}"
-    fi
-  done
-
-  if [ -z "\${best_sku}" ]; then
+  if [ "\${rc}" -ne 0 ]; then
+    return "\${rc}"
+  fi
+  if [ -z "\${capacity}" ]; then
     return 2
   fi
+  if ! [[ "\${capacity}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: Invalid available capacity value for SKU \${SKU_NAME}: \${capacity}"
+    return 1
+  fi
 
-  echo "\${best_sku}|\${best_capacity}"
+  echo "GlobalStandard availableCapacity=\${capacity}" >&2
+  echo "\${SKU_NAME}|\${capacity}"
 }
 
 print_capacity_debug() {
@@ -901,7 +887,7 @@ deploy_model_with_max_capacity() {
   echo "Model format:    \${model_format}"
   echo "Model name:      \${model_name}"
   echo "Model version:   \${model_version}"
-  echo "SKU candidates:  \${SKU_CANDIDATES[*]}"
+  echo "SKU:             \${SKU_NAME}"
   echo "Region:          \${ACCOUNT_LOCATION}"
   echo "============================================================"
 
@@ -927,28 +913,34 @@ deploy_model_with_max_capacity() {
     existing_same_model="$(get_existing_deployment_if_same_model "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}")"
     if [ -n "\${existing_same_model}" ]; then
       IFS=$'\\t' read -r selected_sku existing_same_model_capacity <<< "\${existing_same_model}"
-      echo "Existing same-model deployment uses SKU '\${selected_sku}', preserving this SKU."
-      available_capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}" "\${selected_sku}")"
-      capacity_rc=$?
-      if [ "\${capacity_rc}" -ne 0 ]; then
-        echo "ERROR: Failed to query available capacity for existing SKU \${selected_sku}."
-        print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
-        return 1
-      fi
-      if [ -z "\${available_capacity}" ]; then
-        available_capacity="0"
+      if [ "\${selected_sku}" = "\${SKU_NAME}" ]; then
+        echo "Existing same-model deployment uses SKU '\${selected_sku}', preserving this SKU."
+        available_capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}" "\${SKU_NAME}")"
+        capacity_rc=$?
+        if [ "\${capacity_rc}" -ne 0 ]; then
+          echo "ERROR: Failed to query available capacity for \${SKU_NAME}."
+          print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
+          return 1
+        fi
+        if [ -z "\${available_capacity}" ]; then
+          available_capacity="0"
+        fi
+      else
+        echo "Existing same-model deployment uses SKU '\${selected_sku}', but this script only deploys \${SKU_NAME}."
+        selected_sku=""
+        existing_same_model_capacity="0"
       fi
     fi
   fi
 
   if [ -z "\${selected_sku:-}" ]; then
     local selected_sku_capacity
-    selected_sku_capacity="$(select_best_sku_capacity "\${model_format}" "\${model_name}" "\${model_version}")"
+    selected_sku_capacity="$(select_global_standard_capacity "\${model_format}" "\${model_name}" "\${model_version}")"
     local capacity_rc=$?
 
     if [ "\${capacity_rc}" -ne 0 ]; then
       if [ "\${capacity_rc}" -eq 2 ]; then
-        echo "WARNING: No availableCapacity found for candidate SKUs in \${ACCOUNT_LOCATION}."
+        echo "WARNING: No \${SKU_NAME} availableCapacity found in \${ACCOUNT_LOCATION}."
         print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
         echo "Skip '\${deployment_name}'."
         return 2
@@ -974,6 +966,9 @@ deploy_model_with_max_capacity() {
   fi
 
   local target_capacity
+  # Azure reports availableCapacity after existing deployments consume quota.
+  # When overwriting the same model deployment, add its current capacity back
+  # so a fully allocated quota does not collapse the deployment to 0.
   target_capacity=$((available_capacity + existing_same_model_capacity))
 
   if [ "\${target_capacity}" -le 0 ]; then
@@ -984,7 +979,7 @@ deploy_model_with_max_capacity() {
 
   echo "Available capacity:            \${available_capacity}"
   echo "Selected SKU:                  \${selected_sku}"
-  echo "Existing same-model capacity:  \${existing_same_model_capacity}"
+  echo "Used quota from existing deployment: \${existing_same_model_capacity}"
   echo "Target deployment capacity:    \${target_capacity}"
   echo "Creating or updating deployment '\${deployment_name}'..."
 
@@ -1144,7 +1139,8 @@ export function buildAzureCliDeploymentScript(
   return buildAzureCliDeploymentScriptBody(
     identity,
     stringifyAzureCliModelRows(input.models),
-    input.servicePrincipal
+    input.servicePrincipal,
+    input.overwriteExisting
   );
 }
 
@@ -1179,6 +1175,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
         location: target.location,
         foundryProjectEndpoint: target.foundryProjectEndpoint,
         models: target.models,
+        overwriteExisting: input.overwriteExisting,
       });
 
       return [
@@ -1202,6 +1199,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
         location: target.location,
         foundryProjectEndpoint: target.foundryProjectEndpoint,
         models: target.models,
+        overwriteExisting: input.overwriteExisting,
       });
 
       return [
@@ -1232,8 +1230,10 @@ function stringifyPowerShellModelRows(models: AzureCliDeploymentModel[]): string
 function buildAzureCliPowerShellDeploymentScriptBody(
   identity: AzureCliDeploymentIdentity,
   modelRows: string,
-  servicePrincipal?: AzureCliServicePrincipal
+  servicePrincipal?: AzureCliServicePrincipal,
+  overwriteExisting = true
 ): string {
+  const overwriteDefault = overwriteExisting ? 'true' : 'false';
   return `# Deployment method: save as deploy-foundry.ps1, then run:
 # ${AZURE_CLI_POWERSHELL_DEPLOYMENT_COMMAND.split('\n').join('\n# ')}
 
@@ -1258,12 +1258,8 @@ $DeploymentApiVersion = '2025-09-01'
 $CapacityApiVersion = '2025-06-01'
 $RaiPolicyName = 'Microsoft.Nil'
 $VersionUpgradeOption = 'OnceNewDefaultVersionAvailable'
-$SkuCandidates = @(
-  $(if ($env:AZURE_FOUNDRY_PREFERRED_SKU) { $env:AZURE_FOUNDRY_PREFERRED_SKU } else { 'GlobalStandard' }),
-  'DataZoneStandard',
-  'Standard'
-)
-$OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } else { 'true' }
+$SkuName = 'GlobalStandard'
+$OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } else { '${overwriteDefault}' }
 $AutoRegisterProvider = if ($env:AUTO_REGISTER_PROVIDER) { $env:AUTO_REGISTER_PROVIDER } else { 'true' }
 $DeploymentRunMode = if ($env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE) { $env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE } else { 'all' }
 
@@ -1529,26 +1525,18 @@ function Get-AvailableCapacity {
   return ($values | Measure-Object -Maximum).Maximum
 }
 
-function Select-BestSkuCapacity {
+function Select-GlobalStandardCapacity {
   param([string]$ModelFormat, [string]$ModelName, [string]$ModelVersion)
-  $best = $null
-
-  foreach ($skuName in $SkuCandidates) {
-    $capacity = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $skuName
-    if ($null -eq $capacity) {
-      Write-Host "No availableCapacity for SKU $skuName."
-      continue
-    }
-    Write-Host ('Candidate SKU {0}: availableCapacity={1}' -f $skuName, $capacity)
-    if ($null -eq $best -or [int]$capacity -gt [int]$best.Capacity) {
-      $best = [pscustomobject]@{
-        SkuName = $skuName
-        Capacity = [int]$capacity
-      }
-    }
+  $capacity = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $SkuName
+  if ($null -eq $capacity) {
+    return $null
   }
 
-  return $best
+  Write-Host ('GlobalStandard availableCapacity={0}' -f $capacity)
+  return [pscustomobject]@{
+    SkuName = $SkuName
+    Capacity = [int]$capacity
+  }
 }
 
 function Print-CapacityDebug {
@@ -1580,7 +1568,7 @@ function Deploy-ModelWithMaxCapacity {
   Write-Host "Model format:    $ModelFormat"
   Write-Host "Model name:      $ModelName"
   Write-Host "Model version:   $ModelVersion"
-  Write-Host "SKU candidates:  $($SkuCandidates -join ', ')"
+  Write-Host "SKU:             $SkuName"
   Write-Host "Region:          $AccountLocation"
   Write-Host '============================================================'
 
@@ -1598,21 +1586,25 @@ function Deploy-ModelWithMaxCapacity {
   if ($deploymentAlreadyExists) {
     $existingDeployment = Get-ExistingDeploymentIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
     if ($null -ne $existingDeployment -and $existingDeployment.SkuName) {
-      Write-Host "Existing same-model deployment uses SKU '$($existingDeployment.SkuName)', preserving this SKU."
-      $availableForExistingSku = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $existingDeployment.SkuName
-      if ($null -eq $availableForExistingSku) { $availableForExistingSku = 0 }
-      $selectedSkuCapacity = [pscustomobject]@{
-        SkuName = $existingDeployment.SkuName
-        Capacity = [int]$availableForExistingSku
-        ExistingCapacity = [int]$existingDeployment.Capacity
+      if ($existingDeployment.SkuName -eq $SkuName) {
+        Write-Host "Existing same-model deployment uses SKU '$($existingDeployment.SkuName)', preserving this SKU."
+        $availableForExistingSku = Get-AvailableCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $SkuName
+        if ($null -eq $availableForExistingSku) { $availableForExistingSku = 0 }
+        $selectedSkuCapacity = [pscustomobject]@{
+          SkuName = $SkuName
+          Capacity = [int]$availableForExistingSku
+          ExistingCapacity = [int]$existingDeployment.Capacity
+        }
+      } else {
+        Write-Host "Existing same-model deployment uses SKU '$($existingDeployment.SkuName)', but this script only deploys $SkuName."
       }
     }
   }
 
   if ($null -eq $selectedSkuCapacity) {
-    $selectedSkuCapacity = Select-BestSkuCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
+    $selectedSkuCapacity = Select-GlobalStandardCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
     if ($null -eq $selectedSkuCapacity) {
-      Write-Warning "No availableCapacity found for candidate SKUs in $AccountLocation."
+      Write-Warning "No $SkuName availableCapacity found in $AccountLocation."
       Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
       return 2
     }
@@ -1626,6 +1618,9 @@ function Deploy-ModelWithMaxCapacity {
     $existingCapacity = Get-ExistingCapacityIfSameModel -DeploymentName $DeploymentName -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion -SkuName $selectedSkuName
   }
   $targetCapacity = $availableCapacity + [int]$existingCapacity
+  # Azure reports availableCapacity after existing deployments consume quota.
+  # When overwriting the same model deployment, add its current capacity back
+  # so a fully allocated quota does not collapse the deployment to 0.
   if ($targetCapacity -le 0) {
     Write-Warning "Max deployable capacity is $targetCapacity; skip '$DeploymentName'."
     Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
@@ -1634,7 +1629,7 @@ function Deploy-ModelWithMaxCapacity {
 
   Write-Host "Available capacity:           $availableCapacity"
   Write-Host "Selected SKU:                 $selectedSkuName"
-  Write-Host "Existing same-model capacity: $existingCapacity"
+  Write-Host "Used quota from existing deployment: $existingCapacity"
   Write-Host "Target deployment capacity:   $targetCapacity"
   $deploymentUrl = $BaseUrl + '/' + $DeploymentName + '?api-version=' + $DeploymentApiVersion
   $deploymentPayloadPath = Join-Path ([System.IO.Path]::GetTempPath()) ('foundry-deployment-' + [System.Guid]::NewGuid().ToString('N') + '.json')
@@ -1787,7 +1782,8 @@ export function buildAzureCliPowerShellDeploymentScript(
   return buildAzureCliPowerShellDeploymentScriptBody(
     identity,
     stringifyPowerShellModelRows(input.models),
-    input.servicePrincipal
+    input.servicePrincipal,
+    input.overwriteExisting
   );
 }
 
@@ -1822,6 +1818,7 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
         location: target.location,
         foundryProjectEndpoint: target.foundryProjectEndpoint,
         models: target.models,
+        overwriteExisting: input.overwriteExisting,
       });
 
       return [
@@ -1845,6 +1842,7 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
         location: target.location,
         foundryProjectEndpoint: target.foundryProjectEndpoint,
         models: target.models,
+        overwriteExisting: input.overwriteExisting,
       });
 
       return [

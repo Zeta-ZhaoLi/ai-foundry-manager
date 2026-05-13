@@ -118,6 +118,7 @@
     "azureCliDeployPowerShellCode": "Azure CLI PowerShell deployment code",
     "azureCliDeployCommand": "Azure CLI deployment command",
     "azureCliDeployPowerShellCommand": "Azure CLI PowerShell command",
+    "azureCliOverwriteExisting": "Overwrite existing deployments",
     "azureCliDeployCodeCopied": "Azure CLI deployment code copied",
     "azureCliDeployAllRegionsCodeCopied": "Azure CLI deployment code for all regions copied",
     "azureCliDeployCommandCopied": "Azure CLI deployment command copied",

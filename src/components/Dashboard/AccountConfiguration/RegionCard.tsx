@@ -166,6 +166,8 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [overwriteAzureCliDeployments, setOverwriteAzureCliDeployments] =
+    useState(true);
   const [deploymentBulkCycleState, setDeploymentBulkCycleState] =
     useState<DeploymentBulkCycleState>('none');
   const [pendingGeneratedBundle, setPendingGeneratedBundle] =
@@ -554,6 +556,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         resourceGroupName: azureCliResourceGroupName,
         foundryProjectEndpoint: region.foundryProjectEndpoint || '',
         models,
+        overwriteExisting: overwriteAzureCliDeployments,
       };
       const script =
         shell === 'powershell'
@@ -592,6 +595,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     subscriptionId,
     toast,
     t,
+    overwriteAzureCliDeployments,
   ]);
 
   const handleAzureCliDeployCommand = useCallback((shell: 'bash' | 'powershell' = 'bash') => {
@@ -1114,7 +1118,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
                 </span>
               )}
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <button
                 type="button"
                 disabled={privacyMode || regionModels.length === 0}
@@ -1128,6 +1132,25 @@ export const RegionCard: React.FC<RegionCardProps> = ({
               >
                 {t('regions.armDeployCode')}
               </button>
+              <label
+                className={clsx(
+                  'inline-flex items-center gap-1.5 text-xs',
+                  privacyMode
+                    ? 'text-gray-500 cursor-not-allowed'
+                    : 'text-muted-foreground cursor-pointer'
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={overwriteAzureCliDeployments}
+                  disabled={privacyMode}
+                  onChange={(e) =>
+                    setOverwriteAzureCliDeployments(e.target.checked)
+                  }
+                  className="h-3.5 w-3.5"
+                />
+                <span>{t('regions.azureCliOverwriteExisting')}</span>
+              </label>
               <div
                 className={clsx(
                   'inline-flex items-center rounded-full border text-xs overflow-hidden',
