@@ -412,12 +412,12 @@ login_and_select_subscription() {
     fi
   fi
 
-  if [ -n "\${AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID:-}" ]; then
-    SUBSCRIPTION_ID="\${AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID}"
-    echo "Reusing selected subscription: \${SUBSCRIPTION_ID}"
-  elif [ -n "\${CONFIGURED_SUBSCRIPTION_ID}" ]; then
+  if [ -n "\${CONFIGURED_SUBSCRIPTION_ID}" ]; then
     SUBSCRIPTION_ID="\${CONFIGURED_SUBSCRIPTION_ID}"
     echo "Using configured subscription: \${SUBSCRIPTION_ID}"
+  elif [ "\${AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID:-}" = "true" ] && [ -n "\${AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID:-}" ]; then
+    SUBSCRIPTION_ID="\${AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID}"
+    echo "Reusing selected subscription: \${SUBSCRIPTION_ID}"
   else
     local subscriptions_json
     local subscription_count
@@ -456,7 +456,9 @@ login_and_select_subscription() {
     exit 1
   fi
 
-  export AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID="\${SUBSCRIPTION_ID}"
+  if [ "\${AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID:-}" = "true" ]; then
+    export AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID="\${SUBSCRIPTION_ID}"
+  fi
 }
 
 login_and_select_subscription
@@ -1333,6 +1335,8 @@ export function buildAzureCliMultiRegionDeploymentScript(
   return [
     'unset AZURE_FOUNDRY_REPORT_PATH',
     'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
+    'unset AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID',
+    'export AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID="true"',
     '# ============================================================',
     '# Prepare all selected regions first',
     '# ============================================================',
@@ -1386,6 +1390,8 @@ export function buildAzureCliMultiRegionDeploymentScript(
     'unset AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE',
     'unset AZURE_FOUNDRY_REPORT_PATH',
     'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
+    'unset AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID',
+    'unset AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID',
   ].join('\n\n');
 }
 
@@ -1577,12 +1583,12 @@ function Login-AndSelectSubscription {
     }
   }
 
-  if ($env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID) {
-    $script:SubscriptionId = $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID
-    Write-Host "Reusing selected subscription: $script:SubscriptionId"
-  } elseif ($ConfiguredSubscriptionId) {
+  if ($ConfiguredSubscriptionId) {
     $script:SubscriptionId = $ConfiguredSubscriptionId
     Write-Host "Using configured subscription: $script:SubscriptionId"
+  } elseif ($env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID -eq 'true' -and $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID) {
+    $script:SubscriptionId = $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID
+    Write-Host "Reusing selected subscription: $script:SubscriptionId"
   } else {
     Write-Host 'Discovering enabled subscriptions...'
     $subscriptions = Invoke-AzCliJson -Arguments @('account','list','--query',"[?state=='Enabled'].{id:id,name:name,tenantId:tenantId}",'-o','json')
@@ -1619,7 +1625,9 @@ function Login-AndSelectSubscription {
   if ($LASTEXITCODE -ne 0) {
     throw 'Failed to set subscription.'
   }
-  $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID = $script:SubscriptionId
+  if ($env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID -eq 'true') {
+    $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID = $script:SubscriptionId
+  }
 }
 
 function Ensure-ProviderRegistered {
@@ -2163,6 +2171,8 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
   return [
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_PATH -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
+    "$env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID = 'true'",
     '# ============================================================',
     '# Prepare all selected regions first',
     '# ============================================================',
@@ -2216,5 +2226,7 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     'Remove-Item Env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_PATH -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
   ].join('\n\n');
 }

@@ -201,6 +201,9 @@ describe('azureCliDeployment', () => {
       `CONFIGURED_SUBSCRIPTION_ID="${baseInput.subscriptionId}"`
     );
     expect(script).toContain('Using configured subscription');
+    expect(script.indexOf('if [ -n "${CONFIGURED_SUBSCRIPTION_ID}" ]; then')).toBeLessThan(
+      script.indexOf('AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID')
+    );
   });
 
   it('prints account key and endpoint summary after deployment', () => {
@@ -464,6 +467,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('Deploy models after all selected regions are prepared');
     expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_REPORT_PATH');
     expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP');
+    expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID');
+    expect(script).toContain("$env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID = 'true'");
+    expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID');
     expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'prepare-only'");
     expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'deploy-only'");
     expect(script.indexOf('# Prepare eastus2')).toBeLessThan(
