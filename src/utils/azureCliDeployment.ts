@@ -1490,12 +1490,28 @@ function Invoke-AzCliJson {
     [Parameter(Mandatory=$true)][string[]]$Arguments,
     [switch]$QuietOnError
   )
-  $output = Invoke-AzureCli -Arguments $Arguments
-  if ($LASTEXITCODE -ne 0) {
+  $safeArguments = @($Arguments | ForEach-Object { ConvertTo-AzureCliArgument -Value $_ })
+  $stderrPath = Join-Path ([System.IO.Path]::GetTempPath()) ('az-stderr-' + [System.Guid]::NewGuid().ToString('N') + '.txt')
+  $output = $null
+  $stderr = @()
+  try {
+    $output = (& az @safeArguments 2> $stderrPath)
+    $exitCode = $LASTEXITCODE
+    if (Test-Path $stderrPath) {
+      $stderr = Get-Content -LiteralPath $stderrPath -ErrorAction SilentlyContinue
+    }
+  } finally {
+    Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
+  }
+
+  if ($exitCode -ne 0) {
     if (-not $QuietOnError) {
       Write-Warning ('Azure CLI command failed: az ' + ($Arguments -join ' '))
       if ($output) {
         $output | ForEach-Object { Write-Warning $_ }
+      }
+      if ($stderr) {
+        $stderr | ForEach-Object { Write-Warning $_ }
       }
     }
     return $null
@@ -1503,7 +1519,29 @@ function Invoke-AzCliJson {
   if (-not $output) {
     return $null
   }
-  return ($output | ConvertFrom-Json)
+  $jsonText = (($output | Out-String).Trim())
+  $jsonStart = $jsonText.IndexOf('{')
+  $arrayStart = $jsonText.IndexOf('[')
+  if ($jsonStart -lt 0 -or ($arrayStart -ge 0 -and $arrayStart -lt $jsonStart)) {
+    $jsonStart = $arrayStart
+  }
+  if ($jsonStart -gt 0) {
+    $jsonText = $jsonText.Substring($jsonStart)
+  }
+  try {
+    return ($jsonText | ConvertFrom-Json)
+  } catch {
+    if (-not $QuietOnError) {
+      Write-Warning ('Azure CLI returned non-JSON output for: az ' + ($Arguments -join ' '))
+      if ($stderr) {
+        $stderr | ForEach-Object { Write-Warning $_ }
+      }
+      if ($output) {
+        $output | ForEach-Object { Write-Warning $_ }
+      }
+    }
+    return $null
+  }
 }
 
 function ConvertTo-AzureCliArgument {

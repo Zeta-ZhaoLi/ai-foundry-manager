@@ -278,6 +278,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('name = $selectedSkuName');
     expect(script).toContain('function Invoke-AzureCli');
     expect(script).toContain('function Invoke-AzureCliQuiet');
+    expect(script).toContain("$stderrPath = Join-Path ([System.IO.Path]::GetTempPath()) ('az-stderr-'");
+    expect(script).toContain('$output = (& az @safeArguments 2> $stderrPath)');
+    expect(script).toContain('$jsonText = (($output | Out-String).Trim())');
     expect(script).toContain("if ($Value -like '*&*')");
     expect(script).toContain("Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$url");
     expect(script).toContain('-QuietOnError');
