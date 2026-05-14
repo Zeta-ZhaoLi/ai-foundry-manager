@@ -313,6 +313,8 @@ AUTO_REGISTER_PROVIDER="\${AUTO_REGISTER_PROVIDER:-true}"
 # deploy-only = skip resource preparation and deploy models
 DEPLOYMENT_RUN_MODE="\${AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE:-all}"
 SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+export AZURE_CONFIG_DIR="\${AZURE_CONFIG_DIR:-\${SCRIPT_DIR}/.azure-cli-profile}"
+mkdir -p "\${AZURE_CONFIG_DIR}"
 REPORT_TIMESTAMP="\${AZURE_FOUNDRY_REPORT_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
 
 # ============================================================
@@ -1392,6 +1394,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
     'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
     'unset AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID',
     'unset AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID',
+    'unset AZURE_CONFIG_DIR',
   ].join('\n\n');
 }
 
@@ -1446,6 +1449,9 @@ $OverwriteExisting = if ($env:OVERWRITE_EXISTING) { $env:OVERWRITE_EXISTING } el
 $AutoRegisterProvider = if ($env:AUTO_REGISTER_PROVIDER) { $env:AUTO_REGISTER_PROVIDER } else { 'true' }
 $DeploymentRunMode = if ($env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE) { $env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE } else { 'all' }
 $ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+$AzureConfigDir = if ($env:AZURE_CONFIG_DIR) { $env:AZURE_CONFIG_DIR } else { Join-Path $ScriptDir '.azure-cli-profile' }
+$env:AZURE_CONFIG_DIR = $AzureConfigDir
+New-Item -ItemType Directory -Force -Path $AzureConfigDir | Out-Null
 $ReportTimestamp = if ($env:AZURE_FOUNDRY_REPORT_TIMESTAMP) { $env:AZURE_FOUNDRY_REPORT_TIMESTAMP } else { Get-Date -Format 'yyyyMMdd-HHmmss' }
 
 $SucceededDeployments = @()
@@ -2228,5 +2234,6 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_CONFIG_DIR -ErrorAction SilentlyContinue',
   ].join('\n\n');
 }

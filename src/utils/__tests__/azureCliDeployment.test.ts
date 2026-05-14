@@ -241,6 +241,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain("$ErrorActionPreference = 'Continue'");
     expect(script).toContain('function Ensure-AzureCli');
     expect(script).toContain('$ScriptDir = if ($PSScriptRoot)');
+    expect(script).toContain("$AzureConfigDir = if ($env:AZURE_CONFIG_DIR)");
+    expect(script).toContain("$env:AZURE_CONFIG_DIR = $AzureConfigDir");
+    expect(script).toContain("Join-Path $ScriptDir '.azure-cli-profile'");
     expect(script).toContain("$AccountEmail = 'user@example.com'");
     expect(script).toContain('foundry-deployment-result-$reportAccount-$SubscriptionId-$ReportTimestamp.txt');
     expect(script).toContain('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN');
@@ -470,6 +473,7 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID');
     expect(script).toContain("$env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID = 'true'");
     expect(script).toContain('Remove-Item Env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID');
+    expect(script).toContain('Remove-Item Env:AZURE_CONFIG_DIR');
     expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'prepare-only'");
     expect(script).toContain("$env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE = 'deploy-only'");
     expect(script.indexOf('# Prepare eastus2')).toBeLessThan(
