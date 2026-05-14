@@ -247,6 +247,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('Refresh-AzureCliPath');
     expect(script).toContain('az login --service-principal');
     expect(script).toContain('Read-Host');
+    expect(script).toContain('$selected = 0');
+    expect(script).toContain('$ok = $false');
     expect(script).toContain('az group show --name $ResourceGroup');
     expect(script).toContain('az cognitiveservices account create');
     expect(script).toContain('--kind AIServices');

@@ -1604,6 +1604,8 @@ function Login-AndSelectSubscription {
         $n = $i + 1
         Write-Host "$n) $($subscriptions[$i].name) [$($subscriptions[$i].id)] tenant=$($subscriptions[$i].tenantId)"
       }
+      $selected = 0
+      $ok = $false
       do {
         $raw = Read-Host 'Select subscription number'
         $ok = [int]::TryParse($raw, [ref]$selected)
