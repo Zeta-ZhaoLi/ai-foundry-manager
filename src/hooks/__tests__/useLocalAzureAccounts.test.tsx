@@ -107,6 +107,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     expect(account).toBeTruthy();
     expect(account?.enabled).toBe(false);
     expect(account?.quota).toBe('1000');
+    expect(account?.resourceGroupName).toBeUndefined();
     expect(account?.regions.map((region) => region.name)).toEqual([
       'eastus2',
       'swedencentral',
@@ -205,6 +206,26 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     });
 
     expect(result.current.accounts.at(-1)?.regions).toEqual([]);
+  });
+
+  it('updates account resource group name', async () => {
+    const { result } = renderHook(() => useLocalAzureAccounts());
+
+    await waitFor(() => {
+      expect(result.current.accounts.length).toBe(1);
+    });
+
+    const accountId = result.current.accounts[0].id;
+    act(() => {
+      result.current.updateAccountResourceGroupName(accountId, 'rg-custom');
+    });
+
+    expect(result.current.accounts[0].resourceGroupName).toBe('rg-custom');
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem(STORAGE_KEY) || '';
+      expect(raw).toContain('rg-custom');
+    });
   });
 
   it('encrypts Service Principal password at rest and decrypts on load', async () => {

@@ -69,6 +69,10 @@ export interface AccountsSectionProps {
     accountId: string,
     subscriptionId: string
   ) => void;
+  onUpdateAccountResourceGroupName?: (
+    accountId: string,
+    resourceGroupName: string
+  ) => void;
   onUpdateAccountServicePrincipal?: (
     accountId: string,
     servicePrincipal?: ServicePrincipalCredential
@@ -182,6 +186,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onRenumberAccounts,
   onUpdateAccountName,
   onUpdateAccountSubscriptionId,
+  onUpdateAccountResourceGroupName,
   onUpdateAccountServicePrincipal,
   onUpdateAccountNote,
   onUpdateAccountEnabled,
@@ -517,6 +522,15 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     }
                     onUpdateSubscriptionId={(subscriptionId) =>
                       onUpdateAccountSubscriptionId(account.id, subscriptionId)
+                    }
+                    onUpdateResourceGroupName={
+                      onUpdateAccountResourceGroupName
+                        ? (resourceGroupName) =>
+                            onUpdateAccountResourceGroupName(
+                              account.id,
+                              resourceGroupName
+                            )
+                        : undefined
                     }
                     onUpdateServicePrincipal={
                       onUpdateAccountServicePrincipal

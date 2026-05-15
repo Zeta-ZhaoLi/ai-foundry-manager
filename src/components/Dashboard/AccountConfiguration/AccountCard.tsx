@@ -53,6 +53,7 @@ export interface AccountCardProps {
   filteredModels: string[];
   onUpdateName: (name: string) => void;
   onUpdateSubscriptionId?: (subscriptionId: string) => void;
+  onUpdateResourceGroupName?: (resourceGroupName: string) => void;
   onUpdateServicePrincipal?: (
     servicePrincipal?: ServicePrincipalCredential
   ) => void;
@@ -119,6 +120,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   filteredModels,
   onUpdateName,
   onUpdateSubscriptionId,
+  onUpdateResourceGroupName,
   onUpdateServicePrincipal,
   onUpdateNote,
   onUpdateEnabled,
@@ -181,7 +183,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
   const displayNote = privacyMode ? '***' : account.note;
 
-  const firstRegionResourceGroupName = useMemo(() => {
+  const resourceGroupName = account.resourceGroupName?.trim() || '';
+
+  const generatedResourceGroupName = useMemo(() => {
     const firstRegion = account.regions.find((region) =>
       (region.deployment?.resourceName || '').trim()
     );
@@ -205,6 +209,15 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
     return identity?.resourceGroup || '';
   }, [account.regions, account.subscriptionId]);
+
+  const handleGenerateResourceGroupName = () => {
+    if (!generatedResourceGroupName) {
+      toast.error(t('regions.deployMissingFirstRegionResourceGroup'));
+      return;
+    }
+    onUpdateResourceGroupName?.(generatedResourceGroupName);
+    toast.success(t('accounts.resourceGroupGenerated'));
+  };
 
   const hasDeployAuth = Boolean(
     account.subscriptionId?.trim() ||
@@ -234,8 +247,8 @@ export const AccountCard: React.FC<AccountCardProps> = ({
       toast.error(t('regions.deployMissingSubscriptionId'));
       return;
     }
-    if (!firstRegionResourceGroupName) {
-      toast.error(t('regions.deployMissingFirstRegionResourceGroup'));
+    if (!resourceGroupName) {
+      toast.error(t('regions.deployMissingResourceGroupName'));
       return;
     }
     if (masterModels.length === 0) {
@@ -254,7 +267,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         return {
           resourceName,
           location: region.name || '',
-          resourceGroupName: firstRegionResourceGroupName,
+          resourceGroupName,
           foundryProjectEndpoint: region.foundryProjectEndpoint || '',
           label:
             region.name ||
@@ -286,7 +299,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         subscriptionId: account.subscriptionId,
         servicePrincipal: account.servicePrincipal,
         accountEmail: account.name,
-        resourceGroupName: firstRegionResourceGroupName,
+        resourceGroupName,
         targets,
         overwriteExisting: overwriteAzureCliDeployments,
       };
@@ -482,6 +495,41 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 placeholder={t('accounts.subscriptionIdPlaceholder')}
                 disabled={privacyMode || !onUpdateSubscriptionId}
               />
+            </div>
+
+            {/* Azure Resource Group */}
+            <div className="md:col-span-3">
+              <label className="text-xs text-muted-foreground block mb-1">
+                {t('accounts.resourceGroupName')}
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  className={clsx(
+                    'flex-1 min-w-0 p-1.5 rounded-lg',
+                    'border border-border bg-background text-foreground text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
+                  )}
+                  value={privacyMode ? '***' : account.resourceGroupName || ''}
+                  onChange={(e) =>
+                    onUpdateResourceGroupName?.(e.target.value)
+                  }
+                  placeholder={t('accounts.resourceGroupNamePlaceholder')}
+                  disabled={privacyMode || !onUpdateResourceGroupName}
+                />
+                <button
+                  type="button"
+                  disabled={privacyMode || !onUpdateResourceGroupName}
+                  onClick={handleGenerateResourceGroupName}
+                  className={clsx(
+                    'px-2 py-1.5 rounded-lg border text-xs whitespace-nowrap',
+                    privacyMode || !onUpdateResourceGroupName
+                      ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
+                      : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
+                  )}
+                >
+                  {t('accounts.generateResourceGroupName')}
+                </button>
+              </div>
             </div>
 
             {/* Service Principal */}
@@ -917,7 +965,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       accountName={displayName}
                       subscriptionId={account.subscriptionId || ''}
                       servicePrincipal={account.servicePrincipal}
-                      azureCliResourceGroupName={firstRegionResourceGroupName}
+                      azureCliResourceGroupName={resourceGroupName}
                       masterGroups={masterGroups}
                       masterGroupLines={masterGroupLines}
                       masterModels={masterModels}

@@ -534,6 +534,10 @@ export const RegionCard: React.FC<RegionCardProps> = ({
       toast.error(t('regions.deployMissingResourceName'));
       return;
     }
+    if (!azureCliResourceGroupName?.trim()) {
+      toast.error(t('regions.deployMissingResourceGroupName'));
+      return;
+    }
 
     const models =
       mode === 'selected' ? selectedAzureCliModels : allMasterAzureCliModels;

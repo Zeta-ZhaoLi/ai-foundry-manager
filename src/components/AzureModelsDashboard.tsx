@@ -51,6 +51,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     importDefaultRegionModelTemplate,
     updateAccountName,
     updateAccountSubscriptionId,
+    updateAccountResourceGroupName,
     updateAccountServicePrincipal,
     updateAccountNote,
     updateAccountEnabled,
@@ -527,6 +528,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onRenumberAccounts={renumberAllAccounts}
         onUpdateAccountName={updateAccountName}
         onUpdateAccountSubscriptionId={updateAccountSubscriptionId}
+        onUpdateAccountResourceGroupName={updateAccountResourceGroupName}
         onUpdateAccountServicePrincipal={updateAccountServicePrincipal}
         onUpdateAccountNote={updateAccountNote}
         onUpdateAccountEnabled={updateAccountEnabled}

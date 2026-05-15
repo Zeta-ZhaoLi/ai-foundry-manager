@@ -82,6 +82,7 @@ export interface LocalAccount {
   accountId?: string;
   name: string;
   subscriptionId?: string;
+  resourceGroupName?: string;
   servicePrincipal?: ServicePrincipalCredential;
   note?: string;
   enabled: boolean;
@@ -564,6 +565,17 @@ export function useLocalAzureAccounts() {
       saveAccounts((prev) =>
         prev.map((acct) =>
           acct.id === id ? { ...acct, subscriptionId } : acct
+        )
+      );
+    },
+    [saveAccounts]
+  );
+
+  const updateAccountResourceGroupName = useCallback(
+    (id: string, resourceGroupName: string) => {
+      saveAccounts((prev) =>
+        prev.map((acct) =>
+          acct.id === id ? { ...acct, resourceGroupName } : acct
         )
       );
     },
@@ -1335,6 +1347,7 @@ export function useLocalAzureAccounts() {
     importDefaultRegionModelTemplate,
     updateAccountName,
     updateAccountSubscriptionId,
+    updateAccountResourceGroupName,
     updateAccountServicePrincipal,
     updateAccountNote,
     updateAccountEnabled,
