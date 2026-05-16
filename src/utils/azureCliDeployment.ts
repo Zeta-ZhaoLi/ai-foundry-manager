@@ -159,9 +159,6 @@ export function validateAzureCliDeploymentInput(
 ): AzureCliDeploymentValidation {
   const errors: string[] = [];
 
-  if (!input.subscriptionId?.trim() && !hasCompleteServicePrincipal(input.servicePrincipal)) {
-    errors.push('subscriptionId or complete servicePrincipal is required');
-  }
   if (!input.resourceName.trim()) errors.push('resourceName is required');
   if (!input.location.trim()) errors.push('location is required');
   if (input.models.length === 0) errors.push('models are required');
@@ -1320,13 +1317,9 @@ export function buildAzureCliDeploymentScript(
 export function buildAzureCliMultiRegionDeploymentScript(
   input: AzureCliMultiRegionDeploymentInput
 ): string {
-  const subscriptionId = input.subscriptionId?.trim() || '';
   const resourceGroupName = input.resourceGroupName.trim();
   const targets = input.targets.filter((target) => target.models.length > 0);
 
-  if (!subscriptionId && !hasCompleteServicePrincipal(input.servicePrincipal)) {
-    throw new Error('subscriptionId or complete servicePrincipal is required');
-  }
   if (!resourceGroupName) {
     throw new Error('resourceGroupName is required');
   }
@@ -2160,13 +2153,9 @@ export function buildAzureCliPowerShellDeploymentScript(
 export function buildAzureCliPowerShellMultiRegionDeploymentScript(
   input: AzureCliMultiRegionDeploymentInput
 ): string {
-  const subscriptionId = input.subscriptionId?.trim() || '';
   const resourceGroupName = input.resourceGroupName.trim();
   const targets = input.targets.filter((target) => target.models.length > 0);
 
-  if (!subscriptionId && !hasCompleteServicePrincipal(input.servicePrincipal)) {
-    throw new Error('subscriptionId or complete servicePrincipal is required');
-  }
   if (!resourceGroupName) {
     throw new Error('resourceGroupName is required');
   }

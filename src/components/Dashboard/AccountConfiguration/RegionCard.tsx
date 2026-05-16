@@ -42,7 +42,6 @@ import {
   resolveAzureCliDeploymentRows,
   toAzureCliDeploymentModels,
 } from '../../../utils/azureCliDeployment';
-import { isCompleteServicePrincipal } from '../../../utils/servicePrincipal';
 
 export type LocalRegion = ImportedLocalRegion;
 
@@ -525,10 +524,6 @@ export const RegionCard: React.FC<RegionCardProps> = ({
   );
 
   const handleAzureCliDeployCode = useCallback((mode: 'selected' | 'all', shell: 'bash' | 'powershell' = 'bash') => {
-    if (!subscriptionId.trim() && !isCompleteServicePrincipal(servicePrincipal)) {
-      toast.error(t('regions.deployMissingSubscriptionId'));
-      return;
-    }
     const resourceName = deploymentResourceName.trim();
     if (!resourceName) {
       toast.error(t('regions.deployMissingResourceName'));

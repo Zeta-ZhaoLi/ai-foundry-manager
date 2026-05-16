@@ -187,6 +187,21 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('az account set --subscription "${SUBSCRIPTION_ID}"');
   });
 
+  it('supports subscription discovery from existing Azure CLI login when subscriptionId and Service Principal are empty', () => {
+    const script = buildAzureCliDeploymentScript({
+      ...baseInput,
+      subscriptionId: '',
+      servicePrincipal: undefined,
+    });
+
+    expect(script).toContain('CONFIGURED_SUBSCRIPTION_ID=""');
+    expect(script).toContain('SP_APP_ID=""');
+    expect(script).not.toContain('az login --service-principal --username "app-id"');
+    expect(script).toContain('az account list --query "[?state==');
+    expect(script).toContain('Multiple enabled subscriptions found');
+    expect(script).toContain('az account set --subscription "${SUBSCRIPTION_ID}"');
+  });
+
   it('uses configured subscription directly when present with Service Principal', () => {
     const script = buildAzureCliDeploymentScript({
       ...baseInput,
@@ -409,7 +424,7 @@ describe('azureCliDeployment', () => {
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain(
+    expect(result.errors).not.toContain(
       'subscriptionId or complete servicePrincipal is required'
     );
     expect(result.errors).toContain('resourceName is required');
@@ -485,5 +500,37 @@ describe('azureCliDeployment', () => {
     expect(script.indexOf('# Deploy eastus2')).toBeLessThan(
       script.indexOf('# Deploy swedencentral')
     );
+  });
+
+  it('builds multi-region scripts with subscription discovery when subscriptionId and Service Principal are empty', () => {
+    const bashScript = buildAzureCliMultiRegionDeploymentScript({
+      subscriptionId: '',
+      resourceGroupName: 'rg-first-region',
+      targets: [
+        {
+          label: 'eastus2',
+          resourceName: 'first-resource',
+          location: 'eastus2',
+          models: [baseInput.models[0]],
+        },
+      ],
+    });
+    const powerShellScript = buildAzureCliPowerShellMultiRegionDeploymentScript({
+      subscriptionId: '',
+      resourceGroupName: 'rg-first-region',
+      targets: [
+        {
+          label: 'eastus2',
+          resourceName: 'first-resource',
+          location: 'eastus2',
+          models: [baseInput.models[0]],
+        },
+      ],
+    });
+
+    expect(bashScript).toContain('CONFIGURED_SUBSCRIPTION_ID=""');
+    expect(bashScript).toContain('az account list --query "[?state==');
+    expect(powerShellScript).toContain("$ConfiguredSubscriptionId = ''");
+    expect(powerShellScript).toContain("'account','list','--query'");
   });
 });

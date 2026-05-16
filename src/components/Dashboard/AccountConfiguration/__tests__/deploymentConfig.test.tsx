@@ -672,6 +672,65 @@ describe('deployment configuration contract', () => {
     expect(copied).toContain('az cognitiveservices account keys list');
   });
 
+  it('copies account-level deployment code without subscriptionId or Service Principal for runtime discovery', () => {
+    const account: LocalAccount = {
+      id: 'acct-1',
+      name: 'Account 1',
+      note: '',
+      enabled: true,
+      subscriptionId: '',
+      resourceGroupName: 'rg-first',
+      regions: [
+        {
+          id: 'reg-1',
+          name: 'eastus2',
+          modelsText: 'gpt-5',
+          deployment: { resourceName: 'first-resource' },
+        },
+      ],
+    };
+    const onCopy = vi.fn();
+
+    const { getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <AccountCard
+          account={account}
+          masterGroups={[['gpt-5']]}
+          masterGroupLines={[[['gpt-5']]]}
+          masterModels={['gpt-5']}
+          filteredModels={['gpt-5']}
+          onUpdateName={vi.fn()}
+          onUpdateNote={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={onCopy}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', {
+        name: /Azure CLI.*鎵€鏈夊尯鍩?*鍏ㄩ儴|Deploy all regions with Azure CLI.*All/i,
+      })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    const copied = onCopy.mock.calls[0][0] as string;
+    expect(copied).toContain('CONFIGURED_SUBSCRIPTION_ID=""');
+    expect(copied).toContain('az account list --query');
+    expect(toastError).not.toHaveBeenCalledWith(
+      i18n.t('regions.deployMissingSubscriptionId')
+    );
+  });
+
   it('hides Service Principal details in privacy mode', () => {
     const account: LocalAccount = {
       id: 'acct-1',
@@ -1199,6 +1258,56 @@ describe('deployment configuration contract', () => {
     );
     expect(copied).toMatch(
       /"gpt-5\.1-2025-11-13\|OpenAI\|gpt-5\.1\|2025-11-13\|\d+"/
+    );
+  });
+
+  it('copies Azure CLI code for a region without subscriptionId or Service Principal for runtime discovery', () => {
+    const region: LocalRegion = {
+      id: 'reg-1',
+      name: 'eastus2',
+      modelsText: 'gpt-5',
+      deployment: { resourceName: 'my-account-resource' },
+    };
+    const onCopy = vi.fn();
+
+    const { getByRole } = render(
+      <I18nextProvider i18n={i18n}>
+        <RegionCard
+          region={region}
+          accountId="acct-1"
+          accountName="Account 1"
+          subscriptionId=""
+          azureCliResourceGroupName="rg-first-region"
+          masterModels={['gpt-5']}
+          masterGroups={[['gpt-5']]}
+          masterGroupLines={[[['gpt-5']]]}
+          filteredModels={['gpt-5']}
+          onUpdateName={vi.fn()}
+          onUpdateModelsText={vi.fn()}
+          onUpdateFoundryProjectEndpoint={vi.fn()}
+          onUpdateOpenaiEndpoint={vi.fn()}
+          onUpdateAnthropicEndpoint={vi.fn()}
+          onUpdateApiKey={vi.fn()}
+          onUpdateEnabled={vi.fn()}
+          onDelete={vi.fn()}
+          onCopy={onCopy}
+          onUpdateDeploymentModel={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    fireEvent.click(
+      getByRole('button', {
+        name: /^Azure CLI (閮ㄧ讲浠ｇ爜|deployment code).*鍏ㄩ儴$|^Azure CLI deployment code.*All$/i,
+      })
+    );
+
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    const copied = onCopy.mock.calls[0][0] as string;
+    expect(copied).toContain('CONFIGURED_SUBSCRIPTION_ID=""');
+    expect(copied).toContain('az account list --query');
+    expect(toastError).not.toHaveBeenCalledWith(
+      i18n.t('regions.deployMissingSubscriptionId')
     );
   });
 

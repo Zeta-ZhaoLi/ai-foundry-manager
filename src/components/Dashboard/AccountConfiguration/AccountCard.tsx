@@ -37,7 +37,6 @@ import {
   toAzureCliDeploymentModels,
 } from '../../../utils/azureCliDeployment';
 import {
-  isCompleteServicePrincipal,
   parseServicePrincipalJson,
 } from '../../../utils/servicePrincipal';
 
@@ -219,11 +218,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     toast.success(t('accounts.resourceGroupGenerated'));
   };
 
-  const hasDeployAuth = Boolean(
-    account.subscriptionId?.trim() ||
-      isCompleteServicePrincipal(account.servicePrincipal)
-  );
-
   const handleImportServicePrincipal = () => {
     const result = parseServicePrincipalJson(servicePrincipalJson);
     if (!result.success || !result.credential) {
@@ -243,10 +237,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     mode: 'selected' | 'all',
     shell: 'bash' | 'powershell' = 'bash'
   ) => {
-    if (!hasDeployAuth) {
-      toast.error(t('regions.deployMissingSubscriptionId'));
-      return;
-    }
     if (!resourceGroupName) {
       toast.error(t('regions.deployMissingResourceGroupName'));
       return;
