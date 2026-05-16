@@ -181,7 +181,10 @@ describe('azureCliDeployment', () => {
 
     expect(script).toContain('az login --service-principal');
     expect(script).toContain('SP_APP_ID="app-id"');
-    expect(script).toContain('az account list --query "[?state==');
+    expect(script).toContain('az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}"');
+    expect(script).toContain('jq \'[.[] | select(.state == "Enabled")]\'');
+    expect(script).toContain('Visible subscriptions:');
+    expect(script).toContain('Disabled subscriptions cannot deploy resources');
     expect(script).toContain('Multiple enabled subscriptions found');
     expect(script).toContain('Select subscription number');
     expect(script).toContain('az account set --subscription "${SUBSCRIPTION_ID}"');
@@ -197,7 +200,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('CONFIGURED_SUBSCRIPTION_ID=""');
     expect(script).toContain('SP_APP_ID=""');
     expect(script).not.toContain('az login --service-principal --username "app-id"');
-    expect(script).toContain('az account list --query "[?state==');
+    expect(script).toContain('az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}"');
+    expect(script).toContain('Visible subscriptions:');
     expect(script).toContain('Multiple enabled subscriptions found');
     expect(script).toContain('az account set --subscription "${SUBSCRIPTION_ID}"');
   });
@@ -529,9 +533,13 @@ describe('azureCliDeployment', () => {
     });
 
     expect(bashScript).toContain('CONFIGURED_SUBSCRIPTION_ID=""');
-    expect(bashScript).toContain('az account list --query "[?state==');
+    expect(bashScript).toContain('az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}"');
+    expect(bashScript).toContain('Visible subscriptions:');
     expect(powerShellScript).toContain("$ConfiguredSubscriptionId = ''");
     expect(powerShellScript).toContain("'account','list','--query'");
+    expect(powerShellScript).toContain("[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}");
+    expect(powerShellScript).toContain('Visible subscriptions:');
+    expect(powerShellScript).toContain('Disabled subscriptions cannot deploy resources');
   });
 
   it('builds multi-region scripts with Service Principal and subscription discovery when subscriptionId is empty', () => {
@@ -559,3 +567,4 @@ describe('azureCliDeployment', () => {
     expect(script).toContain("'account','list','--query'");
   });
 });
+

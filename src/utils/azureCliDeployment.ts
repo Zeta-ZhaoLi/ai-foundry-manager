@@ -418,14 +418,29 @@ login_and_select_subscription() {
     SUBSCRIPTION_ID="\${AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID}"
     echo "Reusing selected subscription: \${SUBSCRIPTION_ID}"
   else
+    local all_subscriptions_json
     local subscriptions_json
     local subscription_count
 
     echo "Discovering enabled subscriptions..."
-    subscriptions_json="$(az account list --query "[?state=='Enabled'].{id:id,name:name,tenantId:tenantId}" -o json)"
+    all_subscriptions_json="$(az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}" -o json)"
+    subscriptions_json="$(echo "\${all_subscriptions_json}" | jq '[.[] | select(.state == "Enabled")]')"
     subscription_count="$(echo "\${subscriptions_json}" | jq 'length')"
 
     if [ "\${subscription_count}" -eq 0 ]; then
+      echo "Current Azure CLI account:"
+      az account show --query "{subscriptionName:name, subscriptionId:id, tenantId:tenantId, state:state, user:user.name}" -o table 2>/dev/null || echo "No active Azure CLI account context is available."
+      echo
+      echo "Visible subscriptions:"
+      if [ "$(echo "\${all_subscriptions_json}" | jq 'length')" -eq 0 ]; then
+        echo "  None"
+      else
+        echo "\${all_subscriptions_json}" | jq -r 'to_entries[] | "  \(.key + 1)) \(.value.name // "<unnamed>") [\(.value.id // "-")] state=\(.value.state // "-") tenant=\(.value.tenantId // "-") default=\(.value.isDefault // false)"'
+      fi
+      if echo "\${all_subscriptions_json}" | jq -e 'any(.[]; .state == "Disabled")' >/dev/null; then
+        echo
+        echo "ERROR: Visible subscriptions exist but none are Enabled. Disabled subscriptions cannot deploy resources."
+      fi
       echo "ERROR: No enabled subscriptions are visible to this identity."
       exit 1
     fi
@@ -1591,15 +1606,36 @@ function Login-AndSelectSubscription {
     Write-Host "Reusing selected subscription: $script:SubscriptionId"
   } else {
     Write-Host 'Discovering enabled subscriptions...'
-    $subscriptions = Invoke-AzCliJson -Arguments @('account','list','--query',"[?state=='Enabled'].{id:id,name:name,tenantId:tenantId}",'-o','json')
-    if (-not $subscriptions) {
-      throw 'No enabled subscriptions are visible to this identity.'
+    $allSubscriptions = Invoke-AzCliJson -Arguments @('account','list','--query',"[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}",'-o','json')
+    if (-not $allSubscriptions) {
+      $allSubscriptions = @()
     }
-    if ($subscriptions -isnot [array]) {
-      $subscriptions = @($subscriptions)
+    if ($allSubscriptions -isnot [array]) {
+      $allSubscriptions = @($allSubscriptions)
     }
+    $subscriptions = @($allSubscriptions | Where-Object { $_.state -eq 'Enabled' })
 
     if ($subscriptions.Count -eq 0) {
+      Write-Host 'Current Azure CLI account:'
+      Invoke-AzureCliQuiet -Arguments @('account','show','--query','{subscriptionName:name, subscriptionId:id, tenantId:tenantId, state:state, user:user.name}','-o','table')
+      if ($LASTEXITCODE -ne 0) {
+        Write-Host 'No active Azure CLI account context is available.'
+      }
+      Write-Host ''
+      Write-Host 'Visible subscriptions:'
+      if ($allSubscriptions.Count -eq 0) {
+        Write-Host '  None'
+      } else {
+        for ($i = 0; $i -lt $allSubscriptions.Count; $i++) {
+          $n = $i + 1
+          $item = $allSubscriptions[$i]
+          Write-Host "$n) $($item.name) [$($item.id)] state=$($item.state) tenant=$($item.tenantId) default=$($item.isDefault)"
+        }
+      }
+      if (@($allSubscriptions | Where-Object { $_.state -eq 'Disabled' }).Count -gt 0) {
+        Write-Host ''
+        Write-Host 'ERROR: Visible subscriptions exist but none are Enabled. Disabled subscriptions cannot deploy resources.'
+      }
       throw 'No enabled subscriptions are visible to this identity.'
     } elseif ($subscriptions.Count -eq 1) {
       $script:SubscriptionId = $subscriptions[0].id
