@@ -533,4 +533,29 @@ describe('azureCliDeployment', () => {
     expect(powerShellScript).toContain("$ConfiguredSubscriptionId = ''");
     expect(powerShellScript).toContain("'account','list','--query'");
   });
+
+  it('builds multi-region scripts with Service Principal and subscription discovery when subscriptionId is empty', () => {
+    const script = buildAzureCliPowerShellMultiRegionDeploymentScript({
+      subscriptionId: '',
+      servicePrincipal: {
+        appId: 'app-id',
+        password: 'secret',
+        tenant: 'tenant-id',
+      },
+      resourceGroupName: 'rg-first-region',
+      targets: [
+        {
+          label: 'eastus2',
+          resourceName: 'first-resource',
+          location: 'eastus2',
+          models: [baseInput.models[0]],
+        },
+      ],
+    });
+
+    expect(script).toContain("$ConfiguredSubscriptionId = ''");
+    expect(script).toContain("$SpAppId = 'app-id'");
+    expect(script).toContain('az login --service-principal');
+    expect(script).toContain("'account','list','--query'");
+  });
 });

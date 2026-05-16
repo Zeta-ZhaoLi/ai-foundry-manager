@@ -1317,6 +1317,7 @@ export function buildAzureCliDeploymentScript(
 export function buildAzureCliMultiRegionDeploymentScript(
   input: AzureCliMultiRegionDeploymentInput
 ): string {
+  const subscriptionId = input.subscriptionId?.trim() || '';
   const resourceGroupName = input.resourceGroupName.trim();
   const targets = input.targets.filter((target) => target.models.length > 0);
 
@@ -2153,6 +2154,7 @@ export function buildAzureCliPowerShellDeploymentScript(
 export function buildAzureCliPowerShellMultiRegionDeploymentScript(
   input: AzureCliMultiRegionDeploymentInput
 ): string {
+  const subscriptionId = input.subscriptionId?.trim() || '';
   const resourceGroupName = input.resourceGroupName.trim();
   const targets = input.targets.filter((target) => target.models.length > 0);
 
