@@ -183,6 +183,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('SP_APP_ID="app-id"');
     expect(script).toContain('az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}"');
     expect(script).toContain('jq \'[.[] | select(.state == "Enabled")]\'');
+    expect(script).toContain('Configured account email: ${diagnostic_account_email}');
+    expect(script).toContain('local diagnostic_account_email="${ACCOUNT_EMAIL:-<empty>}"');
     expect(script).toContain('Visible subscriptions:');
     expect(script).toContain('Disabled subscriptions cannot deploy resources');
     expect(script).toContain('Multiple enabled subscriptions found');
@@ -538,6 +540,8 @@ describe('azureCliDeployment', () => {
     expect(powerShellScript).toContain("$ConfiguredSubscriptionId = ''");
     expect(powerShellScript).toContain("'account','list','--query'");
     expect(powerShellScript).toContain("[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}");
+    expect(powerShellScript).toContain('Configured account email: $diagnosticAccountEmail');
+    expect(powerShellScript).toContain("$diagnosticAccountEmail = if ($AccountEmail) { $AccountEmail } else { '<empty>' }");
     expect(powerShellScript).toContain('Visible subscriptions:');
     expect(powerShellScript).toContain('Disabled subscriptions cannot deploy resources');
   });

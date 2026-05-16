@@ -428,6 +428,8 @@ login_and_select_subscription() {
     subscription_count="$(echo "\${subscriptions_json}" | jq 'length')"
 
     if [ "\${subscription_count}" -eq 0 ]; then
+      local diagnostic_account_email="\${ACCOUNT_EMAIL:-<empty>}"
+      echo "Configured account email: \${diagnostic_account_email}"
       echo "Current Azure CLI account:"
       az account show --query "{subscriptionName:name, subscriptionId:id, tenantId:tenantId, state:state, user:user.name}" -o table 2>/dev/null || echo "No active Azure CLI account context is available."
       echo
@@ -1616,6 +1618,8 @@ function Login-AndSelectSubscription {
     $subscriptions = @($allSubscriptions | Where-Object { $_.state -eq 'Enabled' })
 
     if ($subscriptions.Count -eq 0) {
+      $diagnosticAccountEmail = if ($AccountEmail) { $AccountEmail } else { '<empty>' }
+      Write-Host "Configured account email: $diagnosticAccountEmail"
       Write-Host 'Current Azure CLI account:'
       Invoke-AzureCliQuiet -Arguments @('account','show','--query','{subscriptionName:name, subscriptionId:id, tenantId:tenantId, state:state, user:user.name}','-o','table')
       if ($LASTEXITCODE -ne 0) {
