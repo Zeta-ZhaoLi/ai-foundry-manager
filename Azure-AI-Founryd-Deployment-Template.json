@@ -582,6 +582,13 @@
         "capacity": 1000
       },
       {
+        "deploymentName": "claude-opus-4-8",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-opus-4-8",
+        "version": "2",
+        "capacity": 2000
+      },
+      {
         "deploymentName": "claude-opus-4-7",
         "modelFormat": "Anthropic",
         "modelName": "claude-opus-4-7",
@@ -594,6 +601,13 @@
         "modelName": "claude-opus-4-6",
         "version": "1",
         "capacity": 2000
+      },
+      {
+        "deploymentName": "claude-sonnet-5",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-sonnet-5",
+        "version": "1",
+        "capacity": 4000
       },
       {
         "deploymentName": "claude-sonnet-4-6",
@@ -628,6 +642,13 @@
         "modelFormat": "Anthropic",
         "modelName": "claude-opus-4-1",
         "version": "20250805",
+        "capacity": 2000
+      },
+      {
+        "deploymentName": "claude-fable-5",
+        "modelFormat": "Anthropic",
+        "modelName": "claude-fable-5",
+        "version": "1",
         "capacity": 2000
       }
     ]
