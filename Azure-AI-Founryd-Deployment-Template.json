@@ -365,6 +365,27 @@
         "capacity": 10
       },
       {
+        "deploymentName": "gpt-realtime-2",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-realtime-2",
+        "version": "2026-05-06",
+        "capacity": 300
+      },
+      {
+        "deploymentName": "gpt-realtime-whisper",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-realtime-whisper",
+        "version": "2026-05-06",
+        "capacity": 300
+      },
+      {
+        "deploymentName": "gpt-realtime-translate",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-realtime-translate",
+        "version": "2026-05-06",
+        "capacity": 300
+      },
+      {
         "deploymentName": "gpt-realtime-mini-2025-10-06",
         "modelFormat": "OpenAI",
         "modelName": "gpt-realtime-mini",
