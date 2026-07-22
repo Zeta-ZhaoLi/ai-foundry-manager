@@ -34,29 +34,60 @@ import {
 import { useToast } from '../../../hooks/useToast';
 import { parseModels } from '../../../utils/common';
 
-export function getDefaultCollapsedAccountIds(
-  sortedAccounts: Array<{ account: LocalAccount }>
-): Set<string> {
-  const collapsedIds = new Set<string>();
-  let disabledRun: string[] = [];
+interface SortedAccountItem {
+  account: LocalAccount;
+  originalIndex: number;
+}
+
+export interface DisabledAccountGroup {
+  id: string;
+  prefix: string;
+  accounts: SortedAccountItem[];
+  startAccountId: string;
+  endAccountId: string;
+}
+
+function getAccountIdPrefix(accountId?: string): string | null {
+  const match = accountId?.trim().match(/^([A-Za-z]+)\d+$/);
+  return match ? match[1].toUpperCase() : null;
+}
+
+export function getCollapsibleDisabledAccountGroups(
+  sortedAccounts: SortedAccountItem[]
+): DisabledAccountGroup[] {
+  const groups: DisabledAccountGroup[] = [];
+  let run: SortedAccountItem[] = [];
+  let runPrefix: string | null = null;
 
   const flushRun = () => {
-    if (disabledRun.length >= 3) {
-      disabledRun.forEach((id) => collapsedIds.add(id));
+    if (run.length >= 3 && runPrefix) {
+      const first = run[0].account;
+      const last = run[run.length - 1].account;
+      groups.push({
+        id: `disabled-${runPrefix}-${first.id}-${last.id}`,
+        prefix: runPrefix,
+        accounts: run,
+        startAccountId: first.accountId!,
+        endAccountId: last.accountId!,
+      });
     }
-    disabledRun = [];
+    run = [];
+    runPrefix = null;
   };
 
-  for (const { account } of sortedAccounts) {
-    if (account.enabled === false) {
-      disabledRun.push(account.id);
-    } else {
+  for (const item of sortedAccounts) {
+    const prefix = getAccountIdPrefix(item.account.accountId);
+    if (item.account.enabled !== false || !prefix) {
       flushRun();
+      continue;
     }
+    if (runPrefix && prefix !== runPrefix) flushRun();
+    runPrefix = prefix;
+    run.push(item);
   }
   flushRun();
 
-  return collapsedIds;
+  return groups;
 }
 
 export interface AccountsSectionProps {
@@ -253,6 +284,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   const [showDeploymentResultImport, setShowDeploymentResultImport] =
     useState(false);
   const [deploymentResultText, setDeploymentResultText] = useState('');
+  const [expandedAccountGroupIds, setExpandedAccountGroupIds] = useState(
+    () => new Set<string>()
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -373,9 +407,17 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
       });
   }, [accounts]);
 
-  const defaultCollapsedAccountIds = useMemo(() => {
-    return getDefaultCollapsedAccountIds(sortedAccounts);
+  const disabledAccountGroups = useMemo(() => {
+    return getCollapsibleDisabledAccountGroups(sortedAccounts);
   }, [sortedAccounts]);
+
+  const disabledGroupByAccountId = useMemo(() => {
+    const result = new Map<string, DisabledAccountGroup>();
+    for (const group of disabledAccountGroups) {
+      for (const { account } of group.accounts) result.set(account.id, group);
+    }
+    return result;
+  }, [disabledAccountGroups]);
 
   // Filter accounts based on model search
   const filteredAccounts = useMemo(() => {
@@ -390,6 +432,77 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
       });
     });
   }, [sortedAccounts, modelFilterInput]);
+
+  const isModelSearchActive = Boolean(modelFilterInput.trim());
+  const visibleSortableAccountIds = useMemo(() => {
+    if (isModelSearchActive) {
+      return filteredAccounts.map(({ account }) => account.id);
+    }
+    return filteredAccounts
+      .filter(({ account }) => {
+        const group = disabledGroupByAccountId.get(account.id);
+        return !group || expandedAccountGroupIds.has(group.id);
+      })
+      .map(({ account }) => account.id);
+  }, [
+    disabledGroupByAccountId,
+    expandedAccountGroupIds,
+    filteredAccounts,
+    isModelSearchActive,
+  ]);
+
+  const toggleAccountGroup = (groupId: string) => {
+    setExpandedAccountGroupIds((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const renderDisabledAccountGroup = (
+    group: DisabledAccountGroup,
+    expanded: boolean
+  ) => {
+    const start = privacyMode
+      ? group.startAccountId.replace(/\d/g, 'X')
+      : group.startAccountId;
+    const end = privacyMode
+      ? group.endAccountId.replace(/\d/g, 'X')
+      : group.endAccountId;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleAccountGroup(group.id)}
+        aria-expanded={expanded}
+        className={clsx(
+          'w-full min-h-14 px-4 py-3 rounded-lg border border-border',
+          'bg-muted/30 hover:bg-muted/60 transition-colors',
+          'flex items-center justify-between gap-4 text-left'
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="shrink-0 rounded border border-border bg-background px-2 py-1 font-mono text-xs font-bold text-muted-foreground"
+          >
+            {group.prefix}
+          </span>
+          <span className="truncate font-mono text-sm font-semibold text-foreground">
+            {start} - {end}
+          </span>
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            {t('accounts.disabledAccountGroupCount', {
+              count: group.accounts.length,
+            })}
+          </span>
+        </span>
+        <span className="shrink-0 text-xs font-medium text-foreground">
+          {expanded ? t('accounts.collapse') : t('accounts.expand')}
+        </span>
+      </button>
+    );
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -545,187 +658,212 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={filteredAccounts.map((item) => item.account.id)}
+              items={visibleSortableAccountIds}
               strategy={verticalListSortingStrategy}
             >
               <div className="flex flex-col gap-3">
-                {filteredAccounts.map(({ account, originalIndex }) => (
-                  <SortableAccountCard
-                    key={account.id}
-                    account={account}
-                    index={originalIndex}
-                    initiallyExpanded={
-                      defaultCollapsedAccountIds.has(account.id)
-                        ? false
-                        : account.enabled !== false
-                    }
-                    privacyMode={privacyMode}
-                    masterGroups={masterGroups}
-                    masterGroupLines={masterGroupLines}
-                    masterModels={masterModels}
-                    filteredModels={filteredModels}
-                    onUpdateName={(name) =>
-                      onUpdateAccountName(account.id, name)
-                    }
-                    onUpdateSubscriptionId={(subscriptionId) =>
-                      onUpdateAccountSubscriptionId(account.id, subscriptionId)
-                    }
-                    onUpdateResourceGroupName={
-                      onUpdateAccountResourceGroupName
-                        ? (resourceGroupName) =>
-                            onUpdateAccountResourceGroupName(
-                              account.id,
-                              resourceGroupName
-                            )
-                        : undefined
-                    }
-                    onUpdateServicePrincipal={
-                      onUpdateAccountServicePrincipal
-                        ? (servicePrincipal) =>
-                            onUpdateAccountServicePrincipal(
-                              account.id,
-                              servicePrincipal
-                            )
-                        : undefined
-                    }
-                    onUpdateNote={(note) =>
-                      onUpdateAccountNote(account.id, note)
-                    }
-                    onUpdateEnabled={(enabled) =>
-                      onUpdateAccountEnabled(account.id, enabled)
-                    }
-                    onUpdateIncludeInStats={
-                      onUpdateAccountIncludeInStats
-                        ? (includeInStats) =>
-                            onUpdateAccountIncludeInStats(
-                              account.id,
-                              includeInStats
-                            )
-                        : undefined
-                    }
-                    onUpdateTier={(tier) =>
-                      onUpdateAccountTier(account.id, tier)
-                    }
-                    onUpdateQuota={(quota, customQuota) =>
-                      onUpdateAccountQuota(account.id, quota, customQuota)
-                    }
-                    onUpdatePurchase={
-                      onUpdateAccountPurchase
-                        ? (amount, currency) =>
-                            onUpdateAccountPurchase(
-                              account.id,
-                              amount,
-                              currency
-                            )
-                        : undefined
-                    }
-                    onUpdateUsedAmount={
-                      onUpdateAccountUsedAmount
-                        ? (usedAmount) =>
-                            onUpdateAccountUsedAmount(account.id, usedAmount)
-                        : undefined
-                    }
-                    onUpdateRegionDeployment={
-                      onUpdateRegionDeployment
-                        ? (
-                            regionId: string,
-                            patch: Partial<RegionDeploymentConfig>
-                          ) =>
-                            onUpdateRegionDeployment(
-                              account.id,
-                              regionId,
-                              patch
-                            )
-                        : undefined
-                    }
-                    onApplyGeneratedRegionIdentity={
-                      onApplyGeneratedRegionIdentity
-                        ? (
-                            regionId: string,
-                            bundle: GeneratedRegionIdentityBundle
-                          ) =>
-                            onApplyGeneratedRegionIdentity(
-                              account.id,
-                              regionId,
-                              bundle
-                            )
-                        : undefined
-                    }
-                    onDelete={() => onDeleteAccount(account.id)}
-                    onAddRegion={() => onAddRegion(account.id)}
-                    onDeleteRegion={(regionId) =>
-                      onDeleteRegion(account.id, regionId)
-                    }
-                    onUpdateRegionName={(regionId, name) =>
-                      onUpdateRegionName(account.id, regionId, name)
-                    }
-                    onUpdateRegionModelsText={(regionId, text) =>
-                      onUpdateRegionModelsText(account.id, regionId, text)
-                    }
-                    onUpdateRegionOpenaiEndpoint={(regionId, endpoint) =>
-                      onUpdateRegionOpenaiEndpoint(
-                        account.id,
-                        regionId,
-                        endpoint
-                      )
-                    }
-                    onUpdateRegionFoundryProjectEndpoint={
-                      onUpdateRegionFoundryProjectEndpoint
-                        ? (regionId: string, endpoint: string) =>
-                            onUpdateRegionFoundryProjectEndpoint(
-                              account.id,
-                              regionId,
-                              endpoint
-                            )
-                        : undefined
-                    }
-                    onUpdateRegionAiServicesEndpoint={
-                      onUpdateRegionAiServicesEndpoint
-                        ? (regionId: string, endpoint: string) =>
-                            onUpdateRegionAiServicesEndpoint(
-                              account.id,
-                              regionId,
-                              endpoint
-                            )
-                        : undefined
-                    }
-                    onUpdateRegionAnthropicEndpoint={(regionId, endpoint) =>
-                      onUpdateRegionAnthropicEndpoint(
-                        account.id,
-                        regionId,
-                        endpoint
-                      )
-                    }
-                    onUpdateRegionApiKey={(regionId, apiKey) =>
-                      onUpdateRegionApiKey(account.id, regionId, apiKey)
-                    }
-                    onUpdateRegionDeploymentModel={
-                      onUpdateRegionDeploymentModel
-                        ? (
-                            regionId: string,
-                            modelName: string,
-                            patch: Partial<RegionDeploymentModelConfig>
-                          ) =>
-                            onUpdateRegionDeploymentModel(
-                              account.id,
-                              regionId,
-                              modelName,
-                              patch
-                            )
-                        : undefined
-                    }
-                    onUpdateRegionEnabled={(regionId, enabled) =>
-                      onUpdateRegionEnabled(account.id, regionId, enabled)
-                    }
-                    onReorderRegions={
-                      onReorderRegions
-                        ? (oldIndex, newIndex) =>
-                            onReorderRegions(account.id, oldIndex, newIndex)
-                        : undefined
-                    }
-                    onCopy={onCopy}
-                  />
-                ))}
+                {filteredAccounts.map(({ account, originalIndex }) => {
+                  const group = isModelSearchActive
+                    ? undefined
+                    : disabledGroupByAccountId.get(account.id);
+                  const groupExpanded = group
+                    ? expandedAccountGroupIds.has(group.id)
+                    : false;
+                  const isFirstGroupAccount =
+                    group?.accounts[0].account.id === account.id;
+
+                  if (group && !groupExpanded) {
+                    return isFirstGroupAccount ? (
+                      <React.Fragment key={group.id}>
+                        {renderDisabledAccountGroup(group, false)}
+                      </React.Fragment>
+                    ) : null;
+                  }
+
+                  return (
+                    <React.Fragment key={account.id}>
+                      {group &&
+                        isFirstGroupAccount &&
+                        renderDisabledAccountGroup(group, true)}
+                      <SortableAccountCard
+                        account={account}
+                        index={originalIndex}
+                        initiallyExpanded={account.enabled !== false}
+                        privacyMode={privacyMode}
+                        masterGroups={masterGroups}
+                        masterGroupLines={masterGroupLines}
+                        masterModels={masterModels}
+                        filteredModels={filteredModels}
+                        onUpdateName={(name) =>
+                          onUpdateAccountName(account.id, name)
+                        }
+                        onUpdateSubscriptionId={(subscriptionId) =>
+                          onUpdateAccountSubscriptionId(
+                            account.id,
+                            subscriptionId
+                          )
+                        }
+                        onUpdateResourceGroupName={
+                          onUpdateAccountResourceGroupName
+                            ? (resourceGroupName) =>
+                                onUpdateAccountResourceGroupName(
+                                  account.id,
+                                  resourceGroupName
+                                )
+                            : undefined
+                        }
+                        onUpdateServicePrincipal={
+                          onUpdateAccountServicePrincipal
+                            ? (servicePrincipal) =>
+                                onUpdateAccountServicePrincipal(
+                                  account.id,
+                                  servicePrincipal
+                                )
+                            : undefined
+                        }
+                        onUpdateNote={(note) =>
+                          onUpdateAccountNote(account.id, note)
+                        }
+                        onUpdateEnabled={(enabled) =>
+                          onUpdateAccountEnabled(account.id, enabled)
+                        }
+                        onUpdateIncludeInStats={
+                          onUpdateAccountIncludeInStats
+                            ? (includeInStats) =>
+                                onUpdateAccountIncludeInStats(
+                                  account.id,
+                                  includeInStats
+                                )
+                            : undefined
+                        }
+                        onUpdateTier={(tier) =>
+                          onUpdateAccountTier(account.id, tier)
+                        }
+                        onUpdateQuota={(quota, customQuota) =>
+                          onUpdateAccountQuota(account.id, quota, customQuota)
+                        }
+                        onUpdatePurchase={
+                          onUpdateAccountPurchase
+                            ? (amount, currency) =>
+                                onUpdateAccountPurchase(
+                                  account.id,
+                                  amount,
+                                  currency
+                                )
+                            : undefined
+                        }
+                        onUpdateUsedAmount={
+                          onUpdateAccountUsedAmount
+                            ? (usedAmount) =>
+                                onUpdateAccountUsedAmount(
+                                  account.id,
+                                  usedAmount
+                                )
+                            : undefined
+                        }
+                        onUpdateRegionDeployment={
+                          onUpdateRegionDeployment
+                            ? (
+                                regionId: string,
+                                patch: Partial<RegionDeploymentConfig>
+                              ) =>
+                                onUpdateRegionDeployment(
+                                  account.id,
+                                  regionId,
+                                  patch
+                                )
+                            : undefined
+                        }
+                        onApplyGeneratedRegionIdentity={
+                          onApplyGeneratedRegionIdentity
+                            ? (
+                                regionId: string,
+                                bundle: GeneratedRegionIdentityBundle
+                              ) =>
+                                onApplyGeneratedRegionIdentity(
+                                  account.id,
+                                  regionId,
+                                  bundle
+                                )
+                            : undefined
+                        }
+                        onDelete={() => onDeleteAccount(account.id)}
+                        onAddRegion={() => onAddRegion(account.id)}
+                        onDeleteRegion={(regionId) =>
+                          onDeleteRegion(account.id, regionId)
+                        }
+                        onUpdateRegionName={(regionId, name) =>
+                          onUpdateRegionName(account.id, regionId, name)
+                        }
+                        onUpdateRegionModelsText={(regionId, text) =>
+                          onUpdateRegionModelsText(account.id, regionId, text)
+                        }
+                        onUpdateRegionOpenaiEndpoint={(regionId, endpoint) =>
+                          onUpdateRegionOpenaiEndpoint(
+                            account.id,
+                            regionId,
+                            endpoint
+                          )
+                        }
+                        onUpdateRegionFoundryProjectEndpoint={
+                          onUpdateRegionFoundryProjectEndpoint
+                            ? (regionId: string, endpoint: string) =>
+                                onUpdateRegionFoundryProjectEndpoint(
+                                  account.id,
+                                  regionId,
+                                  endpoint
+                                )
+                            : undefined
+                        }
+                        onUpdateRegionAiServicesEndpoint={
+                          onUpdateRegionAiServicesEndpoint
+                            ? (regionId: string, endpoint: string) =>
+                                onUpdateRegionAiServicesEndpoint(
+                                  account.id,
+                                  regionId,
+                                  endpoint
+                                )
+                            : undefined
+                        }
+                        onUpdateRegionAnthropicEndpoint={(regionId, endpoint) =>
+                          onUpdateRegionAnthropicEndpoint(
+                            account.id,
+                            regionId,
+                            endpoint
+                          )
+                        }
+                        onUpdateRegionApiKey={(regionId, apiKey) =>
+                          onUpdateRegionApiKey(account.id, regionId, apiKey)
+                        }
+                        onUpdateRegionDeploymentModel={
+                          onUpdateRegionDeploymentModel
+                            ? (
+                                regionId: string,
+                                modelName: string,
+                                patch: Partial<RegionDeploymentModelConfig>
+                              ) =>
+                                onUpdateRegionDeploymentModel(
+                                  account.id,
+                                  regionId,
+                                  modelName,
+                                  patch
+                                )
+                            : undefined
+                        }
+                        onUpdateRegionEnabled={(regionId, enabled) =>
+                          onUpdateRegionEnabled(account.id, regionId, enabled)
+                        }
+                        onReorderRegions={
+                          onReorderRegions
+                            ? (oldIndex, newIndex) =>
+                                onReorderRegions(account.id, oldIndex, newIndex)
+                            : undefined
+                        }
+                        onCopy={onCopy}
+                      />
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </SortableContext>
           </DndContext>

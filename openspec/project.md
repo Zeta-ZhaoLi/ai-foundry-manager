@@ -11,7 +11,7 @@ Primary workflows:
 - Maintain a global model directory and per-account/per-region selections.
 - Configure Foundry, OpenAI, AI Services, and Anthropic endpoints.
 - Generate ARM, Azure CLI Bash, and Azure CLI PowerShell deployment artifacts.
-- Import deployment result reports and encrypted configuration backups.
+- Import deployment result reports and configuration JSON files.
 
 ## Technology
 
@@ -20,8 +20,8 @@ Primary workflows:
 | Language | TypeScript, strict mode |
 | UI | React 18, Vite 5, Tailwind CSS 3 |
 | Runtime validation | Zod 4 |
-| Persistence | Versioned encrypted browser vault |
-| Cryptography | Web Crypto PBKDF2-SHA-256 and AES-256-GCM |
+| Persistence | Browser localStorage with versioned config validation |
+| Cryptography | CryptoJS AES for locally stored sensitive fields |
 | Internationalization | i18next and react-i18next, 8 locales |
 | Drag and drop | dnd-kit |
 | Virtualization | TanStack React Virtual |
@@ -31,27 +31,25 @@ Primary workflows:
 
 ```text
 src/
-  components/       Dashboard, account configuration, UI, and vault screens
-  contexts/         Theme and encrypted vault state
+  components/       Dashboard, account configuration, and shared UI
+  contexts/         Theme state
   hooks/            Account operations and keyboard shortcuts
   persistence/      Versioned config parsing and legacy migration
   schemas/          Runtime data contracts
-  security/         Web Crypto envelope implementation
   i18n/             Locale resources and lazy locale loading
   utils/            ARM, CLI, report, model, and compatibility utilities
 ```
 
 ## Data and Security Contract
 
-- Operational configuration is stored at `ai-foundry-manager:vault:v2`.
-- Vault and backup passwords are never persisted. Reloading requires unlock.
-- The complete account configuration is authenticated with AES-GCM; encryption,
-  decryption, or validation failures must never fall back to plaintext.
-- Legacy account data is copied to
-  `ai-foundry-manager:accounts:legacy-backup` before migration and is removed
-  from active legacy keys only after V2 persistence succeeds.
-- Encrypted backups are the default. Plaintext export requires an explicit
-  warning and is retained only for recovery and interoperability.
+- Accounts are stored at `ai-foundry-manager:accounts`; the master model
+  directory and default region template use separate localStorage keys.
+- Service Principal passwords and region API keys are encrypted before local
+  persistence and decrypted when accounts are loaded.
+- Legacy account storage and the recovery backup left by the former vault
+  migration remain supported as fallback read sources.
+- Configuration import and export use JSON. Exports contain plaintext secrets
+  and require an explicit warning before download.
 - Theme and language preferences are non-sensitive and remain separate.
 
 ## Conventions

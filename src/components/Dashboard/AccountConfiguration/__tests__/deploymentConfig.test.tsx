@@ -6,7 +6,7 @@ import i18n from '../../../../i18n';
 import { AccountCard } from '../AccountCard';
 import {
   AccountsSection,
-  getDefaultCollapsedAccountIds,
+  getCollapsibleDisabledAccountGroups,
 } from '../AccountsSection';
 import { DefaultRegionModelTemplatePanel } from '../DefaultRegionModelTemplatePanel';
 import { RegionCard } from '../RegionCard';
@@ -40,34 +40,113 @@ describe('deployment configuration contract', () => {
     vi.restoreAllMocks();
   });
 
-  it('marks only consecutive runs of three or more disabled accounts for default collapse', () => {
-    const makeAccount = (id: string, enabled: boolean): LocalAccount => ({
-      id,
-      name: id,
+  it('groups only runs of three disabled accounts with the same account ID prefix', () => {
+    const makeAccount = (
+      accountId: string,
+      enabled: boolean
+    ): LocalAccount => ({
+      id: `internal-${accountId}`,
+      accountId,
+      tier: accountId.startsWith('A') ? 'premium' : 'standard',
+      name: accountId,
       enabled,
       note: '',
       regions: [],
     });
 
     const accounts = [
-      makeAccount('disabled-1', false),
-      makeAccount('disabled-2', false),
-      makeAccount('enabled-1', true),
-      makeAccount('disabled-3', false),
-      makeAccount('disabled-4', false),
-      makeAccount('disabled-5', false),
-      makeAccount('disabled-6', false),
-      makeAccount('enabled-2', true),
-      makeAccount('disabled-7', false),
-      makeAccount('disabled-8', false),
-    ].map((account) => ({ account }));
+      makeAccount('A001', false),
+      makeAccount('A002', false),
+      makeAccount('A003', false),
+      makeAccount('B001', false),
+      makeAccount('B002', false),
+      makeAccount('B003', true),
+      makeAccount('B004', false),
+      makeAccount('B005', false),
+      makeAccount('B006', false),
+    ].map((account, originalIndex) => ({ account, originalIndex }));
 
-    expect([...getDefaultCollapsedAccountIds(accounts)]).toEqual([
-      'disabled-3',
-      'disabled-4',
-      'disabled-5',
-      'disabled-6',
+    expect(
+      getCollapsibleDisabledAccountGroups(accounts).map((group) => ({
+        prefix: group.prefix,
+        start: group.startAccountId,
+        end: group.endAccountId,
+        count: group.accounts.length,
+      }))
+    ).toEqual([
+      { prefix: 'A', start: 'A001', end: 'A003', count: 3 },
+      { prefix: 'B', start: 'B004', end: 'B006', count: 3 },
     ]);
+  });
+
+  it('replaces a disabled account run with one persistent expandable range row', () => {
+    const accounts: LocalAccount[] = Array.from({ length: 4 }, (_, index) => ({
+      id: `acct-${index + 170}`,
+      accountId: `B${index + 170}`,
+      name: `user${index + 170}@example.com`,
+      enabled: false,
+      note: '',
+      tier: 'standard',
+      regions: [],
+    }));
+    const renderSection = () => (
+      <I18nextProvider i18n={i18n}>
+        <AccountsSection
+          accounts={accounts}
+          defaultRegionModelTemplate={{ enabled: true, regions: [] }}
+          masterGroups={[]}
+          masterGroupLines={[]}
+          masterModels={[]}
+          filteredModels={[]}
+          modelFilterInput=""
+          onFilterChange={vi.fn()}
+          onAddAccount={vi.fn()}
+          onUpdateDefaultRegionModelTemplateEnabled={vi.fn()}
+          onAddDefaultRegionModelTemplateRegion={vi.fn()}
+          onDeleteDefaultRegionModelTemplateRegion={vi.fn()}
+          onUpdateDefaultRegionModelTemplateRegionName={vi.fn()}
+          onUpdateDefaultRegionModelTemplateRegionEnabled={vi.fn()}
+          onUpdateDefaultRegionModelTemplateRegionModelsText={vi.fn()}
+          onReorderDefaultRegionModelTemplateRegions={vi.fn()}
+          onExportConfig={vi.fn()}
+          onUpdateAccountName={vi.fn()}
+          onUpdateAccountSubscriptionId={vi.fn()}
+          onUpdateAccountNote={vi.fn()}
+          onUpdateAccountEnabled={vi.fn()}
+          onUpdateAccountTier={vi.fn()}
+          onUpdateAccountQuota={vi.fn()}
+          onDeleteAccount={vi.fn()}
+          onAddRegion={vi.fn()}
+          onDeleteRegion={vi.fn()}
+          onUpdateRegionName={vi.fn()}
+          onUpdateRegionModelsText={vi.fn()}
+          onUpdateRegionOpenaiEndpoint={vi.fn()}
+          onUpdateRegionAnthropicEndpoint={vi.fn()}
+          onUpdateRegionApiKey={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
+          onCopy={vi.fn()}
+        />
+      </I18nextProvider>
+    );
+
+    const { getByRole, getByText, queryByText, rerender } =
+      render(renderSection());
+
+    expect(getByText('B170 - B173')).toBeTruthy();
+    expect(getByText('4 个未启用模型的账号')).toBeTruthy();
+    expect(queryByText('user170@example.com')).toBeNull();
+
+    fireEvent.click(getByRole('button', { name: /B170 - B173/ }));
+    expect(getByText('user170@example.com')).toBeTruthy();
+    expect(getByText('user173@example.com')).toBeTruthy();
+
+    rerender(renderSection());
+    expect(getByText('user170@example.com')).toBeTruthy();
+
+    fireEvent.click(
+      getByRole('button', { name: /B170 - B173.*收起/ })
+    );
+    expect(queryByText('user170@example.com')).toBeNull();
   });
 
   it('imports deployment result text from paste UI', async () => {

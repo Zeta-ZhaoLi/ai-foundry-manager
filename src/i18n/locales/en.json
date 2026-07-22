@@ -82,6 +82,7 @@
     "quotaCustom": "Custom",
     "expand": "Expand",
     "collapse": "Collapse",
+    "disabledAccountGroupCount": "{{count}} accounts without enabled models",
     "purchaseAmount": "Purchase Amount",
     "usedAmount": "Used Amount",
     "accountCost": "Account Cost/$",

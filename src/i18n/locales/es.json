@@ -82,6 +82,7 @@
     "quotaCustom": "Personalizada",
     "expand": "Expandir",
     "collapse": "Contraer",
+    "disabledAccountGroupCount": "{{count}} cuentas sin modelos habilitados",
     "purchaseAmount": "Monto de compra",
     "usedAmount": "Monto usado",
     "accountCost": "Costo de cuenta/$",

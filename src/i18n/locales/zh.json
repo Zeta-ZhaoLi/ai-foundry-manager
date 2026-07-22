@@ -82,6 +82,7 @@
     "quotaCustom": "自定义",
     "expand": "展开",
     "collapse": "收起",
+    "disabledAccountGroupCount": "{{count}} 个未启用模型的账号",
     "purchaseAmount": "购买金额",
     "usedAmount": "已使用",
     "accountCost": "账号成本/$",

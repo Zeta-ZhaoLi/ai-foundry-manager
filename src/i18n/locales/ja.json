@@ -82,6 +82,7 @@
     "quotaCustom": "カスタム",
     "expand": "展開",
     "collapse": "折りたたむ",
+    "disabledAccountGroupCount": "モデルが有効でないアカウント {{count}} 件",
     "purchaseAmount": "購入金額",
     "usedAmount": "使用済み",
     "accountCost": "アカウントコスト/$",

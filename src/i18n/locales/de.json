@@ -82,6 +82,7 @@
     "quotaCustom": "Benutzerdefiniert",
     "expand": "Erweitern",
     "collapse": "Einklappen",
+    "disabledAccountGroupCount": "{{count}} Konten ohne aktivierte Modelle",
     "purchaseAmount": "Kaufbetrag",
     "usedAmount": "Verbraucht",
     "accountCost": "Account-Kosten/$",

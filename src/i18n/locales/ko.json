@@ -82,6 +82,7 @@
     "quotaCustom": "사용자 지정",
     "expand": "펼치기",
     "collapse": "접기",
+    "disabledAccountGroupCount": "모델이 활성화되지 않은 계정 {{count}}개",
     "purchaseAmount": "구매 금액",
     "usedAmount": "사용 금액",
     "accountCost": "계정 비용/$",
