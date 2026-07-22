@@ -2,21 +2,20 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createConfigEnvelope,
   createInitialConfigData,
-  finishLegacyMigration,
+  loadAccounts,
   parseConfigData,
   parseConfigImport,
-  readLegacyConfigData,
-} from '../config';
-import {
+  serializeAccounts,
+  ACCOUNTS_STORAGE_KEY,
   LEGACY_ACCOUNTS_BACKUP_KEY,
   LEGACY_ACCOUNTS_STORAGE_KEY,
-} from '../../security/vault';
+} from '../config';
 import { encryptData } from '../../utils/encryption';
 
 describe('configuration migration and import', () => {
   beforeEach(() => localStorage.clear());
 
-  it('backs up and migrates legacy secrets before removing old keys', () => {
+  it('loads the legacy key and migrates it to the current storage key', () => {
     const raw = JSON.stringify([
       {
         id: 'acct-1',
@@ -39,24 +38,29 @@ describe('configuration migration and import', () => {
     ]);
     localStorage.setItem(LEGACY_ACCOUNTS_STORAGE_KEY, raw);
 
-    const result = readLegacyConfigData(localStorage);
-    expect(result.hadLegacyData).toBe(true);
-    expect(localStorage.getItem(LEGACY_ACCOUNTS_BACKUP_KEY)).toBe(raw);
-    expect(result.data.accounts[0].servicePrincipal?.password).toBe('sp-secret');
-    expect(result.data.accounts[0].regions[0].apiKey).toBe('api-secret');
-
-    finishLegacyMigration(localStorage);
-    expect(localStorage.getItem(LEGACY_ACCOUNTS_STORAGE_KEY)).toBeNull();
-    expect(localStorage.getItem(LEGACY_ACCOUNTS_BACKUP_KEY)).toBe(raw);
+    const accounts = loadAccounts(localStorage);
+    expect(accounts[0].servicePrincipal?.password).toBe('sp-secret');
+    expect(accounts[0].regions[0].apiKey).toBe('api-secret');
+    expect(localStorage.getItem(ACCOUNTS_STORAGE_KEY)).not.toBeNull();
   });
 
   it('preserves invalid raw data instead of replacing it with defaults', () => {
-    localStorage.setItem(LEGACY_ACCOUNTS_STORAGE_KEY, '{broken');
-    expect(() => readLegacyConfigData(localStorage)).toThrow(
-      'Legacy accounts is not valid JSON'
+    localStorage.setItem(ACCOUNTS_STORAGE_KEY, '{broken');
+    expect(() => loadAccounts(localStorage)).toThrow(
+      'Stored accounts is not valid JSON'
     );
-    expect(localStorage.getItem(LEGACY_ACCOUNTS_STORAGE_KEY)).toBe('{broken');
-    expect(localStorage.getItem(LEGACY_ACCOUNTS_BACKUP_KEY)).toBe('{broken');
+    expect(localStorage.getItem(ACCOUNTS_STORAGE_KEY)).toBe('{broken');
+  });
+
+  it('recovers accounts from the backup left by vault migration', () => {
+    const initial = createInitialConfigData().accounts;
+    localStorage.setItem(
+      LEGACY_ACCOUNTS_BACKUP_KEY,
+      serializeAccounts(initial)
+    );
+
+    expect(loadAccounts(localStorage)).toMatchObject(initial);
+    expect(localStorage.getItem(ACCOUNTS_STORAGE_KEY)).not.toBeNull();
   });
 
   it('imports V2 and legacy formats without partially mutating current data', () => {

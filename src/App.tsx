@@ -10,7 +10,6 @@ import { useTheme, Theme } from './contexts/ThemeContext';
 import { AzureModelsDashboard } from './components/AzureModelsDashboard';
 import { CommandPalette, Command } from './components/CommandPalette';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
-import { VaultControls } from './components/Vault';
 import {
   useKeyboardShortcuts,
   KeyboardShortcut,
@@ -341,8 +340,6 @@ const App: React.FC = () => {
                   ))}
                 </select>
               </div>
-
-              <VaultControls />
 
               {/* 主题切换 */}
               <button

@@ -21,14 +21,6 @@ import { DefaultRegionModelTemplatePanel } from './DefaultRegionModelTemplatePan
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
 import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Input,
-} from '../../ui';
-import {
   AccountTier,
   AccountQuota,
   CurrencyType,
@@ -97,18 +89,11 @@ export interface AccountsSectionProps {
     oldIndex: number,
     newIndex: number
   ) => void;
-  onExportConfig: (
-    password: string
-  ) => Promise<{ success: boolean; error?: string }>;
-  onExportPlaintextConfig: () => void;
-  onImportConfig?: (
-    jsonString: string,
-    password?: string
-  ) => Promise<{
+  onExportConfig: () => void;
+  onImportConfig?: (jsonString: string) => {
     success: boolean;
     error?: string;
-    requiresPassword?: boolean;
-  }>;
+  };
   onImportDeploymentResult?: (text: string) => DeploymentResultImportSummary;
   onRenumberAccounts?: () => void;
   onUpdateAccountName: (accountId: string, name: string) => void;
@@ -229,7 +214,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateDefaultRegionModelTemplateRegionModelsText,
   onReorderDefaultRegionModelTemplateRegions,
   onExportConfig,
-  onExportPlaintextConfig,
   onImportConfig,
   onImportDeploymentResult,
   onRenumberAccounts,
@@ -265,16 +249,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   const { t } = useTranslation();
   const toast = useToast();
   const [showExportWarning, setShowExportWarning] = useState(false);
-  const [showEncryptedExport, setShowEncryptedExport] = useState(false);
-  const [exportPassword, setExportPassword] = useState('');
-  const [exportPasswordConfirmation, setExportPasswordConfirmation] =
-    useState('');
-  const [exportError, setExportError] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [pendingImport, setPendingImport] = useState<string | null>(null);
-  const [importPassword, setImportPassword] = useState('');
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
   const [showRenumberConfirm, setShowRenumberConfirm] = useState(false);
   const [showDeploymentResultImport, setShowDeploymentResultImport] =
     useState(false);
@@ -293,30 +267,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
 
   const handleExport = () => {
     setShowExportWarning(false);
-    onExportPlaintextConfig();
-  };
-
-  const handleEncryptedExport = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setExportError(null);
-    if (exportPassword.length < 12) {
-      setExportError(t('vault.passwordLength'));
-      return;
-    }
-    if (exportPassword !== exportPasswordConfirmation) {
-      setExportError(t('vault.mismatch'));
-      return;
-    }
-    setExporting(true);
-    const result = await onExportConfig(exportPassword);
-    setExporting(false);
-    if (!result.success) {
-      setExportError(result.error || t('toast.exportFailed'));
-      return;
-    }
-    setShowEncryptedExport(false);
-    setExportPassword('');
-    setExportPasswordConfirmation('');
+    onExportConfig();
   };
 
   const handleRenumber = () => {
@@ -337,15 +288,11 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = async (event) => {
+        reader.onload = (event) => {
           const jsonString = event.target?.result as string;
-          const result = await onImportConfig(jsonString);
+          const result = onImportConfig(jsonString);
           if (result.success) {
             toast.success(t('toast.configImported'));
-          } else if (result.requiresPassword) {
-            setPendingImport(jsonString);
-            setImportPassword('');
-            setImportError(null);
           } else {
             toast.error(
               t('toast.configImportFailed') +
@@ -362,23 +309,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
     input.click();
   };
 
-  const handleEncryptedImport = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!onImportConfig || !pendingImport) return;
-    setImporting(true);
-    setImportError(null);
-    const result = await onImportConfig(pendingImport, importPassword);
-    setImporting(false);
-    if (!result.success) {
-      setImportError(result.error || t('toast.configImportFailed'));
-      return;
-    }
-    setPendingImport(null);
-    setImportPassword('');
-    toast.success(t('toast.configImported'));
-  };
-
-  const showDeploymentResultSummary = (result: DeploymentResultImportSummary) => {
+  const showDeploymentResultSummary = (
+    result: DeploymentResultImportSummary
+  ) => {
     if (!result.success) {
       toast.error(
         t('toast.deploymentResultImportFailed') +
@@ -537,17 +470,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
             )}
             <button
               type="button"
-              onClick={() => setShowEncryptedExport(true)}
-              className={clsx(
-                'px-3 py-1.5 rounded-full',
-                'border border-border bg-background text-foreground',
-                'text-xs cursor-pointer hover:bg-muted transition-colors'
-              )}
-            >
-              {t('vault.encryptedExport')}
-            </button>
-            <button
-              type="button"
               onClick={() => setShowExportWarning(true)}
               className={clsx(
                 'px-3 py-1.5 rounded-full',
@@ -555,7 +477,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                 'text-xs cursor-pointer hover:bg-muted transition-colors'
               )}
             >
-              {t('vault.plaintextExport')}
+              {t('accounts.exportConfig')}
             </button>
           </div>
         </div>
@@ -810,95 +732,6 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         )}
       </section>
 
-      <Dialog
-        open={showEncryptedExport}
-        onOpenChange={setShowEncryptedExport}
-      >
-        <DialogContent
-          size="md"
-          onClose={() => setShowEncryptedExport(false)}
-        >
-          <DialogHeader>
-            <DialogTitle>{t('vault.encryptedExport')}</DialogTitle>
-          </DialogHeader>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t('vault.encryptedExportDescription')}
-          </p>
-          <form className="mt-4 space-y-4" onSubmit={handleEncryptedExport}>
-            <Input
-              type="password"
-              autoComplete="new-password"
-              label={t('vault.backupPassword')}
-              value={exportPassword}
-              onChange={(event) => setExportPassword(event.target.value)}
-            />
-            <Input
-              type="password"
-              autoComplete="new-password"
-              label={t('vault.confirmBackupPassword')}
-              value={exportPasswordConfirmation}
-              onChange={(event) =>
-                setExportPasswordConfirmation(event.target.value)
-              }
-            />
-            {exportError && (
-              <p role="alert" className="text-sm text-red-500">
-                {exportError}
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setShowEncryptedExport(false)}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" loading={exporting}>
-                {t('accounts.exportConfig')}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={pendingImport !== null}
-        onOpenChange={(open) => !open && setPendingImport(null)}
-      >
-        <DialogContent size="md" onClose={() => setPendingImport(null)}>
-          <DialogHeader>
-            <DialogTitle>{t('vault.encryptedImport')}</DialogTitle>
-          </DialogHeader>
-          <form className="mt-4 space-y-4" onSubmit={handleEncryptedImport}>
-            <Input
-              type="password"
-              autoComplete="current-password"
-              label={t('vault.backupPassword')}
-              value={importPassword}
-              onChange={(event) => setImportPassword(event.target.value)}
-            />
-            {importError && (
-              <p role="alert" className="text-sm text-red-500">
-                {importError}
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setPendingImport(null)}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" loading={importing}>
-                {t('accounts.importConfig')}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Export security warning */}
       <ConfirmDialog
         open={showExportWarning}
@@ -992,7 +825,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                   'px-3 py-1.5 rounded-full',
                   'border border-cyan-500 bg-cyan-600 text-white',
                   'text-xs cursor-pointer hover:bg-cyan-700 transition-colors',
-                  !deploymentResultText.trim() && 'opacity-50 cursor-not-allowed'
+                  !deploymentResultText.trim() &&
+                    'opacity-50 cursor-not-allowed'
                 )}
               >
                 {t('accounts.importDeploymentResultPaste')}

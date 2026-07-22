@@ -1,19 +1,29 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import type { PropsWithChildren } from 'react';
 import { useLocalAzureAccounts } from '../useLocalAzureAccounts';
-import { VaultProvider } from '../../contexts/VaultContext';
 import {
+  ACCOUNTS_STORAGE_KEY,
+  DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY,
   createInitialConfigData,
   normalizeAccounts,
+  serializeAccounts,
 } from '../../persistence/config';
+import { MASTER_MODELS_STORAGE_KEY } from '../../utils/masterModelsStorage';
 import type { ConfigDataV2 } from '../../schemas/account';
 
-function renderAccountsHook(initialData: ConfigDataV2 = createInitialConfigData()) {
-  const wrapper = ({ children }: PropsWithChildren) => (
-    <VaultProvider initialData={initialData}>{children}</VaultProvider>
+function renderAccountsHook(
+  initialData: ConfigDataV2 = createInitialConfigData()
+) {
+  localStorage.setItem(
+    ACCOUNTS_STORAGE_KEY,
+    serializeAccounts(initialData.accounts)
   );
-  return renderHook(() => useLocalAzureAccounts(), { wrapper });
+  localStorage.setItem(MASTER_MODELS_STORAGE_KEY, initialData.masterText);
+  localStorage.setItem(
+    DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY,
+    JSON.stringify(initialData.defaultRegionModelTemplate)
+  );
+  return renderHook(() => useLocalAzureAccounts());
 }
 
 describe('useLocalAzureAccounts resourceName migration', () => {
@@ -29,7 +39,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     });
 
     expect(result.current.defaultRegionModelTemplate.enabled).toBe(true);
-      expect(
+    expect(
       result.current.defaultRegionModelTemplate.regions.map((region) => ({
         name: region.name,
         modelsText: region.modelsText,
@@ -136,8 +146,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       expect(result.current.accounts.length).toBe(1);
     });
 
-    const [eastus2, sweden] =
-      result.current.defaultRegionModelTemplate.regions;
+    const [eastus2, sweden] = result.current.defaultRegionModelTemplate.regions;
 
     act(() => {
       result.current.updateDefaultRegionModelTemplateRegionEnabled(
@@ -245,7 +254,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     expect(result.current.accounts[0].resourceGroupName).toBe('rg-custom');
   });
 
-  it('updates Service Principal credentials in vault-backed state', async () => {
+  it('updates Service Principal credentials in local state', async () => {
     const { result } = renderAccountsHook();
 
     await waitFor(() => {
@@ -262,9 +271,46 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       });
     });
 
-    expect(
-      result.current.accounts[0].servicePrincipal?.password
-    ).toBe('plain-secret');
+    expect(result.current.accounts[0].servicePrincipal?.password).toBe(
+      'plain-secret'
+    );
+  });
+
+  it('encrypts sensitive fields in localStorage and decrypts them on reload', async () => {
+    const first = renderAccountsHook();
+    const accountId = first.result.current.accounts[0].id;
+    const regionId = first.result.current.accounts[0].regions[0].id;
+
+    act(() => {
+      first.result.current.updateAccountServicePrincipal(accountId, {
+        appId: 'app-id',
+        password: 'sp-secret',
+        tenant: 'tenant-id',
+      });
+      first.result.current.updateRegionApiKey(
+        accountId,
+        regionId,
+        'api-secret'
+      );
+    });
+
+    await waitFor(() => {
+      const stored = localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '';
+      const parsed = JSON.parse(stored) as ConfigDataV2['accounts'];
+      expect(parsed[0].servicePrincipal?.password).toBeTruthy();
+      expect(parsed[0].regions[0].apiKey).toBeTruthy();
+      expect(stored).not.toContain('sp-secret');
+      expect(stored).not.toContain('api-secret');
+    });
+
+    first.unmount();
+    const second = renderHook(() => useLocalAzureAccounts());
+    expect(second.result.current.accounts[0].servicePrincipal?.password).toBe(
+      'sp-secret'
+    );
+    expect(second.result.current.accounts[0].regions[0].apiKey).toBe(
+      'api-secret'
+    );
   });
 
   it('imports deployment result subscription ID and API keys into matched regions', async () => {

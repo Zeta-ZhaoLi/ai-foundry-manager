@@ -1,7 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import i18n from '../i18n';
 import {
   generateId,
+  debounce,
   type GeneratedRegionIdentityBundle,
   normalizeAiServicesEndpoint,
   normalizeFoundryProjectEndpoint,
@@ -13,7 +14,6 @@ import {
   regenerateAccountId,
   renumberAccountsByPosition,
 } from '../utils/accountIdGenerator';
-import { useVault } from '../contexts/VaultContext';
 import {
   defaultRegionModelTemplateConfigSchema,
   type AccountQuota,
@@ -29,9 +29,19 @@ import {
   type ServicePrincipalCredential,
 } from '../schemas/account';
 import {
+  ACCOUNTS_STORAGE_KEY,
+  DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY,
   createDefaultRegionModelTemplateConfig,
+  createInitialAccounts,
+  loadAccounts,
+  loadDefaultRegionModelTemplate,
   parseConfigImport,
+  serializeAccounts,
 } from '../persistence/config';
+import {
+  loadInitialMasterModelsText,
+  MASTER_MODELS_STORAGE_KEY,
+} from '../utils/masterModelsStorage';
 import {
   applyDeploymentResultImport,
   type DeploymentResultImportSummary,
@@ -105,22 +115,71 @@ function markRegionInputSource(
 }
 
 export function useLocalAzureAccounts() {
-  const { data, updateData, replaceData, saveStatus } = useVault();
-  if (!data) {
-    throw new Error('Account configuration requires an unlocked vault');
-  }
-  const accounts = data.accounts;
-  const defaultRegionModelTemplate = data.defaultRegionModelTemplate;
-  const masterText = data.masterText;
+  const [accounts, setAccounts] = useState<LocalAccount[]>(() => {
+    if (typeof window === 'undefined') return createInitialAccounts();
+    try {
+      return loadAccounts(window.localStorage);
+    } catch (error) {
+      console.error('Failed to load accounts:', error);
+      return createInitialAccounts();
+    }
+  });
+  const [defaultRegionModelTemplate, setDefaultRegionModelTemplate] =
+    useState<DefaultRegionModelTemplateConfig>(() => {
+      if (typeof window === 'undefined') {
+        return createDefaultRegionModelTemplateConfig();
+      }
+      try {
+        return loadDefaultRegionModelTemplate(window.localStorage);
+      } catch (error) {
+        console.error('Failed to load default region template:', error);
+        return createDefaultRegionModelTemplateConfig();
+      }
+    });
+  const [masterText, setMasterText] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return loadInitialMasterModelsText(window.localStorage).text;
+    } catch (error) {
+      console.error('Failed to load master model directory:', error);
+      return '';
+    }
+  });
+
+  const debouncedSaveAccountsRef = useRef(
+    debounce((nextAccounts: LocalAccount[]) => {
+      try {
+        window.localStorage.setItem(
+          ACCOUNTS_STORAGE_KEY,
+          serializeAccounts(nextAccounts)
+        );
+      } catch (error) {
+        console.error('Failed to save accounts:', error);
+      }
+    }, 500)
+  );
+  const debouncedSaveTemplateRef = useRef(
+    debounce((template: DefaultRegionModelTemplateConfig) => {
+      try {
+        window.localStorage.setItem(
+          DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY,
+          JSON.stringify(template)
+        );
+      } catch (error) {
+        console.error('Failed to save default region template:', error);
+      }
+    }, 500)
+  );
 
   const saveAccounts = useCallback(
     (updater: (prev: LocalAccount[]) => LocalAccount[]) => {
-      updateData((current) => ({
-        ...current,
-        accounts: updater(current.accounts),
-      }));
+      setAccounts((current) => {
+        const next = updater(current);
+        debouncedSaveAccountsRef.current(next);
+        return next;
+      });
     },
-    [updateData]
+    []
   );
 
   const saveDefaultRegionModelTemplate = useCallback(
@@ -129,14 +188,15 @@ export function useLocalAzureAccounts() {
         prev: DefaultRegionModelTemplateConfig
       ) => DefaultRegionModelTemplateConfig
     ) => {
-      updateData((current) => ({
-        ...current,
-        defaultRegionModelTemplate: normalizeDefaultRegionModelTemplateConfig(
-          updater(current.defaultRegionModelTemplate)
-        ),
-      }));
+      setDefaultRegionModelTemplate((current) => {
+        const next = normalizeDefaultRegionModelTemplateConfig(
+          updater(current)
+        );
+        debouncedSaveTemplateRef.current(next);
+        return next;
+      });
     },
-    [updateData]
+    []
   );
 
   const addAccount = useCallback(() => {
@@ -378,12 +438,14 @@ export function useLocalAzureAccounts() {
     [saveDefaultRegionModelTemplate]
   );
 
-  const updateMasterText = useCallback(
-    (nextMasterText: string) => {
-      updateData((current) => ({ ...current, masterText: nextMasterText }));
-    },
-    [updateData]
-  );
+  const updateMasterText = useCallback((nextMasterText: string) => {
+    setMasterText(nextMasterText);
+    try {
+      window.localStorage.setItem(MASTER_MODELS_STORAGE_KEY, nextMasterText);
+    } catch (error) {
+      console.error('Failed to save master model directory:', error);
+    }
+  }, []);
 
   const deleteAccount = useCallback(
     (id: string) => {
@@ -754,8 +816,24 @@ export function useLocalAzureAccounts() {
     (jsonString: string): { success: boolean; error?: string } => {
       try {
         const parsed = JSON.parse(jsonString) as unknown;
-        const next = parseConfigImport(parsed, data);
-        replaceData(next);
+        const next = parseConfigImport(parsed, {
+          version: 2,
+          accounts,
+          masterText,
+          defaultRegionModelTemplate,
+        });
+        setAccounts(next.accounts);
+        setMasterText(next.masterText);
+        setDefaultRegionModelTemplate(next.defaultRegionModelTemplate);
+        window.localStorage.setItem(
+          ACCOUNTS_STORAGE_KEY,
+          serializeAccounts(next.accounts)
+        );
+        window.localStorage.setItem(MASTER_MODELS_STORAGE_KEY, next.masterText);
+        window.localStorage.setItem(
+          DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY,
+          JSON.stringify(next.defaultRegionModelTemplate)
+        );
         return { success: true };
       } catch (error) {
         return {
@@ -764,7 +842,7 @@ export function useLocalAzureAccounts() {
         };
       }
     },
-    [data, replaceData]
+    [accounts, defaultRegionModelTemplate, masterText]
   );
 
   const importDeploymentResultText = useCallback(
@@ -792,7 +870,6 @@ export function useLocalAzureAccounts() {
     masterText,
     updateMasterText,
     defaultRegionModelTemplate,
-    saveStatus,
     accountSummaries,
     globalSeriesSummary,
     addAccount,

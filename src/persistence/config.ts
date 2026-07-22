@@ -14,20 +14,15 @@ import {
   type LocalAccount,
   type LocalRegion,
 } from '../schemas/account';
-import {
-  LEGACY_ACCOUNTS_BACKUP_KEY,
-  LEGACY_ACCOUNTS_STORAGE_KEY,
-  LEGACY_ACCOUNTS_STORAGE_KEY_V1,
-} from '../security/vault';
-import { decryptLegacyData } from '../utils/encryption';
-import {
-  LEGACY_MASTER_MODELS_STORAGE_KEY,
-  MASTER_MODELS_STORAGE_KEY,
-} from '../utils/masterModelsStorage';
+import { decryptData, encryptData } from '../utils/encryption';
 import { generateAccountId } from '../utils/accountIdGenerator';
 import { generateId } from '../utils/common';
 
-export const LEGACY_DEFAULT_TEMPLATE_STORAGE_KEY =
+export const ACCOUNTS_STORAGE_KEY = 'ai-foundry-manager:accounts';
+export const LEGACY_ACCOUNTS_STORAGE_KEY = 'azure-openai-manager:accounts';
+export const LEGACY_ACCOUNTS_BACKUP_KEY =
+  'ai-foundry-manager:accounts:legacy-backup';
+export const DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY =
   'ai-foundry-manager:default-region-model-template';
 
 const DEFAULT_REGION_NAMES = ['eastus2', 'swedencentral', 'polandcentral'];
@@ -95,7 +90,7 @@ function normalizeRegion(
     id: optionalString(value.id) || generateId('region'),
     name: optionalString(value.name) || '',
     modelsText: optionalString(value.modelsText) || '',
-    apiKey: apiKey ? decryptLegacyData(apiKey) : apiKey,
+    apiKey: apiKey ? decryptData(apiKey) : apiKey,
     deployment: {
       ...deployment,
       resourceName:
@@ -116,7 +111,7 @@ function normalizeAccount(value: unknown, prior: LocalAccount[]): LocalAccount {
     ? {
         ...value.servicePrincipal,
         password: optionalString(value.servicePrincipal.password)
-          ? decryptLegacyData(String(value.servicePrincipal.password))
+          ? decryptData(String(value.servicePrincipal.password))
           : undefined,
       }
     : undefined;
@@ -146,9 +141,13 @@ export function normalizeAccounts(value: unknown): LocalAccount[] {
   return accounts;
 }
 
-function normalizeDefaultTemplate(value: unknown): DefaultRegionModelTemplateConfig {
+function normalizeDefaultTemplate(
+  value: unknown
+): DefaultRegionModelTemplateConfig {
   const result = defaultRegionModelTemplateConfigSchema.safeParse(value);
-  return result.success ? result.data : createDefaultRegionModelTemplateConfig();
+  return result.success
+    ? result.data
+    : createDefaultRegionModelTemplateConfig();
 }
 
 function readJson(raw: string, label: string): unknown {
@@ -159,50 +158,47 @@ function readJson(raw: string, label: string): unknown {
   }
 }
 
-export interface LegacyConfigReadResult {
-  data: ConfigDataV2;
-  hadLegacyData: boolean;
-  legacyAccountsRaw?: string;
-}
+export function loadAccounts(storage: Storage): LocalAccount[] {
+  const currentRaw = storage.getItem(ACCOUNTS_STORAGE_KEY);
+  const legacyRaw = storage.getItem(LEGACY_ACCOUNTS_STORAGE_KEY);
+  const backupRaw = storage.getItem(LEGACY_ACCOUNTS_BACKUP_KEY);
+  const raw = currentRaw ?? legacyRaw ?? backupRaw;
 
-export function readLegacyConfigData(storage: Storage): LegacyConfigReadResult {
-  const accountsRaw =
-    storage.getItem(LEGACY_ACCOUNTS_STORAGE_KEY) ??
-    storage.getItem(LEGACY_ACCOUNTS_STORAGE_KEY_V1);
-  if (accountsRaw !== null) {
-    storage.setItem(LEGACY_ACCOUNTS_BACKUP_KEY, accountsRaw);
+  if (raw === null) return createInitialAccounts();
+  const accounts = normalizeAccounts(readJson(raw, 'Stored accounts'));
+
+  if (currentRaw === null) {
+    storage.setItem(ACCOUNTS_STORAGE_KEY, serializeAccounts(accounts));
   }
-
-  const masterText =
-    storage.getItem(MASTER_MODELS_STORAGE_KEY) ??
-    storage.getItem(LEGACY_MASTER_MODELS_STORAGE_KEY) ??
-    DEFAULT_MASTER_MODEL_DIRECTORY_TEXT;
-  const templateRaw = storage.getItem(LEGACY_DEFAULT_TEMPLATE_STORAGE_KEY);
-  const defaultRegionModelTemplate = templateRaw
-    ? normalizeDefaultTemplate(readJson(templateRaw, 'Default region template'))
-    : createDefaultRegionModelTemplateConfig();
-
-  const data: ConfigDataV2 = {
-    version: CONFIG_VERSION,
-    accounts: accountsRaw
-      ? normalizeAccounts(readJson(accountsRaw, 'Legacy accounts'))
-      : createInitialAccounts(),
-    masterText,
-    defaultRegionModelTemplate,
-  };
-  return {
-    data: configDataV2Schema.parse(data),
-    hadLegacyData: accountsRaw !== null,
-    legacyAccountsRaw: accountsRaw ?? undefined,
-  };
+  return accounts;
 }
 
-export function finishLegacyMigration(storage: Storage): void {
-  storage.removeItem(LEGACY_ACCOUNTS_STORAGE_KEY);
-  storage.removeItem(LEGACY_ACCOUNTS_STORAGE_KEY_V1);
-  storage.removeItem(MASTER_MODELS_STORAGE_KEY);
-  storage.removeItem(LEGACY_MASTER_MODELS_STORAGE_KEY);
-  storage.removeItem(LEGACY_DEFAULT_TEMPLATE_STORAGE_KEY);
+export function serializeAccounts(accounts: LocalAccount[]): string {
+  const encrypted = accounts.map((account) => ({
+    ...account,
+    servicePrincipal: account.servicePrincipal
+      ? {
+          ...account.servicePrincipal,
+          password: account.servicePrincipal.password
+            ? encryptData(account.servicePrincipal.password)
+            : account.servicePrincipal.password,
+        }
+      : account.servicePrincipal,
+    regions: account.regions.map((region) => ({
+      ...region,
+      apiKey: region.apiKey ? encryptData(region.apiKey) : region.apiKey,
+    })),
+  }));
+  return JSON.stringify(encrypted);
+}
+
+export function loadDefaultRegionModelTemplate(
+  storage: Storage
+): DefaultRegionModelTemplateConfig {
+  const raw = storage.getItem(DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY);
+  return raw
+    ? normalizeDefaultTemplate(readJson(raw, 'Default region template'))
+    : createDefaultRegionModelTemplateConfig();
 }
 
 export function parseConfigData(value: unknown): ConfigDataV2 {

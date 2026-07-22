@@ -23,11 +23,6 @@ import { ModelStatisticsTable } from './Dashboard/ModelStatisticsTable';
 import { AccountsSection } from './Dashboard/AccountConfiguration/AccountsSection';
 import { TableDetailDialog } from './ui/TableDetailDialog';
 import { createConfigEnvelope } from '../persistence/config';
-import {
-  createVaultEnvelope,
-  decryptVaultEnvelope,
-  isVaultEnvelope,
-} from '../security/vault';
 
 export interface AzureModelsDashboardProps {
   privacyMode?: boolean;
@@ -36,7 +31,6 @@ export interface AzureModelsDashboardProps {
 export interface ConfigTransferResult {
   success: boolean;
   error?: string;
-  requiresPassword?: boolean;
 }
 
 function downloadJson(value: unknown, filename: string): void {
@@ -354,36 +348,11 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     [accounts, defaultRegionModelTemplate, masterText]
   );
 
-  const handleExportConfig = useCallback(async (password: string) => {
-    try {
-      const config = createConfigEnvelope(currentConfig);
-      const { envelope } = await createVaultEnvelope(
-        config,
-        password,
-        'backup'
-      );
-      downloadJson(
-        envelope,
-        `ai-foundry-manager-backup-${new Date()
-          .toISOString()
-          .replace(/[:.]/g, '-')}.afm.json`
-      );
-      toast.success(t('toast.configExported'));
-      return { success: true };
-    } catch (error) {
-      toast.error(t('toast.exportFailed'));
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  }, [currentConfig, toast, t]);
-
-  const handleExportPlaintextConfig = useCallback(() => {
+  const handleExportConfig = useCallback(() => {
     try {
       downloadJson(
         createConfigEnvelope(currentConfig),
-        `ai-foundry-manager-plaintext-${new Date()
+        `ai-foundry-manager-config-${new Date()
           .toISOString()
           .replace(/[:.]/g, '-')}.json`
       );
@@ -394,32 +363,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
   }, [currentConfig, toast, t]);
 
   const handleImportConfig = useCallback(
-    async (
-      jsonString: string,
-      password?: string
-    ): Promise<ConfigTransferResult> => {
-      try {
-        const parsed = JSON.parse(jsonString) as unknown;
-        if (isVaultEnvelope(parsed)) {
-          if (parsed.purpose !== 'backup') {
-            return { success: false, error: 'Invalid backup purpose' };
-          }
-          if (!password) return { success: false, requiresPassword: true };
-          const decrypted = await decryptVaultEnvelope<unknown>(
-            parsed,
-            password,
-            'backup'
-          );
-          return importConfig(JSON.stringify(decrypted.payload));
-        }
-        return importConfig(jsonString);
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
-    },
+    (jsonString: string): ConfigTransferResult => importConfig(jsonString),
     [importConfig]
   );
 
@@ -526,7 +470,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
           reorderDefaultRegionModelTemplateRegions
         }
         onExportConfig={handleExportConfig}
-        onExportPlaintextConfig={handleExportPlaintextConfig}
         onImportConfig={handleImportConfig}
         onImportDeploymentResult={importDeploymentResultText}
         onRenumberAccounts={renumberAllAccounts}

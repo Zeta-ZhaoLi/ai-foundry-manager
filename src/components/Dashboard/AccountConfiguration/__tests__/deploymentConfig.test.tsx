@@ -98,7 +98,6 @@ describe('deployment configuration contract', () => {
           onUpdateDefaultRegionModelTemplateRegionModelsText={vi.fn()}
           onReorderDefaultRegionModelTemplateRegions={vi.fn()}
           onExportConfig={vi.fn()}
-          onExportPlaintextConfig={vi.fn()}
           onImportDeploymentResult={onImportDeploymentResult}
           onUpdateAccountName={vi.fn()}
           onUpdateAccountSubscriptionId={vi.fn()}
@@ -122,7 +121,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(getByText('导入部署结果'));
     fireEvent.change(
-      getByPlaceholderText('在这里粘贴 foundry-deployment-result txt 完整内容...'),
+      getByPlaceholderText(
+        '在这里粘贴 foundry-deployment-result txt 完整内容...'
+      ),
       { target: { value: 'deployment-result-content' } }
     );
     fireEvent.click(getByText('导入粘贴内容'));
@@ -630,7 +631,9 @@ describe('deployment configuration contract', () => {
     );
 
     const copied = onCopy.mock.calls[0][0] as string;
-    expect(copied).toContain('OVERWRITE_EXISTING="${OVERWRITE_EXISTING:-true}"');
+    expect(copied).toContain(
+      'OVERWRITE_EXISTING="${OVERWRITE_EXISTING:-true}"'
+    );
   });
 
   it('imports Service Principal JSON and uses it for account-level deployment without subscriptionId', () => {
@@ -687,9 +690,7 @@ describe('deployment configuration contract', () => {
     );
 
     expect(getByText(/azure-cli \/ app-id \/ tenant-id/)).toBeTruthy();
-    fireEvent.click(
-      getByText(i18n.t('accounts.copyServicePrincipalCode'))
-    );
+    fireEvent.click(getByText(i18n.t('accounts.copyServicePrincipalCode')));
     expect(onCopy).toHaveBeenCalledWith(
       [
         'SUBSCRIPTION_ID=$(az account show --query id -o tsv)',
@@ -839,7 +840,9 @@ describe('deployment configuration contract', () => {
       </I18nextProvider>
     );
 
-    expect(getByText(i18n.t('accounts.servicePrincipalConfigured'))).toBeTruthy();
+    expect(
+      getByText(i18n.t('accounts.servicePrincipalConfigured'))
+    ).toBeTruthy();
     expect(queryByText('app-id')).toBeNull();
     expect(queryByText('tenant-id')).toBeNull();
   });
@@ -1010,9 +1013,7 @@ describe('deployment configuration contract', () => {
       getByRole('button', { name: i18n.t('regions.autoGenerate') })
     );
 
-    expect(
-      getByDisplayValue('jessicabarrios0601-1111-resource')
-    ).toBeTruthy();
+    expect(getByDisplayValue('jessicabarrios0601-1111-resource')).toBeTruthy();
     expect(
       getByDisplayValue(
         'https://jessicabarrios0601-1111-resource.services.ai.azure.com/api/projects/jessicabarrios060193-1111'
@@ -1202,9 +1203,7 @@ describe('deployment configuration contract', () => {
     expect(getByDisplayValue('OpenAI')).toBeTruthy();
     expect(getByDisplayValue('30000')).toBeTruthy();
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
@@ -1259,9 +1258,7 @@ describe('deployment configuration contract', () => {
       getByRole('button', { name: /模型部署|Model Deployment/i })
     );
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
@@ -1476,9 +1473,7 @@ describe('deployment configuration contract', () => {
       getByRole('button', { name: /模型部署|Model Deployment/i })
     );
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith(
@@ -1630,9 +1625,7 @@ describe('deployment configuration contract', () => {
       target: { value: 'GPT-5.2-custom' },
     });
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).toHaveBeenCalledTimes(1);
   });
@@ -1700,9 +1693,7 @@ describe('deployment configuration contract', () => {
       target: { value: 'deepseek-v3.2-251201' },
     });
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).toHaveBeenCalledTimes(1);
   });
@@ -1772,9 +1763,7 @@ describe('deployment configuration contract', () => {
 
     expect(getByText('gpt-5.2')).toBeTruthy();
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).not.toHaveBeenCalled();
   });
@@ -1885,9 +1874,7 @@ describe('deployment configuration contract', () => {
     expect(rowCheckboxes[0].checked).toBe(false);
     expect(rowCheckboxes[1].checked).toBe(true);
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
@@ -1971,9 +1958,7 @@ describe('deployment configuration contract', () => {
 
     expect(getByDisplayValue('DeepSeek')).toBeTruthy();
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
@@ -2141,9 +2126,7 @@ describe('deployment configuration contract', () => {
       </I18nextProvider>
     );
 
-    fireEvent.click(
-      getByRole('button', { name: /ARM/i })
-    );
+    fireEvent.click(getByRole('button', { name: /ARM/i }));
 
     expect(onCopy).not.toHaveBeenCalled();
   });
@@ -2240,9 +2223,7 @@ describe('deployment configuration contract', () => {
         'https://616d30b6ef130dde-1161-resource.services.ai.azure.com/anthropic'
       )
     ).toBeTruthy();
-    expect(
-      getByDisplayValue('616d30b6ef130dde-1161-resource')
-    ).toBeTruthy();
+    expect(getByDisplayValue('616d30b6ef130dde-1161-resource')).toBeTruthy();
   });
 
   it('editing invalid Foundry project endpoint preserves existing resource name', () => {
@@ -2495,10 +2476,7 @@ describe('deployment configuration contract', () => {
     );
 
     fireEvent.click(getByText(i18n.t('regions.clear')));
-    expect(onUpdateRegionModelsText).toHaveBeenLastCalledWith(
-      'template-1',
-      ''
-    );
+    expect(onUpdateRegionModelsText).toHaveBeenLastCalledWith('template-1', '');
 
     fireEvent.click(getByText(i18n.t('regions.copyRegionModels')));
     expect(onCopy).toHaveBeenCalledWith(

@@ -7,8 +7,8 @@ Local-first dashboard for managing Azure AI Foundry/OpenAI accounts, regions, mo
 ## Overview
 
 - Pure frontend app (React + Vite), no backend required
-- Operational configuration is stored in an encrypted browser vault
-- The vault is protected by a user password and must be unlocked after reload
+- Operational configuration is stored locally in the browser
+- API keys and Service Principal passwords are encrypted before local storage
 - Designed for multi-account, multi-region model operations
 
 ## Core Features
@@ -56,9 +56,6 @@ cd ai-foundry-manager
 npm install
 ```
 
-On first launch, create a vault password of at least 12 characters. Existing
-legacy configuration is migrated only after it can be decrypted and validated.
-
 ### Run
 
 ```bash
@@ -84,15 +81,14 @@ npm run preview
 
 ## Data and Security
 
-- Account, endpoint, model, API key, and Service Principal data is encrypted in
-  `ai-foundry-manager:vault:v2` with PBKDF2-SHA-256 and AES-256-GCM.
-- Vault passwords and derived keys remain in page memory and are never stored.
-- Reloading or locking the page requires the password again. A forgotten vault
-  password cannot be recovered by the application.
-- Configuration export creates a separately password-protected encrypted backup
-  by default. Plaintext export is an explicit advanced recovery operation.
-- Legacy raw account data is preserved under a recovery key until migration has
-  completed successfully. Corrupt data is never replaced automatically.
+- Accounts, the master model directory, and the default region template are
+  stored under separate browser `localStorage` keys.
+- API keys and Service Principal passwords use browser-derived CryptoJS
+  encryption before being written to local storage.
+- Configuration import and export use JSON. Exported files contain plaintext
+  credentials and should be handled as sensitive data.
+- The legacy account key and the backup left by the former vault migration are
+  supported as fallback sources.
 - Privacy mode masks sensitive UI values for safer screen sharing.
 
 ## Optional/Internal Integration Notes
