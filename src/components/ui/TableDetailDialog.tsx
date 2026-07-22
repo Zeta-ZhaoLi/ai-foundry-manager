@@ -1,6 +1,4 @@
 import React from 'react';
-import clsx from 'clsx';
-import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -25,8 +23,6 @@ export const TableDetailDialog: React.FC<TableDetailDialogProps> = ({
   children,
   actions,
 }) => {
-  const { t } = useTranslation();
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent

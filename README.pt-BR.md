@@ -45,7 +45,7 @@ Painel local-first para gerenciar contas, regioes, selecao de modelos e exportac
 
 ### Requisitos
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### Instalacao

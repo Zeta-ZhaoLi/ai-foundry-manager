@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next';
 import i18n, {
   LANG_STORAGE_KEY,
   SUPPORTED_LANGUAGES,
+  changeAppLanguage,
   type SupportedLanguage,
 } from './i18n';
 import { useTheme, Theme } from './contexts/ThemeContext';
 import { AzureModelsDashboard } from './components/AzureModelsDashboard';
 import { CommandPalette, Command } from './components/CommandPalette';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
+import { VaultControls } from './components/Vault';
 import {
   useKeyboardShortcuts,
   KeyboardShortcut,
@@ -165,7 +167,7 @@ const App: React.FC = () => {
 
   const setLanguage = useCallback(
     (newLang: SupportedLanguage) => {
-      i18n.changeLanguage(newLang);
+      void changeAppLanguage(newLang);
       setCurrentLang(newLang);
       try {
         localStorage.setItem(LANG_STORAGE_KEY, newLang);
@@ -339,6 +341,8 @@ const App: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              <VaultControls />
 
               {/* 主题切换 */}
               <button

@@ -14,6 +14,7 @@ import {
 } from '../azureCliDeployment';
 
 const baseInput = {
+  accountId: 'A001',
   subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
   accountEmail: 'user@example.com',
   resourceName: 'arthurphillips-6272-resource',
@@ -102,8 +103,36 @@ describe('azureCliDeployment', () => {
     expect(script).not.toContain('gpt-4o-mini-2024-07-18');
   });
 
+  it('wraps single-region scripts with the account identity', () => {
+    const expected = '# Account: A001 | Email: user@example.com';
+    const scripts = [
+      buildAzureCliDeploymentScript(baseInput),
+      buildAzureCliPowerShellDeploymentScript(baseInput),
+    ];
+
+    for (const script of scripts) {
+      const lines = script.split('\n');
+      expect(lines[0]).toBe(expected);
+      expect(lines.at(-1)).toBe(expected);
+    }
+  });
+
+  it('sanitizes identity comments and uses a missing account number fallback', () => {
+    const script = buildAzureCliDeploymentScript({
+      ...baseInput,
+      accountId: undefined,
+      accountEmail: 'first\r\nsecond@example.com',
+    });
+
+    expect(script.split('\n')[0]).toBe(
+      '# Account: - | Email: first second@example.com'
+    );
+  });
+
   it('builds a multi-region script using the shared first-region resource group', () => {
     const script = buildAzureCliMultiRegionDeploymentScript({
+      accountId: 'A001',
+      accountEmail: 'user@example.com',
       subscriptionId: baseInput.subscriptionId,
       resourceGroupName: 'rg-first-region',
       targets: [
@@ -161,11 +190,10 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('--allow-project-management');
     expect(script).toContain('az cognitiveservices account update \\');
     expect(script).toContain('--custom-domain "${ACCOUNT_NAME}"');
-    expect(script).toContain('Custom domain is already set to');
-    expect(script).toContain('Skip Foundry project creation because custom domain is not ready.');
+    expect(script).toContain('Could not set custom domain');
     expect(script).toContain('az cognitiveservices account project show \\');
     expect(script).toContain('az cognitiveservices account project create \\');
-    expect(script).toContain('already exists. Skip create.');
+    expect(script).not.toContain('already exists. Skip create.');
   });
 
   it('supports Service Principal login and subscription discovery when subscriptionId is empty', () => {
@@ -183,9 +211,8 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('SP_APP_ID="app-id"');
     expect(script).toContain('az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}"');
     expect(script).toContain('jq \'[.[] | select(.state == "Enabled")]\'');
-    expect(script).toContain('Configured account email: ${diagnostic_account_email}');
-    expect(script).toContain('local diagnostic_account_email="${ACCOUNT_EMAIL:-<empty>}"');
-    expect(script).toContain('Visible subscriptions:');
+    expect(script).not.toContain('Configured account email:');
+    expect(script).not.toContain('Visible subscriptions:');
     expect(script).toContain('Disabled subscriptions cannot deploy resources');
     expect(script).toContain('Multiple enabled subscriptions found');
     expect(script).toContain('Select subscription number');
@@ -203,7 +230,7 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('SP_APP_ID=""');
     expect(script).not.toContain('az login --service-principal --username "app-id"');
     expect(script).toContain('az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}"');
-    expect(script).toContain('Visible subscriptions:');
+    expect(script).not.toContain('Visible subscriptions:');
     expect(script).toContain('Multiple enabled subscriptions found');
     expect(script).toContain('az account set --subscription "${SUBSCRIPTION_ID}"');
   });
@@ -221,7 +248,7 @@ describe('azureCliDeployment', () => {
     expect(script).toContain(
       `CONFIGURED_SUBSCRIPTION_ID="${baseInput.subscriptionId}"`
     );
-    expect(script).toContain('Using configured subscription');
+    expect(script).not.toContain('Using configured subscription');
     expect(script.indexOf('if [ -n "${CONFIGURED_SUBSCRIPTION_ID}" ]; then')).toBeLessThan(
       script.indexOf('AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID')
     );
@@ -239,13 +266,16 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('append_deployment_report');
     expect(script).toContain('aiServicesEndpoint');
     expect(script).toContain('deployments: $deployments');
-    expect(script).toContain('Account access summary');
+    expect(script).not.toContain('Account access summary');
     expect(script).toContain('prepare_account_resources');
     expect(script).toContain('deploy_all_models');
-    expect(script).toContain('Subscription ID:');
+    expect(script).not.toContain('Subscription ID:');
     expect(script).toContain('Foundry endpoint: https://${ACCOUNT_NAME}.services.ai.azure.com/api/projects/${PROJECT_NAME}');
-    expect(script).toContain('OpenAI endpoint:  https://${ACCOUNT_NAME}.openai.azure.com');
-    expect(script).toContain('Key1:');
+    expect(script).toContain('OpenAI endpoint: https://${ACCOUNT_NAME}.openai.azure.com');
+    expect(script).toContain('AI Services endpoint: https://${ACCOUNT_NAME}.services.ai.azure.com');
+    expect(script).toContain('Account key:');
+    expect(script).toContain('Available models:');
+    expect(script).toContain('Model information:');
   });
 
   it('generates PowerShell deployment script with official idempotent commands and key output', () => {
@@ -280,9 +310,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('az cognitiveservices account create');
     expect(script).toContain('--kind AIServices');
     expect(script).toContain('--allow-project-management');
-    expect(script).toContain('Custom domain is already set to');
+    expect(script).not.toContain('Custom domain is already set to');
     expect(script).toContain("Could not set custom domain for '$AccountName'.");
-    expect(script).toContain('Skip Foundry project creation because custom domain is not ready.');
+    expect(script).toContain("Could not set custom domain for '$AccountName'.");
     expect(script).toContain('az cognitiveservices account project show');
     expect(script).toContain("Invoke-AzureCli -Arguments @('rest','--method','put'");
     expect(script).toContain('modelCapacities');
@@ -296,14 +326,14 @@ describe('azureCliDeployment', () => {
     expect(script).not.toContain("'Standard'");
     expect(script).toContain('Select-GlobalStandardCapacity');
     expect(script).toContain('Get-ExistingDeploymentIfSameModel');
-    expect(script).toContain("preserving this SKU");
-    expect(script).toContain('Will force redeploy to $SkuName using configured max capacity.');
-    expect(script).toContain('Force GlobalStandard target capacity from configured max capacity: $ConfiguredMaxCapacity');
+    expect(script).not.toContain('preserving this SKU');
+    expect(script).not.toContain('Will force redeploy to $SkuName using configured max capacity.');
+    expect(script).not.toContain('Force GlobalStandard target capacity from configured max capacity: $ConfiguredMaxCapacity');
     expect(script).toContain("$parts = $item -split '\\|', 5");
     expect(script).toContain(
       '$targetCapacity = $availableCapacity + [int]$existingCapacity'
     );
-    expect(script).toContain('Used quota from existing deployment: $existingCapacity');
+    expect(script).not.toContain('Used quota from existing deployment: $existingCapacity');
     expect(script).toContain('name = $selectedSkuName');
     expect(script).toContain('function Invoke-AzureCli');
     expect(script).toContain('function Invoke-AzureCliQuiet');
@@ -313,9 +343,9 @@ describe('azureCliDeployment', () => {
     expect(script).toContain("if ($Value -like '*&*')");
     expect(script).toContain("Invoke-AzureCliQuiet -Arguments @('rest','--method','get','--url',$url");
     expect(script).toContain('-QuietOnError');
-    expect(script).toContain("'-o','jsonc') | Out-Host");
+    expect(script).toContain("'-o','none')");
     expect(script).toContain('az cognitiveservices account keys list');
-    expect(script).toContain('Account access summary');
+    expect(script).not.toContain('Account access summary');
     expect(script).toContain('Prepare-AccountResources');
     expect(script).toContain('Deploy-AllModels');
   });
@@ -329,9 +359,9 @@ describe('azureCliDeployment', () => {
     expect(script).not.toContain('"Standard"');
     expect(script).toContain('select_global_standard_capacity');
     expect(script).toContain('get_existing_deployment_if_same_model');
-    expect(script).toContain("preserving this SKU");
-    expect(script).toContain('Will force redeploy to ${SKU_NAME} using configured max capacity.');
-    expect(script).toContain('Force GlobalStandard target capacity from configured max capacity: ${configured_max_capacity}');
+    expect(script).not.toContain("preserving this SKU");
+    expect(script).not.toContain('Will force redeploy to ${SKU_NAME} using configured max capacity.');
+    expect(script).not.toContain('Force GlobalStandard target capacity from configured max capacity: ${configured_max_capacity}');
     expect(script).toContain('IFS=\'|\' read -r deployment_name model_format model_name model_version configured_max_capacity');
     expect(script).toContain('RAI_POLICY_NAME="Microsoft.Nil"');
     expect(script).toContain('raiPolicyName: $rai_policy_name');
@@ -342,7 +372,6 @@ describe('azureCliDeployment', () => {
     expect(script).toContain(
       'target_capacity=$((available_capacity + existing_same_model_capacity))'
     );
-    expect(script).toContain('Used quota from existing deployment: ${existing_same_model_capacity}');
     expect(script).toContain('deploy_model_with_max_capacity');
     expect(script).toContain('--url "${BASE_URL}/${deployment_name}?api-version=${DEPLOYMENT_API_VERSION}" \\');
     expect(script).toContain('--body "${deployment_payload}" \\');
@@ -377,16 +406,16 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('SUCCEEDED_DEPLOYMENTS=()');
     expect(script).toContain('SKIPPED_DEPLOYMENTS=()');
     expect(script).toContain('FAILED_DEPLOYMENTS=()');
-    expect(script).toContain('Deployment summary');
+    expect(script).not.toContain('Deployment summary');
   });
 
   it('continues after per-model failures and classifies return codes', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
     expect(script).toContain('return 2');
-    expect(script).toContain('SKIPPED: ${deployment_name}');
-    expect(script).toContain('FAILED: ${deployment_name}');
-    expect(script).toContain('Continue to next deployment...');
+    expect(script).not.toContain('SKIPPED: ${deployment_name}');
+    expect(script).not.toContain('FAILED: ${deployment_name}');
+    expect(script).not.toContain('Continue to next deployment...');
     expect(script).toContain('if ! az rest \\');
   });
 
@@ -394,10 +423,8 @@ describe('azureCliDeployment', () => {
     const script = buildAzureCliDeploymentScript(baseInput);
 
     expect(script).toContain('print_copyable_model_import_list');
-    expect(script).toContain('Copyable model import list');
-    expect(script).toContain('Copy this comma-separated list into the model list import field:');
-    expect(script).toContain('properties.provisioningState');
-    expect(script).toContain('| [(.properties.model.name // ""), (.name // "")]');
+    expect(script).toContain('Available models:');
+    expect(script).toContain('modelFormat: (.properties.model.format // "")');
     expect(script).toContain('reduce .[] as $name ([]; if index($name) then . else . + [$name] end)');
     expect(script).toContain('join(", ")');
   });
@@ -458,6 +485,8 @@ describe('azureCliDeployment', () => {
 
   it('builds a multi-region PowerShell script with shared resource group and per-region identity', () => {
     const script = buildAzureCliPowerShellMultiRegionDeploymentScript({
+      accountId: 'A001',
+      accountEmail: 'user@example.com',
       subscriptionId: baseInput.subscriptionId,
       resourceGroupName: 'rg-first-region',
       targets: [
@@ -506,6 +535,9 @@ describe('azureCliDeployment', () => {
     expect(script.indexOf('# Deploy eastus2')).toBeLessThan(
       script.indexOf('# Deploy swedencentral')
     );
+    expect(script.match(/^# Account: A001 \| Email: user@example\.com$/gm)).toHaveLength(2);
+    expect(script.split('\n')[0]).toBe('# Account: A001 | Email: user@example.com');
+    expect(script.split('\n').at(-1)).toBe('# Account: A001 | Email: user@example.com');
   });
 
   it('builds multi-region scripts with subscription discovery when subscriptionId and Service Principal are empty', () => {
@@ -536,13 +568,13 @@ describe('azureCliDeployment', () => {
 
     expect(bashScript).toContain('CONFIGURED_SUBSCRIPTION_ID=""');
     expect(bashScript).toContain('az account list --query "[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}"');
-    expect(bashScript).toContain('Visible subscriptions:');
+    expect(bashScript).not.toContain('Visible subscriptions:');
     expect(powerShellScript).toContain("$ConfiguredSubscriptionId = ''");
     expect(powerShellScript).toContain("'account','list','--query'");
     expect(powerShellScript).toContain("[].{id:id,name:name,state:state,tenantId:tenantId,isDefault:isDefault}");
-    expect(powerShellScript).toContain('Configured account email: $diagnosticAccountEmail');
-    expect(powerShellScript).toContain("$diagnosticAccountEmail = if ($AccountEmail) { $AccountEmail } else { '<empty>' }");
-    expect(powerShellScript).toContain('Visible subscriptions:');
+    expect(powerShellScript).not.toContain('Configured account email:');
+    expect(powerShellScript).not.toContain('$diagnosticAccountEmail');
+    expect(powerShellScript).not.toContain('Visible subscriptions:');
     expect(powerShellScript).toContain('Disabled subscriptions cannot deploy resources');
   });
 

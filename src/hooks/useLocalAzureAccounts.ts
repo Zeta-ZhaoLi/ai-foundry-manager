@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import i18n from '../i18n';
-import { getSeries } from '../utils/modelSeries';
 import {
-  parseModels,
-  debounce,
   generateId,
   type GeneratedRegionIdentityBundle,
   normalizeAiServicesEndpoint,
@@ -11,175 +8,76 @@ import {
   normalizeOpenAIEndpoint,
   normalizeAnthropicEndpoint,
 } from '../utils/common';
-import { encryptData, decryptData } from '../utils/encryption';
 import {
   generateAccountId,
   regenerateAccountId,
   renumberAccountsByPosition,
 } from '../utils/accountIdGenerator';
-import type { ServicePrincipalCredential } from '../utils/servicePrincipal';
+import { useVault } from '../contexts/VaultContext';
 import {
-  parseDeploymentResultText,
-  type DeploymentResultRegion,
-} from '../utils/deploymentResultImport';
+  defaultRegionModelTemplateConfigSchema,
+  type AccountQuota,
+  type AccountTier,
+  type CurrencyType,
+  type DefaultRegionModelTemplateConfig,
+  type LocalAccount,
+  type LocalRegion,
+  type RegionDeploymentConfig,
+  type RegionDeploymentModelConfig,
+  type RegionInputSource,
+  type RegionInputSources,
+  type ServicePrincipalCredential,
+} from '../schemas/account';
+import {
+  createDefaultRegionModelTemplateConfig,
+  parseConfigImport,
+} from '../persistence/config';
+import {
+  applyDeploymentResultImport,
+  type DeploymentResultImportSummary,
+} from '../persistence/deploymentResultImport';
+import {
+  selectAccountSummaries,
+  selectGlobalSeriesSummary,
+} from '../selectors/accountSelectors';
 
 export type { GeneratedRegionIdentityBundle } from '../utils/common';
-export type { ServicePrincipalCredential } from '../utils/servicePrincipal';
+export type {
+  AccountQuota,
+  AccountTier,
+  CurrencyType,
+  DefaultRegionModelTemplate,
+  DefaultRegionModelTemplateConfig,
+  LocalAccount,
+  LocalRegion,
+  RegionDeploymentConfig,
+  RegionDeploymentModelConfig,
+  RegionInputSource,
+  RegionInputSources,
+  ServicePrincipalCredential,
+} from '../schemas/account';
+export { createDefaultRegionModelTemplateConfig } from '../persistence/config';
 
-export interface LocalRegion {
-  id: string;
-  name: string;
-  modelsText: string;
-  foundryProjectEndpoint?: string;
-  openaiEndpoint?: string;
-  aiServicesEndpoint?: string;
-  anthropicEndpoint?: string;
-  apiKey?: string;
-  enabled?: boolean;
-  deployment?: RegionDeploymentConfig;
-  inputSources?: RegionInputSources;
-}
-
-export type RegionInputSource = 'generated' | 'manual';
-
-export interface RegionInputSources {
-  resourceName?: RegionInputSource;
-  foundryProjectEndpoint?: RegionInputSource;
-  openaiEndpoint?: RegionInputSource;
-  aiServicesEndpoint?: RegionInputSource;
-  anthropicEndpoint?: RegionInputSource;
-}
-
-export interface RegionDeploymentModelConfig {
-  enabled?: boolean;
-  deploymentName?: string;
-  version?: string;
-  modelFormat?: string;
-  capacity?: number;
-}
-
-export interface RegionDeploymentConfig {
-  /** Region-scoped Azure OpenAI resource name */
-  resourceName?: string;
-  /** Per-model deployment settings */
-  models?: Record<string, RegionDeploymentModelConfig>;
-}
-
-export type AccountTier = 'premium' | 'standard';
-export type AccountQuota =
-  | '200'
-  | '1000'
-  | '2000'
-  | '5000'
-  | '20000'
-  | '25000'
-  | '45000'
-  | 'custom';
-export type CurrencyType = 'USD' | 'CNY';
-
-export interface LocalAccount {
-  id: string;
-  accountId?: string;
-  name: string;
-  subscriptionId?: string;
-  resourceGroupName?: string;
-  servicePrincipal?: ServicePrincipalCredential;
-  note?: string;
-  enabled: boolean;
-  includeInStats?: boolean;
-  regions: LocalRegion[];
-  tier?: AccountTier;
-  quota?: AccountQuota;
-  customQuota?: number;
-  purchaseAmount?: number;
-  purchaseCurrency?: CurrencyType;
-  usedAmount?: number;
-}
-
-export interface DeploymentResultImportSummary {
-  success: boolean;
-  error?: string;
-  updatedAccounts?: number;
-  updatedRegions?: number;
-  addedRegions?: number;
-}
-
-export interface DefaultRegionModelTemplate {
-  id: string;
-  name: string;
-  modelsText: string;
-}
-
-export interface DefaultRegionModelTemplateConfig {
-  enabled: boolean;
-  regions: DefaultRegionModelTemplate[];
-}
-
-export interface AccountSummary {
-  accountKey: string;
-  regions: {
-    [regionLabel: string]: {
-      models: string[];
-    };
-  };
-  allModels: string[];
-}
-
-export interface SeriesSummary {
-  [seriesName: string]: string[];
-}
-
-const STORAGE_KEY = 'ai-foundry-manager:accounts';
-const LEGACY_STORAGE_KEY = 'azure-openai-manager:accounts';
-const DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY =
-  'ai-foundry-manager:default-region-model-template';
-const DEFAULT_NEW_ACCOUNT_REGION_NAMES = [
-  'eastus2',
-  'swedencentral',
-  'polandcentral',
-];
-
-export const createDefaultRegionModelTemplateConfig =
-  (): DefaultRegionModelTemplateConfig => ({
-    enabled: true,
-    regions: DEFAULT_NEW_ACCOUNT_REGION_NAMES.map((name) => ({
-      id: generateId('template-region'),
-      name,
-      modelsText: '',
-    })),
-  });
+export type { DeploymentResultImportSummary } from '../persistence/deploymentResultImport';
+export type {
+  AccountSummary,
+  GlobalSeriesSummary,
+  SeriesSummary,
+} from '../selectors/accountSelectors';
 
 function normalizeDefaultRegionModelTemplateConfig(
   value: unknown
 ): DefaultRegionModelTemplateConfig {
-  if (!value || typeof value !== 'object') {
-    return createDefaultRegionModelTemplateConfig();
-  }
-
-  const raw = value as Partial<DefaultRegionModelTemplateConfig>;
-  const regions = Array.isArray(raw.regions)
-    ? raw.regions
-        .filter((region) => Boolean(region) && typeof region === 'object')
-        .map((region) => ({
-          id:
-            typeof region.id === 'string' && region.id.trim()
-              ? region.id
-              : generateId('template-region'),
-          name: typeof region.name === 'string' ? region.name : '',
-          modelsText:
-            typeof region.modelsText === 'string' ? region.modelsText : '',
-        }))
-    : createDefaultRegionModelTemplateConfig().regions;
-
-  return {
-    enabled: raw.enabled !== false,
-    regions,
-  };
+  const parsed = defaultRegionModelTemplateConfigSchema.safeParse(value);
+  return parsed.success
+    ? parsed.data
+    : createDefaultRegionModelTemplateConfig();
 }
 
 function createDefaultAccountRegion(
   name: string,
-  modelsText = ''
+  modelsText = '',
+  enabled = true
 ): LocalRegion {
   return {
     id: generateId('region'),
@@ -188,68 +86,8 @@ function createDefaultAccountRegion(
     anthropicEndpoint: '',
     apiKey: '',
     modelsText,
-    enabled: true,
+    enabled,
   };
-}
-
-function normalizeMatchValue(value?: string): string {
-  return (value || '').trim().toLowerCase().replace(/\/+$/, '');
-}
-
-function regionMatchesDeploymentResult(
-  region: LocalRegion,
-  resultRegion: DeploymentResultRegion
-): boolean {
-  const resultValues = [
-    resultRegion.resourceName,
-    resultRegion.foundryProjectEndpoint,
-    resultRegion.openaiEndpoint,
-    resultRegion.aiServicesEndpoint,
-    resultRegion.region,
-  ]
-    .map(normalizeMatchValue)
-    .filter(Boolean);
-
-  const regionValues = [
-    region.deployment?.resourceName,
-    region.foundryProjectEndpoint,
-    region.openaiEndpoint,
-    region.aiServicesEndpoint,
-    region.name,
-  ]
-    .map(normalizeMatchValue)
-    .filter(Boolean);
-
-  return resultValues.some((value) => regionValues.includes(value));
-}
-
-function accountMatchesDeploymentResult(
-  account: LocalAccount,
-  resultRegions: DeploymentResultRegion[]
-): boolean {
-  return account.regions.some((region) => {
-    const regionValues = [
-      region.deployment?.resourceName,
-      region.foundryProjectEndpoint,
-      region.openaiEndpoint,
-      region.aiServicesEndpoint,
-    ]
-      .map(normalizeMatchValue)
-      .filter(Boolean);
-
-    return resultRegions.some((resultRegion) => {
-      const resultValues = [
-        resultRegion.resourceName,
-        resultRegion.foundryProjectEndpoint,
-        resultRegion.openaiEndpoint,
-        resultRegion.aiServicesEndpoint,
-      ]
-        .map(normalizeMatchValue)
-        .filter(Boolean);
-
-      return resultValues.some((value) => regionValues.includes(value));
-    });
-  });
 }
 
 function markRegionInputSource(
@@ -267,236 +105,22 @@ function markRegionInputSource(
 }
 
 export function useLocalAzureAccounts() {
-  const [accounts, setAccounts] = useState<LocalAccount[]>([]);
-  const [defaultRegionModelTemplate, setDefaultRegionModelTemplate] =
-    useState<DefaultRegionModelTemplateConfig>(() => {
-      if (typeof window === 'undefined') {
-        return createDefaultRegionModelTemplateConfig();
-      }
-      try {
-        const raw = window.localStorage.getItem(
-          DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY
-        );
-        if (!raw) return createDefaultRegionModelTemplateConfig();
-        return normalizeDefaultRegionModelTemplateConfig(JSON.parse(raw));
-      } catch {
-        return createDefaultRegionModelTemplateConfig();
-      }
-    });
-
-  const decryptAccounts = useCallback(
-    (accounts: LocalAccount[]): LocalAccount[] => {
-      return accounts.map((acct) => {
-        // Drop deprecated account-level server fields while loading.
-        const {
-          windowsServer: _windowsServer,
-          linuxServer: _linuxServer,
-          deployment: legacyAccountDeployment,
-          ...rest
-        } = acct as any;
-
-        const legacyAccountResourceName =
-          (legacyAccountDeployment?.resourceName as string | undefined) ||
-          (typeof legacyAccountDeployment?.resourceGroup === 'string'
-            ? legacyAccountDeployment.resourceGroup
-            : undefined);
-        const servicePrincipal = (rest as LocalAccount).servicePrincipal;
-
-        return {
-          ...(rest as LocalAccount),
-          servicePrincipal: servicePrincipal
-            ? {
-                ...servicePrincipal,
-                password: servicePrincipal.password
-                  ? decryptData(servicePrincipal.password)
-                  : servicePrincipal.password,
-              }
-            : servicePrincipal,
-          regions: (acct.regions || []).map((reg) => ({
-            ...reg,
-            deployment: {
-              ...((reg as any).deployment || {}),
-              resourceName:
-                (
-                  (reg as any).deployment?.resourceName as string | undefined
-                )?.trim() || legacyAccountResourceName,
-            },
-            apiKey: reg.apiKey ? decryptData(reg.apiKey) : reg.apiKey,
-          })),
-        };
-      });
-    },
-    []
-  );
-
-  const encryptAccounts = useCallback(
-    (accounts: LocalAccount[]): LocalAccount[] => {
-      return accounts.map((acct) => {
-        const {
-          windowsServer: _windowsServer,
-          linuxServer: _linuxServer,
-          deployment: _deployment,
-          ...rest
-        } = acct as any;
-
-        return {
-          ...(rest as LocalAccount),
-          servicePrincipal: acct.servicePrincipal
-            ? {
-                ...acct.servicePrincipal,
-                password: acct.servicePrincipal.password
-                  ? encryptData(acct.servicePrincipal.password)
-                  : acct.servicePrincipal.password,
-              }
-            : acct.servicePrincipal,
-          regions: (acct.regions || []).map((reg) => ({
-            ...reg,
-            apiKey: reg.apiKey ? encryptData(reg.apiKey) : reg.apiKey,
-          })),
-        };
-      });
-    },
-    []
-  );
-
-  // Debounced save function
-  const debouncedSaveRef = useRef(
-    debounce((accounts: LocalAccount[]) => {
-      try {
-        const encrypted = JSON.stringify(encryptAccounts(accounts));
-        window.localStorage.setItem(STORAGE_KEY, encrypted);
-      } catch (error) {
-        console.error('Failed to save accounts:', error);
-      }
-    }, 500)
-  );
-
-  const debouncedSaveDefaultRegionModelTemplateRef = useRef(
-    debounce((template: DefaultRegionModelTemplateConfig) => {
-      try {
-        window.localStorage.setItem(
-          DEFAULT_REGION_MODEL_TEMPLATE_STORAGE_KEY,
-          JSON.stringify(template)
-        );
-      } catch (error) {
-        console.error('Failed to save default region model template:', error);
-      }
-    }, 500)
-  );
-
-  // Assign account IDs to legacy entries that do not have one.
-  const migrateAccountsToV2 = useCallback(
-    (accounts: LocalAccount[]): LocalAccount[] => {
-      const migrated: LocalAccount[] = [];
-
-      for (const acct of accounts) {
-        if (!acct.accountId) {
-          // Generate an ID for legacy accounts.
-          const tier = acct.tier || 'standard';
-          const accountId = generateAccountId(migrated, tier);
-          migrated.push({ ...acct, accountId });
-        } else {
-          migrated.push(acct);
-        }
-      }
-
-      return migrated;
-    },
-    []
-  );
-
-  // Server login fields are deprecated.
-  useEffect(() => {
-    try {
-      // Read from the current storage key first.
-      let raw = window.localStorage.getItem(STORAGE_KEY);
-
-      // Fall back to the legacy storage key.
-      if (!raw) {
-        const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-        if (legacyRaw) {
-          console.log(
-            '[Migration] Migrating accounts from legacy key to new key'
-          );
-          // Copy legacy data into the current storage key.
-          window.localStorage.setItem(STORAGE_KEY, legacyRaw);
-          raw = legacyRaw;
-          console.log('[Migration] Accounts migration completed successfully');
-        }
-      }
-
-      if (raw) {
-        const parsed = JSON.parse(raw) as LocalAccount[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const normalized = parsed.map((acct) => ({
-            ...acct,
-            enabled: acct.enabled !== false,
-          }));
-          const hadMissingAccountId = (parsed as any[]).some(
-            (acct) => !acct?.accountId
-          );
-          const hadLegacyServerFields = (parsed as any[]).some(
-            (acct) => acct?.windowsServer || acct?.linuxServer
-          );
-          const hadLegacyAccountResourceName = (parsed as any[]).some(
-            (acct) => {
-              const deployment = acct?.deployment;
-              return Boolean(
-                deployment?.resourceName || deployment?.resourceGroup
-              );
-            }
-          );
-
-          // Assign missing account IDs.
-          const migratedAccounts = migrateAccountsToV2(normalized);
-          const decrypted = decryptAccounts(migratedAccounts);
-          setAccounts(decrypted);
-
-          // Persist cleaned legacy data.
-          if (
-            hadMissingAccountId ||
-            hadLegacyServerFields ||
-            hadLegacyAccountResourceName
-          ) {
-            debouncedSaveRef.current(decrypted);
-          }
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load accounts:', error);
-    }
-
-    const initial: LocalAccount[] = [
-      {
-        id: 'sample-account',
-        accountId: 'B001',
-        name: `${i18n.t('accounts.account')} 1`,
-        note: '',
-        enabled: true,
-        tier: 'standard',
-        regions: [
-          {
-            id: 'sample-region',
-            name: 'eastus',
-            modelsText: 'gpt-4o,gpt-4o-mini',
-          },
-        ],
-      },
-    ];
-    setAccounts(initial);
-    debouncedSaveRef.current(initial);
-  }, [decryptAccounts, migrateAccountsToV2]);
+  const { data, updateData, replaceData, saveStatus } = useVault();
+  if (!data) {
+    throw new Error('Account configuration requires an unlocked vault');
+  }
+  const accounts = data.accounts;
+  const defaultRegionModelTemplate = data.defaultRegionModelTemplate;
+  const masterText = data.masterText;
 
   const saveAccounts = useCallback(
     (updater: (prev: LocalAccount[]) => LocalAccount[]) => {
-      setAccounts((prev) => {
-        const next = updater(prev);
-        debouncedSaveRef.current(next);
-        return next;
-      });
+      updateData((current) => ({
+        ...current,
+        accounts: updater(current.accounts),
+      }));
     },
-    []
+    [updateData]
   );
 
   const saveDefaultRegionModelTemplate = useCallback(
@@ -505,13 +129,14 @@ export function useLocalAzureAccounts() {
         prev: DefaultRegionModelTemplateConfig
       ) => DefaultRegionModelTemplateConfig
     ) => {
-      setDefaultRegionModelTemplate((prev) => {
-        const next = normalizeDefaultRegionModelTemplateConfig(updater(prev));
-        debouncedSaveDefaultRegionModelTemplateRef.current(next);
-        return next;
-      });
+      updateData((current) => ({
+        ...current,
+        defaultRegionModelTemplate: normalizeDefaultRegionModelTemplateConfig(
+          updater(current.defaultRegionModelTemplate)
+        ),
+      }));
     },
-    []
+    [updateData]
   );
 
   const addAccount = useCallback(() => {
@@ -530,9 +155,8 @@ export function useLocalAzureAccounts() {
         regions: defaultRegionModelTemplate.regions.map((templateRegion) =>
           createDefaultAccountRegion(
             templateRegion.name,
-            defaultRegionModelTemplate.enabled
-              ? templateRegion.modelsText
-              : ''
+            defaultRegionModelTemplate.enabled ? templateRegion.modelsText : '',
+            templateRegion.enabled !== false
           )
         ),
         quota: '1000',
@@ -681,6 +305,7 @@ export function useLocalAzureAccounts() {
           id: generateId('template-region'),
           name: 'new-region',
           modelsText: '',
+          enabled: true,
         },
       ],
     }));
@@ -720,6 +345,18 @@ export function useLocalAzureAccounts() {
     [saveDefaultRegionModelTemplate]
   );
 
+  const updateDefaultRegionModelTemplateRegionEnabled = useCallback(
+    (regionId: string, enabled: boolean) => {
+      saveDefaultRegionModelTemplate((prev) => ({
+        ...prev,
+        regions: prev.regions.map((region) =>
+          region.id === regionId ? { ...region, enabled } : region
+        ),
+      }));
+    },
+    [saveDefaultRegionModelTemplate]
+  );
+
   const reorderDefaultRegionModelTemplateRegions = useCallback(
     (oldIndex: number, newIndex: number) => {
       saveDefaultRegionModelTemplate((prev) => {
@@ -736,10 +373,16 @@ export function useLocalAzureAccounts() {
   const importDefaultRegionModelTemplate = useCallback(
     (template: unknown) => {
       const normalized = normalizeDefaultRegionModelTemplateConfig(template);
-      setDefaultRegionModelTemplate(normalized);
-      debouncedSaveDefaultRegionModelTemplateRef.current(normalized);
+      saveDefaultRegionModelTemplate(() => normalized);
     },
-    []
+    [saveDefaultRegionModelTemplate]
+  );
+
+  const updateMasterText = useCallback(
+    (nextMasterText: string) => {
+      updateData((current) => ({ ...current, masterText: nextMasterText }));
+    },
+    [updateData]
   );
 
   const deleteAccount = useCallback(
@@ -1110,28 +753,9 @@ export function useLocalAzureAccounts() {
   const importConfig = useCallback(
     (jsonString: string): { success: boolean; error?: string } => {
       try {
-        const parsed = JSON.parse(jsonString);
-
-        // Validate configuration shape.
-        if (!Array.isArray(parsed)) {
-          return {
-            success: false,
-            error: 'Invalid config format: must be an array',
-          };
-        }
-
-        for (const item of parsed) {
-          if (!item.id || !Array.isArray(item.regions)) {
-            return { success: false, error: 'Invalid account structure' };
-          }
-        }
-
-        // Decrypt sensitive fields and drop deprecated fields.
-        const decrypted = decryptAccounts(parsed);
-
-        // Persist imported data.
-        saveAccounts(() => decrypted);
-
+        const parsed = JSON.parse(jsonString) as unknown;
+        const next = parseConfigImport(parsed, data);
+        replaceData(next);
         return { success: true };
       } catch (error) {
         return {
@@ -1140,201 +764,35 @@ export function useLocalAzureAccounts() {
         };
       }
     },
-    [saveAccounts, decryptAccounts]
+    [data, replaceData]
   );
 
   const importDeploymentResultText = useCallback(
     (text: string): DeploymentResultImportSummary => {
-      try {
-        const parsed = parseDeploymentResultText(text);
-        const parsedSubscriptionId = parsed.subscriptionId?.trim() || '';
-        const importableRegions = parsed.regions.filter((region) =>
-          Boolean(region.apiKey?.trim())
-        );
-
-        if (!parsedSubscriptionId && importableRegions.length === 0) {
-          return {
-            success: false,
-            error: 'No subscription ID or API keys found in deployment result',
-          };
-        }
-
-        let matchIndex = parsedSubscriptionId
-          ? accounts.findIndex(
-              (account) =>
-                normalizeMatchValue(account.subscriptionId) ===
-                normalizeMatchValue(parsedSubscriptionId)
-            )
-          : -1;
-
-        if (matchIndex < 0) {
-          matchIndex = accounts.findIndex((account) =>
-            accountMatchesDeploymentResult(account, parsed.regions)
-          );
-        }
-
-        if (matchIndex < 0) {
-          return {
-            success: false,
-            error: 'No matching account found for this deployment result',
-          };
-        }
-
-        const matchedAccount = accounts[matchIndex];
-        let previewRegions = matchedAccount.regions;
-        let previewUpdatedRegions = 0;
-        let previewAddedRegions = 0;
-
-        for (const resultRegion of importableRegions) {
-          const regionIndex = previewRegions.findIndex((region) =>
-            regionMatchesDeploymentResult(region, resultRegion)
-          );
-          if (regionIndex >= 0) {
-            if (previewRegions[regionIndex].apiKey !== resultRegion.apiKey) {
-              previewUpdatedRegions += 1;
-              previewRegions = previewRegions.map((region, idx) =>
-                idx === regionIndex
-                  ? { ...region, apiKey: resultRegion.apiKey }
-                  : region
-              );
-            }
-          } else {
-            previewAddedRegions += 1;
-            previewRegions = [
-              ...previewRegions,
-              {
-                id: generateId('region-preview'),
-                name: resultRegion.region,
-                modelsText: '',
-                apiKey: resultRegion.apiKey,
-                enabled: true,
-              },
-            ];
-          }
-        }
-
-        const summary: DeploymentResultImportSummary = {
-          success: true,
-          updatedAccounts: 1,
-          updatedRegions: previewUpdatedRegions,
-          addedRegions: previewAddedRegions,
-        };
-
-        saveAccounts((prev) => {
-          const next = prev.map((account, index) => {
-            if (account.id !== matchedAccount.id && index !== matchIndex) {
-              return account;
-            }
-
-            let regions = account.regions;
-            for (const resultRegion of importableRegions) {
-              const regionIndex = regions.findIndex((region) =>
-                regionMatchesDeploymentResult(region, resultRegion)
-              );
-
-              if (regionIndex >= 0) {
-                const current = regions[regionIndex];
-                if (current.apiKey !== resultRegion.apiKey) {
-                  regions = regions.map((region, idx) =>
-                    idx === regionIndex
-                      ? { ...region, apiKey: resultRegion.apiKey }
-                      : region
-                  );
-                }
-              } else {
-                regions = [
-                  ...regions,
-                  {
-                    id: generateId('region'),
-                    name: resultRegion.region,
-                    modelsText: '',
-                    apiKey: resultRegion.apiKey,
-                    enabled: true,
-                  },
-                ];
-              }
-            }
-
-            return {
-              ...account,
-              subscriptionId: parsedSubscriptionId || account.subscriptionId,
-              regions,
-            };
-          });
-
-          return next;
-        });
-
-        return summary;
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
+      const result = applyDeploymentResultImport(accounts, text);
+      if (result.accounts) {
+        saveAccounts(() => result.accounts!);
       }
+      return result.summary;
     },
     [accounts, saveAccounts]
   );
 
-  const enabledAccounts = useMemo(
-    () => accounts.filter((a) => a.enabled !== false),
+  const accountSummaries = useMemo(
+    () => selectAccountSummaries(accounts),
     [accounts]
   );
-
-  const accountSummaries: AccountSummary[] = useMemo(() => {
-    return enabledAccounts.map((acct) => {
-      const regions: AccountSummary['regions'] = {};
-      const allModelsSet = new Set<string>();
-
-      // Only include enabled regions.
-      const enabledRegions = acct.regions.filter((r) => r.enabled !== false);
-      for (const reg of enabledRegions) {
-        const models = parseModels(reg.modelsText);
-        if (!regions[reg.name]) {
-          regions[reg.name] = { models: [] };
-        }
-        regions[reg.name].models.push(...models);
-        for (const m of models) {
-          allModelsSet.add(m);
-        }
-      }
-
-      const normalizedRegions: AccountSummary['regions'] = {};
-      Object.entries(regions).forEach(([name, info]) => {
-        normalizedRegions[name] = {
-          models: Array.from(new Set(info.models)).sort(),
-        };
-      });
-
-      return {
-        accountKey: acct.name || acct.id,
-        regions: normalizedRegions,
-        allModels: Array.from(allModelsSet).sort(),
-      };
-    });
-  }, [enabledAccounts]);
-
-  const globalSeriesSummary: { allModels: string[]; bySeries: SeriesSummary } =
-    useMemo(() => {
-      const allSet = new Set<string>();
-      for (const acc of accountSummaries) {
-        for (const m of acc.allModels) {
-          allSet.add(m);
-        }
-      }
-      const allModels = Array.from(allSet).sort();
-      const bySeries: SeriesSummary = {};
-      for (const m of allModels) {
-        const s = getSeries(m);
-        if (!bySeries[s]) bySeries[s] = [];
-        bySeries[s].push(m);
-      }
-      return { allModels, bySeries };
-    }, [accountSummaries]);
+  const globalSeriesSummary = useMemo(
+    () => selectGlobalSeriesSummary(accountSummaries),
+    [accountSummaries]
+  );
 
   return {
     accounts,
+    masterText,
+    updateMasterText,
     defaultRegionModelTemplate,
+    saveStatus,
     accountSummaries,
     globalSeriesSummary,
     addAccount,
@@ -1343,6 +801,7 @@ export function useLocalAzureAccounts() {
     deleteDefaultRegionModelTemplateRegion,
     updateDefaultRegionModelTemplateRegionName,
     updateDefaultRegionModelTemplateRegionModelsText,
+    updateDefaultRegionModelTemplateRegionEnabled,
     reorderDefaultRegionModelTemplateRegions,
     importDefaultRegionModelTemplate,
     updateAccountName,

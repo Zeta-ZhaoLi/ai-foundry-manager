@@ -130,6 +130,7 @@ function parseHumanSummary(text: string): DeploymentResultPayload | null {
         resourceName: current.resourceName,
         foundryProjectEndpoint: current.foundryProjectEndpoint,
         openaiEndpoint: current.openaiEndpoint,
+        aiServicesEndpoint: current.aiServicesEndpoint,
         apiKey: current.apiKey,
       });
     }
@@ -151,7 +152,13 @@ function parseHumanSummary(text: string): DeploymentResultPayload | null {
       current.foundryProjectEndpoint;
     current.openaiEndpoint =
       parseLabeledValue(line, 'OpenAI endpoint') || current.openaiEndpoint;
-    current.apiKey = parseLabeledValue(line, 'Key1') || current.apiKey;
+    current.aiServicesEndpoint =
+      parseLabeledValue(line, 'AI Services endpoint') ||
+      current.aiServicesEndpoint;
+    current.apiKey =
+      parseLabeledValue(line, 'Account key') ||
+      parseLabeledValue(line, 'Key1') ||
+      current.apiKey;
   }
   flush();
 

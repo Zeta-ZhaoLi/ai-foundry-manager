@@ -56,22 +56,52 @@ import foundryTemplateJson from '../../Azure-AI-Founryd-Deployment-Template.json
 const DEFAULT_DEPLOYMENT_CAPACITY = 1000;
 const DEFAULT_MODEL_FORMAT = 'OpenAI';
 
+type JsonObject = Record<string, unknown>;
+
+interface MutableArmParameter extends JsonObject {
+  defaultValue?: unknown;
+}
+
+interface MutableArmResource extends JsonObject {
+  type?: string;
+  kind?: string;
+  properties?: JsonObject;
+  dependsOn?: unknown;
+}
+
+interface MutableArmTemplate extends JsonObject {
+  parameters: Record<string, MutableArmParameter>;
+  variables: JsonObject;
+  resources: MutableArmResource[];
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 function toTemplateModelDeploymentEntry(
-  item: any
+  item: unknown
 ): TemplateModelDeploymentEntry | undefined {
+  if (!isJsonObject(item)) return undefined;
   const modelName =
-    typeof item?.modelName === 'string' ? item.modelName.trim() : '';
+    typeof item.modelName === 'string' ? item.modelName.trim() : '';
   const deploymentName =
-    typeof item?.deploymentName === 'string' ? item.deploymentName.trim() : '';
-  const version = typeof item?.version === 'string' ? item.version.trim() : '';
+    typeof item.deploymentName === 'string' ? item.deploymentName.trim() : '';
+  const version = typeof item.version === 'string' ? item.version.trim() : '';
   const modelFormat =
-    typeof item?.modelFormat === 'string' ? item.modelFormat.trim() : '';
-  const capacity = item?.capacity;
+    typeof item.modelFormat === 'string' ? item.modelFormat.trim() : '';
+  const capacity = item.capacity;
 
   if (!modelName || !deploymentName || !version || !modelFormat) {
     return undefined;
   }
-  if (!Number.isInteger(capacity) || capacity <= 0) return undefined;
+  if (
+    typeof capacity !== 'number' ||
+    !Number.isInteger(capacity) ||
+    capacity <= 0
+  ) {
+    return undefined;
+  }
 
   return {
     modelName,
@@ -115,7 +145,11 @@ export function buildTemplateModelDeploymentLookups(
 }
 
 export function getTemplateModelDeploymentLookups(): TemplateModelDeploymentLookups {
-  const items = (foundryTemplateJson as any)?.variables?.modelDeployments;
+  const template: unknown = foundryTemplateJson;
+  const variables = isJsonObject(template) && isJsonObject(template.variables)
+    ? template.variables
+    : undefined;
+  const items = variables?.modelDeployments;
   return buildTemplateModelDeploymentLookups(items);
 }
 
@@ -349,9 +383,19 @@ export function stringifyAzureOpenAiArmTemplate(
 
 export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
   // Deep clone to avoid mutating the imported JSON module
-  const template: any = JSON.parse(JSON.stringify(foundryTemplateJson));
+  const cloned: unknown = JSON.parse(JSON.stringify(foundryTemplateJson));
+  const source = isJsonObject(cloned) ? cloned : {};
+  const template: MutableArmTemplate = {
+    ...source,
+    parameters: isJsonObject(source.parameters)
+      ? (source.parameters as Record<string, MutableArmParameter>)
+      : {},
+    variables: isJsonObject(source.variables) ? source.variables : {},
+    resources: Array.isArray(source.resources)
+      ? source.resources.filter(isJsonObject)
+      : [],
+  };
 
-  template.parameters = template.parameters || {};
   template.parameters.resourceName = template.parameters.resourceName || {
     type: 'String',
   };
@@ -366,7 +410,6 @@ export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
   template.parameters.projectName.defaultValue = input.projectName;
   template.parameters.location.defaultValue = input.location;
 
-  template.variables = template.variables || {};
   template.variables.modelDeployments = input.modelDeployments.map((d) => ({
     deploymentName: d.deploymentName,
     modelName: d.modelName,
@@ -375,29 +418,28 @@ export function buildAzureOpenAiMainTemplate(input: ArmTemplateInput) {
     capacity: d.capacity,
   }));
 
-  template.resources = Array.isArray(template.resources) ? template.resources : [];
   const projectResource = buildFoundryProjectResource();
   const existingProjectIndex = template.resources.findIndex(
-    (resource: any) =>
+    (resource) =>
       resource?.type === 'Microsoft.CognitiveServices/accounts/projects'
   );
   if (existingProjectIndex >= 0) {
     template.resources[existingProjectIndex] = projectResource;
   } else {
     const accountIndex = template.resources.findIndex(
-      (resource: any) => resource?.type === 'Microsoft.CognitiveServices/accounts'
+      (resource) => resource?.type === 'Microsoft.CognitiveServices/accounts'
     );
     const insertIndex = accountIndex >= 0 ? accountIndex + 1 : 0;
     template.resources.splice(insertIndex, 0, projectResource);
   }
 
-  template.resources = template.resources.map((resource: any) => {
+  template.resources = template.resources.map((resource) => {
     if (resource?.type === 'Microsoft.CognitiveServices/accounts') {
       return {
         ...resource,
         kind: DEFAULT_FOUNDRY_ACCOUNT_KIND,
         properties: {
-          ...(resource.properties || {}),
+          ...(isJsonObject(resource.properties) ? resource.properties : {}),
           allowProjectManagement: true,
           customSubDomainName: "[parameters('resourceName')]",
         },

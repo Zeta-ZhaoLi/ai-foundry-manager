@@ -1,13 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import zh from './locales/zh.json';
-import en from './locales/en.json';
-import ja from './locales/ja.json';
-import fr from './locales/fr.json';
-import de from './locales/de.json';
-import es from './locales/es.json';
-import ptBR from './locales/pt-BR.json';
-import ko from './locales/ko.json';
 
 const LANG_STORAGE_KEY = 'ai-foundry-manager:lang';
 const LEGACY_LANG_STORAGE_KEY = 'azure-openai-manager:lang';
@@ -23,6 +16,19 @@ const SUPPORTED_LANGUAGES = [
   'ko',
 ] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+
+const localeLoaders: Record<
+  Exclude<SupportedLanguage, 'zh'>,
+  () => Promise<{ default: Record<string, unknown> }>
+> = {
+  en: () => import('./locales/en.json'),
+  ja: () => import('./locales/ja.json'),
+  fr: () => import('./locales/fr.json'),
+  de: () => import('./locales/de.json'),
+  es: () => import('./locales/es.json'),
+  'pt-BR': () => import('./locales/pt-BR.json'),
+  ko: () => import('./locales/ko.json'),
+};
 
 const isSupportedLanguage = (lang: string): lang is SupportedLanguage => {
   return (SUPPORTED_LANGUAGES as readonly string[]).includes(lang);
@@ -59,23 +65,37 @@ const getSavedLanguage = (): string => {
   return 'zh';
 };
 
+const initialLanguage = getSavedLanguage() as SupportedLanguage;
+
 i18n.use(initReactI18next).init({
   resources: {
     zh: { translation: zh },
-    en: { translation: en },
-    ja: { translation: ja },
-    fr: { translation: fr },
-    de: { translation: de },
-    es: { translation: es },
-    'pt-BR': { translation: ptBR },
-    ko: { translation: ko },
   },
-  lng: getSavedLanguage(),
+  lng: initialLanguage,
   fallbackLng: 'zh',
   interpolation: {
     escapeValue: false,
   },
 });
+
+async function ensureLanguage(language: SupportedLanguage): Promise<void> {
+  if (language === 'zh' || i18n.hasResourceBundle(language, 'translation')) {
+    return;
+  }
+  const locale = await localeLoaders[language]();
+  i18n.addResourceBundle(language, 'translation', locale.default, true, true);
+}
+
+export async function changeAppLanguage(
+  language: SupportedLanguage
+): Promise<void> {
+  await ensureLanguage(language);
+  await i18n.changeLanguage(language);
+}
+
+if (initialLanguage !== 'zh') {
+  void changeAppLanguage(initialLanguage);
+}
 
 export { LANG_STORAGE_KEY, SUPPORTED_LANGUAGES };
 export default i18n;

@@ -45,7 +45,7 @@ Azure AI Foundry/OpenAI 환경에서 계정, 리전, 모델 선택, 배포 템�
 
 ### 요구 사항
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### 설치

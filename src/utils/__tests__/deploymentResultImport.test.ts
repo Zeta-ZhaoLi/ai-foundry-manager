@@ -65,6 +65,25 @@ Key1:             key-east
     });
   });
 
+  it('parses concise region summaries', () => {
+    const parsed = parseDeploymentResultText(`
+Region: eastus2
+Foundry endpoint: https://acct-east.services.ai.azure.com/api/projects/project
+OpenAI endpoint: https://acct-east.openai.azure.com
+AI Services endpoint: https://acct-east.services.ai.azure.com
+Account key: key-east
+`);
+
+    expect(parsed.regions[0]).toMatchObject({
+      region: 'eastus2',
+      foundryProjectEndpoint:
+        'https://acct-east.services.ai.azure.com/api/projects/project',
+      openaiEndpoint: 'https://acct-east.openai.azure.com',
+      aiServicesEndpoint: 'https://acct-east.services.ai.azure.com',
+      apiKey: 'key-east',
+    });
+  });
+
   it('rejects unrelated text', () => {
     expect(() => parseDeploymentResultText('hello world')).toThrow(
       'No deployment result data found'

@@ -45,7 +45,7 @@ Tableau de bord local-first pour gerer comptes, regions, selection de modeles et
 
 ### Prerequis
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### Installation

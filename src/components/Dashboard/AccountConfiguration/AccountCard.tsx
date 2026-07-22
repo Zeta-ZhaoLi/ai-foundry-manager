@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +16,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
+import { AccountBillingFields } from './AccountBillingFields';
+import { AccountIdentitySection } from './AccountIdentitySection';
+import { AccountServicePrincipalSection } from './AccountServicePrincipalSection';
+import { AccountUsageSection } from './AccountUsageSection';
 import { SortableRegionCard } from './SortableRegionCard';
 import {
   AccountTier,
@@ -32,14 +36,9 @@ import { orderModelsByMaster, parseModels } from '../../../utils/common';
 import {
   buildAzureCliPowerShellMultiRegionDeploymentScript,
   buildAzureCliMultiRegionDeploymentScript,
-  getAzureCliDeploymentIdentity,
   resolveAzureCliDeploymentRows,
   toAzureCliDeploymentModels,
 } from '../../../utils/azureCliDeployment';
-import {
-  parseServicePrincipalJson,
-} from '../../../utils/servicePrincipal';
-
 export type LocalAccount = ImportedLocalAccount;
 
 export interface AccountCardProps {
@@ -94,20 +93,9 @@ export interface AccountCardProps {
   ) => void;
   onUpdateRegionEnabled: (regionId: string, enabled: boolean) => void;
   onReorderRegions?: (oldIndex: number, newIndex: number) => void;
+  initiallyExpanded?: boolean;
   onCopy: (text: string, label: string) => void;
 }
-
-// Quota options
-const QUOTA_OPTIONS: { value: AccountQuota; label: string }[] = [
-  { value: '200', label: '$200' },
-  { value: '1000', label: '$1,000' },
-  { value: '2000', label: '$2,000' },
-  { value: '5000', label: '$5,000' },
-  { value: '20000', label: '$20,000' },
-  { value: '25000', label: '$25,000' },
-  { value: '45000', label: '$45,000' },
-  { value: 'custom', label: '' }, // label will use i18n
-];
 
 export const AccountCard: React.FC<AccountCardProps> = ({
   account,
@@ -143,15 +131,17 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateRegionDeploymentModel,
   onUpdateRegionEnabled,
   onReorderRegions,
+  initiallyExpanded,
   onCopy,
 }) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(account.enabled);
-  const [servicePrincipalJson, setServicePrincipalJson] = useState('');
+  const [isExpanded, setIsExpanded] = useState(
+    initiallyExpanded ?? account.enabled !== false
+  );
   const [overwriteAzureCliDeployments, setOverwriteAzureCliDeployments] =
-    useState(true);
+    useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -180,58 +170,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     ? t('accounts.account') + ` ${index + 1}`
     : account.name || t('accounts.account') + ` ${index + 1}`;
 
-  const displayNote = privacyMode ? '***' : account.note;
-
   const resourceGroupName = account.resourceGroupName?.trim() || '';
-
-  const generatedResourceGroupName = useMemo(() => {
-    const firstRegion = account.regions.find((region) =>
-      (region.deployment?.resourceName || '').trim()
-    );
-    if (!firstRegion) return '';
-
-    const identity = getAzureCliDeploymentIdentity({
-      subscriptionId:
-        account.subscriptionId || '00000000-0000-0000-0000-000000000000',
-      resourceName: firstRegion.deployment?.resourceName || '',
-      location: firstRegion.name || '',
-      foundryProjectEndpoint: firstRegion.foundryProjectEndpoint || '',
-      models: [
-        {
-          deploymentName: 'placeholder',
-          modelName: 'placeholder',
-          modelFormat: 'OpenAI',
-          version: '1',
-        },
-      ],
-    });
-
-    return identity?.resourceGroup || '';
-  }, [account.regions, account.subscriptionId]);
-
-  const handleGenerateResourceGroupName = () => {
-    if (!generatedResourceGroupName) {
-      toast.error(t('regions.deployMissingFirstRegionResourceGroup'));
-      return;
-    }
-    onUpdateResourceGroupName?.(generatedResourceGroupName);
-    toast.success(t('accounts.resourceGroupGenerated'));
-  };
-
-  const handleImportServicePrincipal = () => {
-    const result = parseServicePrincipalJson(servicePrincipalJson);
-    if (!result.success || !result.credential) {
-      toast.error(
-        t('accounts.servicePrincipalImportFailed', {
-          msg: result.error || 'Invalid JSON',
-        })
-      );
-      return;
-    }
-    onUpdateServicePrincipal?.(result.credential);
-    setServicePrincipalJson('');
-    toast.success(t('accounts.servicePrincipalImported'));
-  };
 
   const handleAllRegionsAzureCliDeployCode = (
     mode: 'selected' | 'all',
@@ -259,9 +198,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           location: region.name || '',
           resourceGroupName,
           foundryProjectEndpoint: region.foundryProjectEndpoint || '',
-          label:
-            region.name ||
-            `${t('regions.region')} ${regionIndex + 1}`,
+          label: region.name || `${t('regions.region')} ${regionIndex + 1}`,
           models: toAzureCliDeploymentModels(
             resolveAzureCliDeploymentRows(
               sourceModels,
@@ -285,8 +222,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     }
 
     try {
-      const input = {
-        subscriptionId: account.subscriptionId,
+    const input = {
+      accountId: account.accountId,
+      subscriptionId: account.subscriptionId,
         servicePrincipal: account.servicePrincipal,
         accountEmail: account.name,
         resourceGroupName,
@@ -387,9 +325,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 <input
                   type="checkbox"
                   checked={account.enabled}
-                  onChange={(e) =>
-                    handleAccountEnabledChange(e.target.checked)
-                  }
+                  onChange={(e) => handleAccountEnabledChange(e.target.checked)}
                   className="cursor-pointer"
                 />
                 <span>{t('accounts.enableModels')}</span>
@@ -407,400 +343,38 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
           {isExpanded && (
             <>
-          {/* Account detail fields */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-            {/* Tier and account ID */}
-            <div className="md:col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.tier')}
-              </label>
-              <div className="flex items-center gap-2">
-                <select
-                  value={account.tier || 'standard'}
-                  onChange={(e) =>
-                    onUpdateTier?.(e.target.value as AccountTier)
-                  }
-                  className={clsx(
-                    'flex-1 px-2 py-1.5 rounded-lg',
-                    'border border-border bg-background text-foreground text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
-                    'cursor-pointer'
-                  )}
-                >
-                  <option value="premium">
-                    ⭐ {t('accounts.tierPremium')}
-                  </option>
-                  <option value="standard">{t('accounts.tierStandard')}</option>
-                </select>
-                {/* Account ID badge */}
-                {account.accountId && (
-                  <span
-                    title={t('accounts.accountIdTooltip')}
-                    className={clsx(
-                      'px-2 py-1 rounded text-xs font-mono font-bold whitespace-nowrap',
-                      account.tier === 'premium'
-                        ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
-                        : 'bg-muted text-muted-foreground border border-border'
-                    )}
-                  >
-                    {privacyMode
-                      ? account.accountId.replace(/\d/g, 'X')
-                      : account.accountId}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Account name */}
-            <div className="md:col-span-3">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.accountName')}
-              </label>
-              <input
-                className={clsx(
-                  'w-full p-1.5 rounded-lg',
-                  'border border-border bg-background text-foreground text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                )}
-                value={privacyMode ? displayName : account.name}
-                onChange={(e) => onUpdateName(e.target.value)}
-                placeholder={t('accounts.accountNamePlaceholder')}
-                disabled={privacyMode}
-              />
-            </div>
-
-            {/* Azure Subscription ID */}
-            <div className="md:col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.subscriptionId')}
-              </label>
-              <input
-                className={clsx(
-                  'w-full p-1.5 rounded-lg',
-                  'border border-border bg-background text-foreground text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                )}
-                value={privacyMode ? '***' : account.subscriptionId || ''}
-                onChange={(e) => onUpdateSubscriptionId?.(e.target.value)}
-                placeholder={t('accounts.subscriptionIdPlaceholder')}
-                disabled={privacyMode || !onUpdateSubscriptionId}
-              />
-            </div>
-
-            {/* Azure Resource Group */}
-            <div className="md:col-span-3">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.resourceGroupName')}
-              </label>
-              <div className="flex items-center gap-1">
-                <input
-                  className={clsx(
-                    'flex-1 min-w-0 p-1.5 rounded-lg',
-                    'border border-border bg-background text-foreground text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                  )}
-                  value={privacyMode ? '***' : account.resourceGroupName || ''}
-                  onChange={(e) =>
-                    onUpdateResourceGroupName?.(e.target.value)
-                  }
-                  placeholder={t('accounts.resourceGroupNamePlaceholder')}
-                  disabled={privacyMode || !onUpdateResourceGroupName}
+              {/* Account detail fields */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <AccountIdentitySection
+                  account={account}
+                  privacyMode={privacyMode}
+                  displayName={displayName}
+                  onUpdateName={onUpdateName}
+                  onUpdateSubscriptionId={onUpdateSubscriptionId}
+                  onUpdateResourceGroupName={onUpdateResourceGroupName}
+                  onUpdateTier={onUpdateTier}
                 />
-                <button
-                  type="button"
-                  disabled={privacyMode || !onUpdateResourceGroupName}
-                  onClick={handleGenerateResourceGroupName}
-                  className={clsx(
-                    'px-2 py-1.5 rounded-lg border text-xs whitespace-nowrap',
-                    privacyMode || !onUpdateResourceGroupName
-                      ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                      : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
-                  )}
-                >
-                  {t('accounts.generateResourceGroupName')}
-                </button>
-              </div>
-            </div>
-
-            {/* Service Principal */}
-            <div className="md:col-span-3">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.servicePrincipal')}
-              </label>
-              <div className="flex items-center gap-1">
-                <input
-                  className={clsx(
-                    'flex-1 min-w-0 p-1.5 rounded-lg',
-                    'border border-border bg-background text-foreground text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                  )}
-                  value={
-                    privacyMode
-                      ? account.servicePrincipal
-                        ? '***'
-                        : ''
-                      : servicePrincipalJson
-                  }
-                  onChange={(e) => setServicePrincipalJson(e.target.value)}
-                  placeholder={t('accounts.servicePrincipalJsonPlaceholder')}
-                  disabled={privacyMode || !onUpdateServicePrincipal}
+                <AccountServicePrincipalSection
+                  servicePrincipal={account.servicePrincipal}
+                  privacyMode={privacyMode}
+                  onUpdate={onUpdateServicePrincipal}
+                  onCopy={onCopy}
                 />
-                <button
-                  type="button"
-                  disabled={
-                    privacyMode ||
-                    !onUpdateServicePrincipal ||
-                    !servicePrincipalJson.trim()
-                  }
-                  onClick={handleImportServicePrincipal}
-                  className={clsx(
-                    'px-2 py-1.5 rounded-lg border text-xs whitespace-nowrap',
-                    privacyMode ||
-                      !onUpdateServicePrincipal ||
-                      !servicePrincipalJson.trim()
-                      ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                      : 'border-blue-500 bg-blue-900/20 text-blue-200 hover:bg-blue-900/30'
-                  )}
-                >
-                  {t('accounts.importServicePrincipal')}
-                </button>
-                {account.servicePrincipal && !privacyMode && (
-                  <button
-                    type="button"
-                    onClick={() => onUpdateServicePrincipal?.(undefined)}
-                    className="px-2 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    {t('common.clear')}
-                  </button>
-                )}
-              </div>
-              {account.servicePrincipal && (
-                <div className="mt-1 text-[11px] text-muted-foreground truncate">
-                  {privacyMode
-                    ? t('accounts.servicePrincipalConfigured')
-                    : [
-                        account.servicePrincipal.displayName,
-                        account.servicePrincipal.appId,
-                        account.servicePrincipal.tenant,
-                      ]
-                        .filter(Boolean)
-                        .join(' / ')}
-                </div>
-              )}
-            </div>
-
-            {/* Quota */}
-            <div className="md:col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.quota')}
-              </label>
-              <div className="flex items-center gap-1">
-                <select
-                  value={account.quota || '200'}
-                  onChange={(e) =>
-                    onUpdateQuota?.(e.target.value as AccountQuota)
-                  }
-                  className={clsx(
-                    'flex-1 px-2 py-1.5 rounded-lg',
-                    'border border-border bg-background text-foreground text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
-                    'cursor-pointer'
-                  )}
-                >
-                  {QUOTA_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.value === 'custom'
-                        ? t('accounts.quotaCustom')
-                        : opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Custom quota */}
-            {account.quota === 'custom' && (
-              <div className="md:col-span-1">
-                <label className="text-xs text-muted-foreground block mb-1">
-                  $
-                </label>
-                <input
-                  type="number"
-                  value={account.customQuota || ''}
-                  onChange={(e) =>
-                    onUpdateQuota?.('custom', Number(e.target.value))
-                  }
-                  placeholder="0"
-                  className={clsx(
-                    'w-full p-1.5 rounded-lg',
-                    'border border-border bg-background text-foreground text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                  )}
+                <AccountBillingFields
+                  account={account}
+                  privacyMode={privacyMode}
+                  onUpdateNote={onUpdateNote}
+                  onUpdateQuota={onUpdateQuota}
                 />
               </div>
-            )}
 
-            {/* Note */}
-            <div
-              className={
-                account.quota === 'custom' ? 'md:col-span-1' : 'md:col-span-2'
-              }
-            >
-              <label className="text-xs text-muted-foreground block mb-1">
-                {t('accounts.note')}
-              </label>
-              <input
-                className={clsx(
-                  'w-full p-1.5 rounded-lg',
-                  'border border-gray-700 bg-background text-foreground text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                )}
-                value={privacyMode ? displayNote : account.note || ''}
-                onChange={(e) => onUpdateNote(e.target.value)}
-                placeholder={t('accounts.notePlaceholder')}
-                disabled={privacyMode}
+              {/* Purchase and usage fields */}
+              <AccountUsageSection
+                account={account}
+                privacyMode={privacyMode}
+                onUpdatePurchase={onUpdatePurchase}
+                onUpdateUsedAmount={onUpdateUsedAmount}
               />
-            </div>
-          </div>
-
-          {/* Purchase and usage fields */}
-          {!privacyMode && (
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mt-3">
-              {/* Purchase amount */}
-              <div className="md:col-span-3">
-                <label className="text-xs text-muted-foreground block mb-1">
-                  {t('accounts.purchaseAmount')}
-                </label>
-                <div className="flex items-center gap-1">
-                  <select
-                    value={account.purchaseCurrency || 'USD'}
-                    onChange={(e) =>
-                      onUpdatePurchase?.(
-                        account.purchaseAmount || 0,
-                        e.target.value as CurrencyType
-                      )
-                    }
-                    className={clsx(
-                      'px-2 py-1.5 rounded-lg',
-                      'border border-gray-700 bg-background text-foreground text-sm',
-                      'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
-                      'cursor-pointer'
-                    )}
-                  >
-                    <option value="USD">$</option>
-                    <option value="CNY">¥</option>
-                  </select>
-                  <input
-                    type="number"
-                    value={account.purchaseAmount || ''}
-                    onChange={(e) =>
-                      onUpdatePurchase?.(
-                        Number(e.target.value),
-                        account.purchaseCurrency || 'USD'
-                      )
-                    }
-                    placeholder="0"
-                    className={clsx(
-                      'flex-1 p-1.5 rounded-lg',
-                      'border border-gray-700 bg-background text-foreground text-sm',
-                      'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Used quota */}
-              <div className="md:col-span-2">
-                <label className="text-xs text-muted-foreground block mb-1">
-                  {t('accounts.usedAmount')}
-                </label>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-muted-foreground">$</span>
-                  <input
-                    type="number"
-                    value={account.usedAmount ?? ''}
-                    onChange={(e) =>
-                      onUpdateUsedAmount?.(Number(e.target.value))
-                    }
-                    placeholder="0"
-                    className={clsx(
-                      'flex-1 p-1.5 rounded-lg',
-                      'border border-gray-700 bg-background text-foreground text-sm',
-                      'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Account cost */}
-              <div className="md:col-span-2">
-                <label className="text-xs text-muted-foreground block mb-1">
-                  {t('accounts.accountCost')}
-                </label>
-                <div className="p-1.5 rounded-lg border border-gray-700 bg-gray-800/50 text-sm text-muted-foreground">
-                  {(() => {
-                    const quota =
-                      account.quota === 'custom'
-                        ? account.customQuota || 0
-                        : Number(account.quota || 200);
-                    if (quota === 0 || !account.purchaseAmount) return '-';
-                    const cost = account.purchaseAmount / quota;
-                    const symbol =
-                      account.purchaseCurrency === 'CNY' ? '¥' : '$';
-                    return `${symbol}${cost.toFixed(2)}`;
-                  })()}
-                </div>
-              </div>
-
-              {/* Actual cost */}
-              <div className="md:col-span-2">
-                <label className="text-xs text-muted-foreground block mb-1">
-                  {t('accounts.actualCost')}
-                </label>
-                <div className="p-1.5 rounded-lg border border-gray-700 bg-gray-800/50 text-sm text-muted-foreground">
-                  {(() => {
-                    const used = account.usedAmount || 0;
-                    if (used === 0 || !account.purchaseAmount) return '-';
-                    const cost = account.purchaseAmount / used;
-                    const symbol =
-                      account.purchaseCurrency === 'CNY' ? '¥' : '$';
-                    return `${symbol}${cost.toFixed(2)}`;
-                  })()}
-                </div>
-              </div>
-
-              {/* Usage rate */}
-              <div className="md:col-span-3">
-                <label className="text-xs text-muted-foreground block mb-1">
-                  {t('accounts.usageRate')}
-                </label>
-                {(() => {
-                  const quota =
-                    account.quota === 'custom'
-                      ? account.customQuota || 0
-                      : Number(account.quota || 200);
-                  const used = account.usedAmount || 0;
-                  if (quota === 0)
-                    return <div className="text-xs text-gray-500">-</div>;
-                  const pct = Math.round((used / quota) * 100);
-                  const displayPct = Math.min(pct, 100);
-                  return (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 rounded-full bg-gray-700 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all bg-cyan-500"
-                          style={{ width: `${displayPct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        ${used}/${quota} ({pct}%)
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
             </>
           )}
         </div>
@@ -808,227 +382,237 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         {/* Regions */}
         {isExpanded && (
           <div className="mb-1.5">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-sm font-medium">{t('regions.regionList')}</div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <label
-                className={clsx(
-                  'inline-flex items-center gap-1.5 text-xs',
-                  privacyMode
-                    ? 'text-gray-500 cursor-not-allowed'
-                    : 'text-muted-foreground cursor-pointer'
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={overwriteAzureCliDeployments}
-                  disabled={privacyMode}
-                  onChange={(e) =>
-                    setOverwriteAzureCliDeployments(e.target.checked)
-                  }
-                  className="h-3.5 w-3.5"
-                />
-                <span>{t('regions.azureCliOverwriteExisting')}</span>
-              </label>
-              <div
-                className={clsx(
-                  'inline-flex items-center rounded-full border text-xs overflow-hidden',
-                  privacyMode || account.regions.length === 0
-                    ? 'border-gray-700 bg-gray-900/40 text-gray-500'
-                    : 'border-emerald-500 bg-emerald-900/20 text-emerald-200'
-                )}
-              >
-                <span className="px-2 py-0.5 border-r border-current/30">
-                  {t('regions.azureCliDeployAllRegionsCode')} (
-                </span>
-                <button
-                  type="button"
-                  disabled={privacyMode || account.regions.length === 0}
-                  aria-label={`${t('regions.azureCliDeployAllRegionsCode')} ${t(
-                    'regions.azureCliDeploySelected'
-                  )}`}
-                  onClick={() => handleAllRegionsAzureCliDeployCode('selected')}
-                  className={clsx(
-                    'px-1.5 py-0.5 transition-colors',
-                    privacyMode || account.regions.length === 0
-                      ? 'cursor-not-allowed text-gray-500'
-                      : 'cursor-pointer hover:bg-emerald-900/40'
-                  )}
-                >
-                  {t('regions.azureCliDeploySelected')}
-                </button>
-                <span className="text-current/60">|</span>
-                <button
-                  type="button"
-                  disabled={privacyMode || account.regions.length === 0}
-                  aria-label={`${t('regions.azureCliDeployAllRegionsCode')} ${t(
-                    'regions.azureCliDeployAll'
-                  )}`}
-                  onClick={() => handleAllRegionsAzureCliDeployCode('all')}
-                  className={clsx(
-                    'px-1.5 py-0.5 transition-colors',
-                    privacyMode || account.regions.length === 0
-                      ? 'cursor-not-allowed text-gray-500'
-                      : 'cursor-pointer hover:bg-emerald-900/40'
-                  )}
-                >
-                  {t('regions.azureCliDeployAll')}
-                </button>
-                <span className="text-current/60">|</span>
-                <button
-                  type="button"
-                  disabled={privacyMode || account.regions.length === 0}
-                  aria-label={`${t(
-                    'regions.azureCliDeployPowerShellCode'
-                  )} ${t('regions.azureCliDeploySelected')}`}
-                  onClick={() =>
-                    handleAllRegionsAzureCliDeployCode('selected', 'powershell')
-                  }
-                  className={clsx(
-                    'px-1.5 py-0.5 transition-colors',
-                    privacyMode || account.regions.length === 0
-                      ? 'cursor-not-allowed text-gray-500'
-                      : 'cursor-pointer hover:bg-emerald-900/40'
-                  )}
-                >
-                  PS {t('regions.azureCliDeploySelected')}
-                </button>
-                <span className="text-current/60">|</span>
-                <button
-                  type="button"
-                  disabled={privacyMode || account.regions.length === 0}
-                  aria-label={`${t('regions.azureCliDeployPowerShellCode')} ${t(
-                    'regions.azureCliDeployAll'
-                  )}`}
-                  onClick={() =>
-                    handleAllRegionsAzureCliDeployCode('all', 'powershell')
-                  }
-                  className={clsx(
-                    'px-1.5 py-0.5 transition-colors',
-                    privacyMode || account.regions.length === 0
-                      ? 'cursor-not-allowed text-gray-500'
-                      : 'cursor-pointer hover:bg-emerald-900/40'
-                  )}
-                >
-                  PS {t('regions.azureCliDeployAll')}
-                </button>
-                <span className="px-2 py-0.5 border-l border-current/30">
-                  )
-                </span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium">
+                {t('regions.regionList')}
               </div>
-              <button
-                type="button"
-                onClick={onAddRegion}
-                className={clsx(
-                  'px-2.5 py-0.5 rounded-full',
-                  'border border-cyan-500 bg-slate-900 text-cyan-200',
-                  'text-xs cursor-pointer hover:bg-slate-800'
-                )}
-              >
-                + {t('regions.addRegion')}
-              </button>
-            </div>
-          </div>
-
-          {account.regions.length === 0 ? (
-            <div className="text-xs text-gray-500">
-              {t('regions.noRegions')}
-            </div>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={account.regions.map((r) => r.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="flex flex-col gap-2 mt-1">
-                  {account.regions.map((region, regionIndex) => (
-                    <SortableRegionCard
-                      key={region.id}
-                      region={region}
-                      regionIndex={regionIndex}
-                      privacyMode={privacyMode}
-                      accountId={account.id}
-                      accountName={displayName}
-                      subscriptionId={account.subscriptionId || ''}
-                      servicePrincipal={account.servicePrincipal}
-                      azureCliResourceGroupName={resourceGroupName}
-                      masterGroups={masterGroups}
-                      masterGroupLines={masterGroupLines}
-                      masterModels={masterModels}
-                      filteredModels={filteredModels}
-                      onUpdateName={(name) =>
-                        onUpdateRegionName(region.id, name)
-                      }
-                      onUpdateModelsText={(text) =>
-                        onUpdateRegionModelsText(region.id, text)
-                      }
-                      onUpdateOpenaiEndpoint={(endpoint) =>
-                        onUpdateRegionOpenaiEndpoint(region.id, endpoint)
-                      }
-                      onUpdateFoundryProjectEndpoint={
-                        onUpdateRegionFoundryProjectEndpoint
-                          ? (endpoint: string) =>
-                              onUpdateRegionFoundryProjectEndpoint(
-                                region.id,
-                                endpoint
-                              )
-                          : undefined
-                      }
-                      onUpdateAiServicesEndpoint={
-                        onUpdateRegionAiServicesEndpoint
-                          ? (endpoint: string) =>
-                              onUpdateRegionAiServicesEndpoint(
-                                region.id,
-                                endpoint
-                              )
-                          : undefined
-                      }
-                      onUpdateAnthropicEndpoint={(endpoint) =>
-                        onUpdateRegionAnthropicEndpoint(region.id, endpoint)
-                      }
-                      onUpdateApiKey={(apiKey) =>
-                        onUpdateRegionApiKey(region.id, apiKey)
-                      }
-                      onUpdateDeployment={
-                        onUpdateRegionDeployment
-                          ? (patch) =>
-                              onUpdateRegionDeployment(region.id, patch)
-                          : undefined
-                      }
-                      onApplyGeneratedIdentity={
-                        onApplyGeneratedRegionIdentity
-                          ? (bundle) =>
-                              onApplyGeneratedRegionIdentity(region.id, bundle)
-                          : undefined
-                      }
-                      siblingResourceNames={account.regions
-                        .filter((item) => item.id !== region.id)
-                        .map((item) => item.deployment?.resourceName || '')}
-                      onUpdateDeploymentModel={
-                        onUpdateRegionDeploymentModel
-                          ? (modelName, patch) =>
-                              onUpdateRegionDeploymentModel(
-                                region.id,
-                                modelName,
-                                patch
-                              )
-                          : undefined
-                      }
-                      onUpdateEnabled={(enabled) =>
-                        onUpdateRegionEnabled(region.id, enabled)
-                      }
-                      onDelete={() => onDeleteRegion(region.id)}
-                      onCopy={onCopy}
-                    />
-                  ))}
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <label
+                  className={clsx(
+                    'inline-flex items-center gap-1.5 text-xs',
+                    privacyMode
+                      ? 'text-gray-500 cursor-not-allowed'
+                      : 'text-muted-foreground cursor-pointer'
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={overwriteAzureCliDeployments}
+                    disabled={privacyMode}
+                    onChange={(e) =>
+                      setOverwriteAzureCliDeployments(e.target.checked)
+                    }
+                    className="h-3.5 w-3.5"
+                  />
+                  <span>{t('regions.azureCliOverwriteExisting')}</span>
+                </label>
+                <div
+                  className={clsx(
+                    'inline-flex items-center rounded-full border text-xs overflow-hidden',
+                    privacyMode || account.regions.length === 0
+                      ? 'border-gray-700 bg-gray-900/40 text-gray-500'
+                      : 'border-emerald-500 bg-emerald-900/20 text-emerald-200'
+                  )}
+                >
+                  <span className="px-2 py-0.5 border-r border-current/30">
+                    {t('regions.azureCliDeployAllRegionsCode')} (
+                  </span>
+                  <button
+                    type="button"
+                    disabled={privacyMode || account.regions.length === 0}
+                    aria-label={`${t('regions.azureCliDeployAllRegionsCode')} ${t(
+                      'regions.azureCliDeploySelected'
+                    )}`}
+                    onClick={() =>
+                      handleAllRegionsAzureCliDeployCode('selected')
+                    }
+                    className={clsx(
+                      'px-1.5 py-0.5 transition-colors',
+                      privacyMode || account.regions.length === 0
+                        ? 'cursor-not-allowed text-gray-500'
+                        : 'cursor-pointer hover:bg-emerald-900/40'
+                    )}
+                  >
+                    {t('regions.azureCliDeploySelected')}
+                  </button>
+                  <span className="text-current/60">|</span>
+                  <button
+                    type="button"
+                    disabled={privacyMode || account.regions.length === 0}
+                    aria-label={`${t('regions.azureCliDeployAllRegionsCode')} ${t(
+                      'regions.azureCliDeployAll'
+                    )}`}
+                    onClick={() => handleAllRegionsAzureCliDeployCode('all')}
+                    className={clsx(
+                      'px-1.5 py-0.5 transition-colors',
+                      privacyMode || account.regions.length === 0
+                        ? 'cursor-not-allowed text-gray-500'
+                        : 'cursor-pointer hover:bg-emerald-900/40'
+                    )}
+                  >
+                    {t('regions.azureCliDeployAll')}
+                  </button>
+                  <span className="text-current/60">|</span>
+                  <button
+                    type="button"
+                    disabled={privacyMode || account.regions.length === 0}
+                    aria-label={`${t(
+                      'regions.azureCliDeployPowerShellCode'
+                    )} ${t('regions.azureCliDeploySelected')}`}
+                    onClick={() =>
+                      handleAllRegionsAzureCliDeployCode(
+                        'selected',
+                        'powershell'
+                      )
+                    }
+                    className={clsx(
+                      'px-1.5 py-0.5 transition-colors',
+                      privacyMode || account.regions.length === 0
+                        ? 'cursor-not-allowed text-gray-500'
+                        : 'cursor-pointer hover:bg-emerald-900/40'
+                    )}
+                  >
+                    PS {t('regions.azureCliDeploySelected')}
+                  </button>
+                  <span className="text-current/60">|</span>
+                  <button
+                    type="button"
+                    disabled={privacyMode || account.regions.length === 0}
+                    aria-label={`${t('regions.azureCliDeployPowerShellCode')} ${t(
+                      'regions.azureCliDeployAll'
+                    )}`}
+                    onClick={() =>
+                      handleAllRegionsAzureCliDeployCode('all', 'powershell')
+                    }
+                    className={clsx(
+                      'px-1.5 py-0.5 transition-colors',
+                      privacyMode || account.regions.length === 0
+                        ? 'cursor-not-allowed text-gray-500'
+                        : 'cursor-pointer hover:bg-emerald-900/40'
+                    )}
+                  >
+                    PS {t('regions.azureCliDeployAll')}
+                  </button>
+                  <span className="px-2 py-0.5 border-l border-current/30">
+                    )
+                  </span>
                 </div>
-              </SortableContext>
-            </DndContext>
-          )}
+                <button
+                  type="button"
+                  onClick={onAddRegion}
+                  className={clsx(
+                    'px-2.5 py-0.5 rounded-full',
+                    'border border-cyan-500 bg-slate-900 text-cyan-200',
+                    'text-xs cursor-pointer hover:bg-slate-800'
+                  )}
+                >
+                  + {t('regions.addRegion')}
+                </button>
+              </div>
+            </div>
+
+            {account.regions.length === 0 ? (
+              <div className="text-xs text-gray-500">
+                {t('regions.noRegions')}
+              </div>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={account.regions.map((r) => r.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="flex flex-col gap-2 mt-1">
+                    {account.regions.map((region, regionIndex) => (
+                      <SortableRegionCard
+                        key={region.id}
+                        region={region}
+                        regionIndex={regionIndex}
+                        privacyMode={privacyMode}
+                        accountId={account.accountId}
+                        accountName={displayName}
+                        subscriptionId={account.subscriptionId || ''}
+                        servicePrincipal={account.servicePrincipal}
+                        azureCliResourceGroupName={resourceGroupName}
+                        masterGroups={masterGroups}
+                        masterGroupLines={masterGroupLines}
+                        masterModels={masterModels}
+                        filteredModels={filteredModels}
+                        onUpdateName={(name) =>
+                          onUpdateRegionName(region.id, name)
+                        }
+                        onUpdateModelsText={(text) =>
+                          onUpdateRegionModelsText(region.id, text)
+                        }
+                        onUpdateOpenaiEndpoint={(endpoint) =>
+                          onUpdateRegionOpenaiEndpoint(region.id, endpoint)
+                        }
+                        onUpdateFoundryProjectEndpoint={
+                          onUpdateRegionFoundryProjectEndpoint
+                            ? (endpoint: string) =>
+                                onUpdateRegionFoundryProjectEndpoint(
+                                  region.id,
+                                  endpoint
+                                )
+                            : undefined
+                        }
+                        onUpdateAiServicesEndpoint={
+                          onUpdateRegionAiServicesEndpoint
+                            ? (endpoint: string) =>
+                                onUpdateRegionAiServicesEndpoint(
+                                  region.id,
+                                  endpoint
+                                )
+                            : undefined
+                        }
+                        onUpdateAnthropicEndpoint={(endpoint) =>
+                          onUpdateRegionAnthropicEndpoint(region.id, endpoint)
+                        }
+                        onUpdateApiKey={(apiKey) =>
+                          onUpdateRegionApiKey(region.id, apiKey)
+                        }
+                        onUpdateDeployment={
+                          onUpdateRegionDeployment
+                            ? (patch) =>
+                                onUpdateRegionDeployment(region.id, patch)
+                            : undefined
+                        }
+                        onApplyGeneratedIdentity={
+                          onApplyGeneratedRegionIdentity
+                            ? (bundle) =>
+                                onApplyGeneratedRegionIdentity(
+                                  region.id,
+                                  bundle
+                                )
+                            : undefined
+                        }
+                        siblingResourceNames={account.regions
+                          .filter((item) => item.id !== region.id)
+                          .map((item) => item.deployment?.resourceName || '')}
+                        onUpdateDeploymentModel={
+                          onUpdateRegionDeploymentModel
+                            ? (modelName, patch) =>
+                                onUpdateRegionDeploymentModel(
+                                  region.id,
+                                  modelName,
+                                  patch
+                                )
+                            : undefined
+                        }
+                        onUpdateEnabled={(enabled) =>
+                          onUpdateRegionEnabled(region.id, enabled)
+                        }
+                        onDelete={() => onDeleteRegion(region.id)}
+                        onCopy={onCopy}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
           </div>
         )}
       </div>

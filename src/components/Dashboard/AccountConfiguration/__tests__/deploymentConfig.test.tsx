@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../../i18n';
 import { AccountCard } from '../AccountCard';
-import { AccountsSection } from '../AccountsSection';
+import {
+  AccountsSection,
+  getDefaultCollapsedAccountIds,
+} from '../AccountsSection';
 import { DefaultRegionModelTemplatePanel } from '../DefaultRegionModelTemplatePanel';
 import { RegionCard } from '../RegionCard';
 import type {
@@ -37,6 +40,36 @@ describe('deployment configuration contract', () => {
     vi.restoreAllMocks();
   });
 
+  it('marks only consecutive runs of three or more disabled accounts for default collapse', () => {
+    const makeAccount = (id: string, enabled: boolean): LocalAccount => ({
+      id,
+      name: id,
+      enabled,
+      note: '',
+      regions: [],
+    });
+
+    const accounts = [
+      makeAccount('disabled-1', false),
+      makeAccount('disabled-2', false),
+      makeAccount('enabled-1', true),
+      makeAccount('disabled-3', false),
+      makeAccount('disabled-4', false),
+      makeAccount('disabled-5', false),
+      makeAccount('disabled-6', false),
+      makeAccount('enabled-2', true),
+      makeAccount('disabled-7', false),
+      makeAccount('disabled-8', false),
+    ].map((account) => ({ account }));
+
+    expect([...getDefaultCollapsedAccountIds(accounts)]).toEqual([
+      'disabled-3',
+      'disabled-4',
+      'disabled-5',
+      'disabled-6',
+    ]);
+  });
+
   it('imports deployment result text from paste UI', async () => {
     const onImportDeploymentResult = vi.fn(() => ({
       success: true,
@@ -61,9 +94,11 @@ describe('deployment configuration contract', () => {
           onAddDefaultRegionModelTemplateRegion={vi.fn()}
           onDeleteDefaultRegionModelTemplateRegion={vi.fn()}
           onUpdateDefaultRegionModelTemplateRegionName={vi.fn()}
+          onUpdateDefaultRegionModelTemplateRegionEnabled={vi.fn()}
           onUpdateDefaultRegionModelTemplateRegionModelsText={vi.fn()}
           onReorderDefaultRegionModelTemplateRegions={vi.fn()}
           onExportConfig={vi.fn()}
+          onExportPlaintextConfig={vi.fn()}
           onImportDeploymentResult={onImportDeploymentResult}
           onUpdateAccountName={vi.fn()}
           onUpdateAccountSubscriptionId={vi.fn()}
@@ -254,7 +289,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*所有区域.*全部|Deploy all regions with Azure CLI.*All/i,
+        name: `${i18n.t('regions.azureCliDeployAllRegionsCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
@@ -332,7 +369,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*所有区域.*选中|Deploy all regions with Azure CLI.*Selected/i,
+        name: `${i18n.t('regions.azureCliDeployAllRegionsCode')} ${i18n.t(
+          'regions.azureCliDeploySelected'
+        )}`,
       })
     );
 
@@ -463,7 +502,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*鎵€鏈夊尯鍩?*鍏ㄩ儴|Deploy all regions with Azure CLI.*All/i,
+        name: `${i18n.t('regions.azureCliDeployAllRegionsCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
@@ -518,7 +559,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*鎵€鏈夊尯鍩?*鍏ㄩ儴|Deploy all regions with Azure CLI.*All/i,
+        name: `${i18n.t('regions.azureCliDeployAllRegionsCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
@@ -572,17 +615,22 @@ describe('deployment configuration contract', () => {
       </I18nextProvider>
     );
 
-    fireEvent.click(
-      getAllByLabelText(i18n.t('regions.azureCliOverwriteExisting'))[0]
-    );
+    const overwriteCheckbox = getAllByLabelText(
+      i18n.t('regions.azureCliOverwriteExisting')
+    )[0] as HTMLInputElement;
+    expect(overwriteCheckbox.checked).toBe(false);
+    fireEvent.click(overwriteCheckbox);
+    expect(overwriteCheckbox.checked).toBe(true);
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*所有区域.*全部|Deploy all regions with Azure CLI.*All/i,
+        name: `${i18n.t('regions.azureCliDeployAllRegionsCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
     const copied = onCopy.mock.calls[0][0] as string;
-    expect(copied).toContain('OVERWRITE_EXISTING="${OVERWRITE_EXISTING:-false}"');
+    expect(copied).toContain('OVERWRITE_EXISTING="${OVERWRITE_EXISTING:-true}"');
   });
 
   it('imports Service Principal JSON and uses it for account-level deployment without subscriptionId', () => {
@@ -639,6 +687,21 @@ describe('deployment configuration contract', () => {
     );
 
     expect(getByText(/azure-cli \/ app-id \/ tenant-id/)).toBeTruthy();
+    fireEvent.click(
+      getByText(i18n.t('accounts.copyServicePrincipalCode'))
+    );
+    expect(onCopy).toHaveBeenCalledWith(
+      [
+        'SUBSCRIPTION_ID=$(az account show --query id -o tsv)',
+        '',
+        'az ad sp create-for-rbac \\',
+        '  --name ai-foundry-manager-deploy \\',
+        '  --role Contributor \\',
+        '  --scopes /subscriptions/$SUBSCRIPTION_ID',
+      ].join('\n'),
+      i18n.t('accounts.copyServicePrincipalCode')
+    );
+    onCopy.mockClear();
     fireEvent.change(
       getByPlaceholderText(i18n.t('accounts.servicePrincipalJsonPlaceholder')),
       {
@@ -661,7 +724,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*所有区域.*全部|Deploy all regions with Azure CLI.*All/i,
+        name: `${i18n.t('regions.azureCliDeployAllRegionsCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
@@ -718,7 +783,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /Azure CLI.*鎵€鏈夊尯鍩?*鍏ㄩ儴|Deploy all regions with Azure CLI.*All/i,
+        name: `${i18n.t('regions.azureCliDeployAllRegionsCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
@@ -1141,7 +1208,7 @@ describe('deployment configuration contract', () => {
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
-    const json = JSON.parse(copied) as any;
+    const json = JSON.parse(copied);
     expect(json.parameters.resourceName.defaultValue).toBe(
       'my-account-resource'
     );
@@ -1198,7 +1265,7 @@ describe('deployment configuration contract', () => {
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
-    const json = JSON.parse(copied) as any;
+    const json = JSON.parse(copied);
     expect(json.parameters.projectName.defaultValue).toBe(
       'sample-custom-project'
     );
@@ -1246,7 +1313,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /^Azure CLI (部署代码|deployment code).*全部$|^Azure CLI deployment code.*All$/i,
+        name: `${i18n.t('regions.azureCliDeployCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
@@ -1298,7 +1367,9 @@ describe('deployment configuration contract', () => {
 
     fireEvent.click(
       getByRole('button', {
-        name: /^Azure CLI (閮ㄧ讲浠ｇ爜|deployment code).*鍏ㄩ儴$|^Azure CLI deployment code.*All$/i,
+        name: `${i18n.t('regions.azureCliDeployCode')} ${i18n.t(
+          'regions.azureCliDeployAll'
+        )}`,
       })
     );
 
@@ -1820,7 +1891,7 @@ describe('deployment configuration contract', () => {
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
-    const json = JSON.parse(copied) as any;
+    const json = JSON.parse(copied);
     expect(json.variables.modelDeployments).toHaveLength(1);
     expect(json.variables.modelDeployments[0].deploymentName).toBe(
       'gpt-5.1-2025-11-13'
@@ -1906,7 +1977,7 @@ describe('deployment configuration contract', () => {
 
     expect(onCopy).toHaveBeenCalledTimes(1);
     const copied = onCopy.mock.calls[0][0] as string;
-    const json = JSON.parse(copied) as any;
+    const json = JSON.parse(copied);
     expect(json.variables.modelDeployments[0].modelFormat).toBe('DeepSeek');
   });
 
@@ -2310,16 +2381,32 @@ describe('deployment configuration contract', () => {
   });
 
   it('keeps the default region model template panel collapsed until opened', () => {
+    const onUpdateRegionEnabled = vi.fn();
     const template: DefaultRegionModelTemplateConfig = {
       enabled: true,
       regions: [
-        { id: 'template-1', name: 'eastus2', modelsText: '' },
-        { id: 'template-2', name: 'swedencentral', modelsText: '' },
-        { id: 'template-3', name: 'polandcentral', modelsText: '' },
+        { id: 'template-1', name: 'eastus2', modelsText: '', enabled: true },
+        {
+          id: 'template-2',
+          name: 'swedencentral',
+          modelsText: '',
+          enabled: true,
+        },
+        {
+          id: 'template-3',
+          name: 'polandcentral',
+          modelsText: '',
+          enabled: true,
+        },
       ],
     };
 
-    const { getByText, queryByDisplayValue, getByDisplayValue } = render(
+    const {
+      getByText,
+      queryByDisplayValue,
+      getByDisplayValue,
+      getAllByLabelText,
+    } = render(
       <I18nextProvider i18n={i18n}>
         <DefaultRegionModelTemplatePanel
           template={template}
@@ -2331,6 +2418,7 @@ describe('deployment configuration contract', () => {
           onAddRegion={vi.fn()}
           onDeleteRegion={vi.fn()}
           onUpdateRegionName={vi.fn()}
+          onUpdateRegionEnabled={onUpdateRegionEnabled}
           onUpdateRegionModelsText={vi.fn()}
           onReorderRegions={vi.fn()}
           onCopy={vi.fn()}
@@ -2345,6 +2433,8 @@ describe('deployment configuration contract', () => {
     expect(getByDisplayValue('eastus2')).toBeTruthy();
     expect(getByDisplayValue('swedencentral')).toBeTruthy();
     expect(getByDisplayValue('polandcentral')).toBeTruthy();
+    fireEvent.click(getAllByLabelText(i18n.t('regions.enableRegion'))[0]);
+    expect(onUpdateRegionEnabled).toHaveBeenCalledWith('template-1', false);
   });
 
   it('supports paste, select all, clear, and copy in template regions', async () => {
@@ -2357,6 +2447,7 @@ describe('deployment configuration contract', () => {
           id: 'template-1',
           name: 'eastus2',
           modelsText: 'gpt-4o',
+          enabled: true,
         },
       ],
     };
@@ -2379,6 +2470,7 @@ describe('deployment configuration contract', () => {
           onAddRegion={vi.fn()}
           onDeleteRegion={vi.fn()}
           onUpdateRegionName={vi.fn()}
+          onUpdateRegionEnabled={vi.fn()}
           onUpdateRegionModelsText={onUpdateRegionModelsText}
           onReorderRegions={vi.fn()}
           onCopy={onCopy}

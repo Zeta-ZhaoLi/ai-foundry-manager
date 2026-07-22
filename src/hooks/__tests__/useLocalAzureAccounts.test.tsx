@@ -1,8 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { PropsWithChildren } from 'react';
 import { useLocalAzureAccounts } from '../useLocalAzureAccounts';
+import { VaultProvider } from '../../contexts/VaultContext';
+import {
+  createInitialConfigData,
+  normalizeAccounts,
+} from '../../persistence/config';
+import type { ConfigDataV2 } from '../../schemas/account';
 
-const STORAGE_KEY = 'ai-foundry-manager:accounts';
+function renderAccountsHook(initialData: ConfigDataV2 = createInitialConfigData()) {
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <VaultProvider initialData={initialData}>{children}</VaultProvider>
+  );
+  return renderHook(() => useLocalAzureAccounts(), { wrapper });
+}
 
 describe('useLocalAzureAccounts resourceName migration', () => {
   beforeEach(() => {
@@ -10,22 +22,23 @@ describe('useLocalAzureAccounts resourceName migration', () => {
   });
 
   it('initializes the default region model template enabled with three empty regions', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
     });
 
     expect(result.current.defaultRegionModelTemplate.enabled).toBe(true);
-    expect(
+      expect(
       result.current.defaultRegionModelTemplate.regions.map((region) => ({
         name: region.name,
         modelsText: region.modelsText,
+        enabled: region.enabled,
       }))
     ).toEqual([
-      { name: 'eastus2', modelsText: '' },
-      { name: 'swedencentral', modelsText: '' },
-      { name: 'polandcentral', modelsText: '' },
+      { name: 'eastus2', modelsText: '', enabled: true },
+      { name: 'swedencentral', modelsText: '', enabled: true },
+      { name: 'polandcentral', modelsText: '', enabled: true },
     ]);
   });
 
@@ -42,9 +55,9 @@ describe('useLocalAzureAccounts resourceName migration', () => {
         ],
       },
     ];
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(legacy));
-
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const initial = createInitialConfigData();
+    initial.accounts = normalizeAccounts(legacy);
+    const { result } = renderAccountsHook(initial);
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -53,7 +66,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     const [account] = result.current.accounts;
     expect(account.regions[0].deployment?.resourceName).toBe('legacy-aoai');
     expect(account.regions[1].deployment?.resourceName).toBe('legacy-aoai');
-    expect((account as any).deployment).toBeUndefined();
+    expect('deployment' in account).toBe(false);
   });
 
   it('preserves explicit region resourceName while migrating missing regions', async () => {
@@ -79,9 +92,9 @@ describe('useLocalAzureAccounts resourceName migration', () => {
         ],
       },
     ];
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(mixed));
-
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const initial = createInitialConfigData();
+    initial.accounts = normalizeAccounts(mixed);
+    const { result } = renderAccountsHook(initial);
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -93,7 +106,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
   });
 
   it('creates new accounts disabled with default quota and regions', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -117,7 +130,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
   });
 
   it('creates new accounts from the latest enabled template order and model lists', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -127,6 +140,10 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       result.current.defaultRegionModelTemplate.regions;
 
     act(() => {
+      result.current.updateDefaultRegionModelTemplateRegionEnabled(
+        sweden.id,
+        false
+      );
       result.current.updateDefaultRegionModelTemplateRegionModelsText(
         eastus2.id,
         'gpt-4o,gpt-4o-mini'
@@ -153,10 +170,15 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       'gpt-4o,gpt-4o-mini',
       '',
     ]);
+    expect(account?.regions.map((region) => region.enabled)).toEqual([
+      false,
+      true,
+      true,
+    ]);
   });
 
   it('keeps template region order but clears models when the template is disabled', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -189,7 +211,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
   });
 
   it('creates new accounts with no regions when the template region list is empty', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -209,7 +231,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
   });
 
   it('updates account resource group name', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -221,15 +243,10 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     });
 
     expect(result.current.accounts[0].resourceGroupName).toBe('rg-custom');
-
-    await waitFor(() => {
-      const raw = window.localStorage.getItem(STORAGE_KEY) || '';
-      expect(raw).toContain('rg-custom');
-    });
   });
 
-  it('encrypts Service Principal password at rest and decrypts on load', async () => {
-    const { result, unmount } = renderHook(() => useLocalAzureAccounts());
+  it('updates Service Principal credentials in vault-backed state', async () => {
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -245,26 +262,13 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       });
     });
 
-    await waitFor(() => {
-      const raw = window.localStorage.getItem(STORAGE_KEY) || '';
-      expect(raw).toContain('azure-cli');
-      expect(raw).not.toContain('plain-secret');
-    });
-
-    unmount();
-    const reloaded = renderHook(() => useLocalAzureAccounts());
-
-    await waitFor(() => {
-      expect(reloaded.result.current.accounts.length).toBe(1);
-    });
-
     expect(
-      reloaded.result.current.accounts[0].servicePrincipal?.password
+      result.current.accounts[0].servicePrincipal?.password
     ).toBe('plain-secret');
   });
 
   it('imports deployment result subscription ID and API keys into matched regions', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -299,7 +303,7 @@ AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END
   });
 
   it('adds missing regions under a matched deployment result account', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);
@@ -338,7 +342,7 @@ AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END
   });
 
   it('returns an error when deployment result has no matching account', async () => {
-    const { result } = renderHook(() => useLocalAzureAccounts());
+    const { result } = renderAccountsHook();
 
     await waitFor(() => {
       expect(result.current.accounts.length).toBe(1);

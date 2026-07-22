@@ -6,17 +6,20 @@ import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary/ErrorBoundary';
 import { ToastProvider } from './components/Toast/ToastProvider';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { NotificationProvider } from './components/Notification';
+import { VaultProvider } from './contexts/VaultContext';
+import { VaultGate } from './components/Vault';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <NotificationProvider position="top-right">
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </NotificationProvider>
+        <VaultProvider>
+          <VaultGate>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </VaultGate>
+        </VaultProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </React.StrictMode>,

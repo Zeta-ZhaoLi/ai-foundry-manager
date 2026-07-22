@@ -45,7 +45,7 @@ Panel local-first para gestionar cuentas, regiones, seleccion de modelos y expor
 
 ### Requisitos
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### Instalacion

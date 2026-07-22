@@ -21,6 +21,14 @@ import { DefaultRegionModelTemplatePanel } from './DefaultRegionModelTemplatePan
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { EmptyState, NoAccountIcon } from '../../ui/EmptyState';
 import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+} from '../../ui';
+import {
   AccountTier,
   AccountQuota,
   CurrencyType,
@@ -33,6 +41,31 @@ import {
 } from '../../../hooks/useLocalAzureAccounts';
 import { useToast } from '../../../hooks/useToast';
 import { parseModels } from '../../../utils/common';
+
+export function getDefaultCollapsedAccountIds(
+  sortedAccounts: Array<{ account: LocalAccount }>
+): Set<string> {
+  const collapsedIds = new Set<string>();
+  let disabledRun: string[] = [];
+
+  const flushRun = () => {
+    if (disabledRun.length >= 3) {
+      disabledRun.forEach((id) => collapsedIds.add(id));
+    }
+    disabledRun = [];
+  };
+
+  for (const { account } of sortedAccounts) {
+    if (account.enabled === false) {
+      disabledRun.push(account.id);
+    } else {
+      flushRun();
+    }
+  }
+  flushRun();
+
+  return collapsedIds;
+}
 
 export interface AccountsSectionProps {
   accounts: LocalAccount[];
@@ -52,6 +85,10 @@ export interface AccountsSectionProps {
     regionId: string,
     name: string
   ) => void;
+  onUpdateDefaultRegionModelTemplateRegionEnabled: (
+    regionId: string,
+    enabled: boolean
+  ) => void;
   onUpdateDefaultRegionModelTemplateRegionModelsText: (
     regionId: string,
     modelsText: string
@@ -60,8 +97,18 @@ export interface AccountsSectionProps {
     oldIndex: number,
     newIndex: number
   ) => void;
-  onExportConfig: () => void;
-  onImportConfig?: (jsonString: string) => { success: boolean; error?: string };
+  onExportConfig: (
+    password: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  onExportPlaintextConfig: () => void;
+  onImportConfig?: (
+    jsonString: string,
+    password?: string
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    requiresPassword?: boolean;
+  }>;
   onImportDeploymentResult?: (text: string) => DeploymentResultImportSummary;
   onRenumberAccounts?: () => void;
   onUpdateAccountName: (accountId: string, name: string) => void;
@@ -178,9 +225,11 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onAddDefaultRegionModelTemplateRegion,
   onDeleteDefaultRegionModelTemplateRegion,
   onUpdateDefaultRegionModelTemplateRegionName,
+  onUpdateDefaultRegionModelTemplateRegionEnabled,
   onUpdateDefaultRegionModelTemplateRegionModelsText,
   onReorderDefaultRegionModelTemplateRegions,
   onExportConfig,
+  onExportPlaintextConfig,
   onImportConfig,
   onImportDeploymentResult,
   onRenumberAccounts,
@@ -216,6 +265,16 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   const { t } = useTranslation();
   const toast = useToast();
   const [showExportWarning, setShowExportWarning] = useState(false);
+  const [showEncryptedExport, setShowEncryptedExport] = useState(false);
+  const [exportPassword, setExportPassword] = useState('');
+  const [exportPasswordConfirmation, setExportPasswordConfirmation] =
+    useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [pendingImport, setPendingImport] = useState<string | null>(null);
+  const [importPassword, setImportPassword] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [showRenumberConfirm, setShowRenumberConfirm] = useState(false);
   const [showDeploymentResultImport, setShowDeploymentResultImport] =
     useState(false);
@@ -234,7 +293,30 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
 
   const handleExport = () => {
     setShowExportWarning(false);
-    onExportConfig();
+    onExportPlaintextConfig();
+  };
+
+  const handleEncryptedExport = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setExportError(null);
+    if (exportPassword.length < 12) {
+      setExportError(t('vault.passwordLength'));
+      return;
+    }
+    if (exportPassword !== exportPasswordConfirmation) {
+      setExportError(t('vault.mismatch'));
+      return;
+    }
+    setExporting(true);
+    const result = await onExportConfig(exportPassword);
+    setExporting(false);
+    if (!result.success) {
+      setExportError(result.error || t('toast.exportFailed'));
+      return;
+    }
+    setShowEncryptedExport(false);
+    setExportPassword('');
+    setExportPasswordConfirmation('');
   };
 
   const handleRenumber = () => {
@@ -255,11 +337,15 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
           const jsonString = event.target?.result as string;
-          const result = onImportConfig(jsonString);
+          const result = await onImportConfig(jsonString);
           if (result.success) {
             toast.success(t('toast.configImported'));
+          } else if (result.requiresPassword) {
+            setPendingImport(jsonString);
+            setImportPassword('');
+            setImportError(null);
           } else {
             toast.error(
               t('toast.configImportFailed') +
@@ -274,6 +360,22 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
       }
     };
     input.click();
+  };
+
+  const handleEncryptedImport = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!onImportConfig || !pendingImport) return;
+    setImporting(true);
+    setImportError(null);
+    const result = await onImportConfig(pendingImport, importPassword);
+    setImporting(false);
+    if (!result.success) {
+      setImportError(result.error || t('toast.configImportFailed'));
+      return;
+    }
+    setPendingImport(null);
+    setImportPassword('');
+    toast.success(t('toast.configImported'));
   };
 
   const showDeploymentResultSummary = (result: DeploymentResultImportSummary) => {
@@ -337,6 +439,10 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         return a.originalIndex - b.originalIndex;
       });
   }, [accounts]);
+
+  const defaultCollapsedAccountIds = useMemo(() => {
+    return getDefaultCollapsedAccountIds(sortedAccounts);
+  }, [sortedAccounts]);
 
   // Filter accounts based on model search
   const filteredAccounts = useMemo(() => {
@@ -431,14 +537,25 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
             )}
             <button
               type="button"
-              onClick={() => setShowExportWarning(true)}
+              onClick={() => setShowEncryptedExport(true)}
               className={clsx(
                 'px-3 py-1.5 rounded-full',
                 'border border-border bg-background text-foreground',
                 'text-xs cursor-pointer hover:bg-muted transition-colors'
               )}
             >
-              {t('accounts.exportConfig')}
+              {t('vault.encryptedExport')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowExportWarning(true)}
+              className={clsx(
+                'px-3 py-1.5 rounded-full',
+                'border border-border bg-background text-muted-foreground',
+                'text-xs cursor-pointer hover:bg-muted transition-colors'
+              )}
+            >
+              {t('vault.plaintextExport')}
             </button>
           </div>
         </div>
@@ -453,6 +570,9 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
           onAddRegion={onAddDefaultRegionModelTemplateRegion}
           onDeleteRegion={onDeleteDefaultRegionModelTemplateRegion}
           onUpdateRegionName={onUpdateDefaultRegionModelTemplateRegionName}
+          onUpdateRegionEnabled={
+            onUpdateDefaultRegionModelTemplateRegionEnabled
+          }
           onUpdateRegionModelsText={
             onUpdateDefaultRegionModelTemplateRegionModelsText
           }
@@ -512,6 +632,11 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                     key={account.id}
                     account={account}
                     index={originalIndex}
+                    initiallyExpanded={
+                      defaultCollapsedAccountIds.has(account.id)
+                        ? false
+                        : account.enabled !== false
+                    }
                     privacyMode={privacyMode}
                     masterGroups={masterGroups}
                     masterGroupLines={masterGroupLines}
@@ -684,6 +809,95 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
           </DndContext>
         )}
       </section>
+
+      <Dialog
+        open={showEncryptedExport}
+        onOpenChange={setShowEncryptedExport}
+      >
+        <DialogContent
+          size="md"
+          onClose={() => setShowEncryptedExport(false)}
+        >
+          <DialogHeader>
+            <DialogTitle>{t('vault.encryptedExport')}</DialogTitle>
+          </DialogHeader>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t('vault.encryptedExportDescription')}
+          </p>
+          <form className="mt-4 space-y-4" onSubmit={handleEncryptedExport}>
+            <Input
+              type="password"
+              autoComplete="new-password"
+              label={t('vault.backupPassword')}
+              value={exportPassword}
+              onChange={(event) => setExportPassword(event.target.value)}
+            />
+            <Input
+              type="password"
+              autoComplete="new-password"
+              label={t('vault.confirmBackupPassword')}
+              value={exportPasswordConfirmation}
+              onChange={(event) =>
+                setExportPasswordConfirmation(event.target.value)
+              }
+            />
+            {exportError && (
+              <p role="alert" className="text-sm text-red-500">
+                {exportError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowEncryptedExport(false)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" loading={exporting}>
+                {t('accounts.exportConfig')}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pendingImport !== null}
+        onOpenChange={(open) => !open && setPendingImport(null)}
+      >
+        <DialogContent size="md" onClose={() => setPendingImport(null)}>
+          <DialogHeader>
+            <DialogTitle>{t('vault.encryptedImport')}</DialogTitle>
+          </DialogHeader>
+          <form className="mt-4 space-y-4" onSubmit={handleEncryptedImport}>
+            <Input
+              type="password"
+              autoComplete="current-password"
+              label={t('vault.backupPassword')}
+              value={importPassword}
+              onChange={(event) => setImportPassword(event.target.value)}
+            />
+            {importError && (
+              <p role="alert" className="text-sm text-red-500">
+                {importError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setPendingImport(null)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" loading={importing}>
+                {t('accounts.importConfig')}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Export security warning */}
       <ConfirmDialog

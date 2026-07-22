@@ -7,8 +7,8 @@ Languages: [English](README.md) | [中文](README.zh-CN.md) | [日本語](README
 ## 概览
 
 - 纯前端应用（React + Vite），无需后端
-- 所有数据保存在浏览器 `localStorage`
-- 敏感信息在本地存储前会加密
+- 业务配置存储在浏览器的加密保险库中
+- 保险库由用户口令保护，页面重新加载后需要再次解锁
 - 面向多账号、多区域的模型配置场景
 
 ## 核心功能
@@ -45,7 +45,7 @@ Languages: [English](README.md) | [中文](README.zh-CN.md) | [日本語](README
 
 ### 环境要求
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### 安装
@@ -55,6 +55,8 @@ git clone https://github.com/Zeta-ZhaoLi/ai-foundry-manager.git
 cd ai-foundry-manager
 npm install
 ```
+
+首次打开时需要设置至少 12 个字符的保险库口令。旧版配置仅在成功解密并通过校验后迁移。
 
 ### 启动开发
 
@@ -81,12 +83,12 @@ npm run preview
 
 ## 数据与安全
 
-- 本地存储键：
-  - `ai-foundry-manager:accounts`
-  - `ai-foundry-manager:master-models`
-  - `ai-foundry-manager:theme`
-  - `ai-foundry-manager:lang`
-- 敏感字段（如 API Key）会在本地加密后保存。
+- 账号、Endpoint、模型、API Key 和 Service Principal 数据使用
+  PBKDF2-SHA-256 与 AES-256-GCM 加密在 `ai-foundry-manager:vault:v2` 中。
+- 保险库口令与派生密钥只保留在当前页面内存，不会写入存储。
+- 页面重新加载或手动锁定后需要再次输入口令；忘记口令后应用无法恢复数据。
+- 配置默认导出为使用独立口令保护的加密备份；明文导出仅作为显式高级恢复操作。
+- 旧版账号原始数据会保留到迁移成功，损坏或无法解密的数据不会被默认配置覆盖。
 - 隐私模式可在共享屏幕时隐藏敏感信息。
 
 ## 可选/内部集成说明
@@ -103,8 +105,10 @@ npm run preview
 ```bash
 npm run dev
 npm run lint
-npm run test
+npm run test:run
 npm run build
+npm run verify
+npm run test:coverage
 ```
 
 ## 项目结构（主要）

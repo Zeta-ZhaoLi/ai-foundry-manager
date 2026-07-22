@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocalAzureAccounts } from '../hooks/useLocalAzureAccounts';
 import { useToast } from '../hooks/useToast';
@@ -22,14 +22,35 @@ import { ModelOverviewTable, ModelState } from './Dashboard/ModelOverviewTable';
 import { ModelStatisticsTable } from './Dashboard/ModelStatisticsTable';
 import { AccountsSection } from './Dashboard/AccountConfiguration/AccountsSection';
 import { TableDetailDialog } from './ui/TableDetailDialog';
-
+import { createConfigEnvelope } from '../persistence/config';
 import {
-  loadInitialMasterModelsText,
-  MASTER_MODELS_STORAGE_KEY,
-} from '../utils/masterModelsStorage';
+  createVaultEnvelope,
+  decryptVaultEnvelope,
+  isVaultEnvelope,
+} from '../security/vault';
 
 export interface AzureModelsDashboardProps {
   privacyMode?: boolean;
+}
+
+export interface ConfigTransferResult {
+  success: boolean;
+  error?: string;
+  requiresPassword?: boolean;
+}
+
+function downloadJson(value: unknown, filename: string): void {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: 'application/json;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
@@ -40,15 +61,17 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
 
   const {
     accounts,
+    masterText,
+    updateMasterText,
     defaultRegionModelTemplate,
     addAccount,
     updateDefaultRegionModelTemplateEnabled,
     addDefaultRegionModelTemplateRegion,
     deleteDefaultRegionModelTemplateRegion,
     updateDefaultRegionModelTemplateRegionName,
+    updateDefaultRegionModelTemplateRegionEnabled,
     updateDefaultRegionModelTemplateRegionModelsText,
     reorderDefaultRegionModelTemplateRegions,
-    importDefaultRegionModelTemplate,
     updateAccountName,
     updateAccountSubscriptionId,
     updateAccountResourceGroupName,
@@ -80,33 +103,6 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     importConfig,
     importDeploymentResultText,
   } = useLocalAzureAccounts();
-
-  // Master models state
-  const [masterText, setMasterText] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      const result = loadInitialMasterModelsText(window.localStorage);
-      if (result.source === 'legacy') {
-        console.log(
-          '[Migration] Migrating master models from legacy key to new key'
-        );
-        console.log(
-          '[Migration] Master models migration completed successfully'
-        );
-      }
-      return result.text;
-    } catch {
-      return '';
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(MASTER_MODELS_STORAGE_KEY, masterText);
-    } catch {
-      // ignore
-    }
-  }, [masterText]);
 
   // Filter state with debounce
   const [modelFilterInput, setModelFilterInput] = useState('');
@@ -348,71 +344,75 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     [toast, t]
   );
 
-  const handleExportConfig = useCallback(() => {
+  const currentConfig = useMemo(
+    () => ({
+      version: 2 as const,
+      accounts,
+      masterText,
+      defaultRegionModelTemplate,
+    }),
+    [accounts, defaultRegionModelTemplate, masterText]
+  );
+
+  const handleExportConfig = useCallback(async (password: string) => {
     try {
-      const payload = JSON.stringify(
-        { accounts, masterText, defaultRegionModelTemplate },
-        null,
-        2
+      const config = createConfigEnvelope(currentConfig);
+      const { envelope } = await createVaultEnvelope(
+        config,
+        password,
+        'backup'
       );
-      const blob = new Blob([payload], {
-        type: 'application/json;charset=utf-8',
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'ai-foundry-manager-config.json';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadJson(
+        envelope,
+        `ai-foundry-manager-backup-${new Date()
+          .toISOString()
+          .replace(/[:.]/g, '-')}.afm.json`
+      );
+      toast.success(t('toast.configExported'));
+      return { success: true };
+    } catch (error) {
+      toast.error(t('toast.exportFailed'));
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }, [currentConfig, toast, t]);
+
+  const handleExportPlaintextConfig = useCallback(() => {
+    try {
+      downloadJson(
+        createConfigEnvelope(currentConfig),
+        `ai-foundry-manager-plaintext-${new Date()
+          .toISOString()
+          .replace(/[:.]/g, '-')}.json`
+      );
       toast.success(t('toast.configExported'));
     } catch {
       toast.error(t('toast.exportFailed'));
     }
-  }, [accounts, defaultRegionModelTemplate, masterText, toast, t]);
+  }, [currentConfig, toast, t]);
 
   const handleImportConfig = useCallback(
-    (jsonString: string): { success: boolean; error?: string } => {
+    async (
+      jsonString: string,
+      password?: string
+    ): Promise<ConfigTransferResult> => {
       try {
-        const parsed = JSON.parse(jsonString);
-
-        // 检查是对象格式 { accounts, masterText } 还是旧的数组格式
-        let accountsData: any[];
-        let masterTextData: string | undefined;
-        let defaultRegionModelTemplateData: unknown;
-
-        if (Array.isArray(parsed)) {
-          // 旧格式：直接是数组（向后兼容）
-          accountsData = parsed;
-        } else if (
-          parsed &&
-          typeof parsed === 'object' &&
-          Array.isArray(parsed.accounts)
-        ) {
-          // 新格式：对象包含 accounts 和 masterText
-          accountsData = parsed.accounts;
-          masterTextData = parsed.masterText;
-          defaultRegionModelTemplateData =
-            parsed.defaultRegionModelTemplate;
-        } else {
-          return { success: false, error: 'Invalid config format' };
+        const parsed = JSON.parse(jsonString) as unknown;
+        if (isVaultEnvelope(parsed)) {
+          if (parsed.purpose !== 'backup') {
+            return { success: false, error: 'Invalid backup purpose' };
+          }
+          if (!password) return { success: false, requiresPassword: true };
+          const decrypted = await decryptVaultEnvelope<unknown>(
+            parsed,
+            password,
+            'backup'
+          );
+          return importConfig(JSON.stringify(decrypted.payload));
         }
-
-        // 调用 hook 的 importConfig 处理账号数据
-        const result = importConfig(JSON.stringify(accountsData));
-        if (!result.success) {
-          return result;
-        }
-
-        // 如果有 masterText，更新它
-        if (masterTextData !== undefined) {
-          setMasterText(masterTextData);
-        }
-
-        importDefaultRegionModelTemplate(defaultRegionModelTemplateData);
-
-        return { success: true };
+        return importConfig(jsonString);
       } catch (error) {
         return {
           success: false,
@@ -420,7 +420,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         };
       }
     },
-    [importConfig, importDefaultRegionModelTemplate]
+    [importConfig]
   );
 
   return (
@@ -428,7 +428,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       {/* Global Model Directory */}
       <MasterModelDirectory
         masterText={masterText}
-        onMasterTextChange={setMasterText}
+        onMasterTextChange={updateMasterText}
         masterGroups={masterGroups}
         masterGroupLines={masterGroupLines}
         masterModels={masterModels}
@@ -516,6 +516,9 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onUpdateDefaultRegionModelTemplateRegionName={
           updateDefaultRegionModelTemplateRegionName
         }
+        onUpdateDefaultRegionModelTemplateRegionEnabled={
+          updateDefaultRegionModelTemplateRegionEnabled
+        }
         onUpdateDefaultRegionModelTemplateRegionModelsText={
           updateDefaultRegionModelTemplateRegionModelsText
         }
@@ -523,6 +526,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
           reorderDefaultRegionModelTemplateRegions
         }
         onExportConfig={handleExportConfig}
+        onExportPlaintextConfig={handleExportPlaintextConfig}
         onImportConfig={handleImportConfig}
         onImportDeploymentResult={importDeploymentResultText}
         onRenumberAccounts={renumberAllAccounts}

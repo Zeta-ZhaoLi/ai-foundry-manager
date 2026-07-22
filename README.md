@@ -7,8 +7,8 @@ Local-first dashboard for managing Azure AI Foundry/OpenAI accounts, regions, mo
 ## Overview
 
 - Pure frontend app (React + Vite), no backend required
-- All data is stored in browser `localStorage`
-- Sensitive values are encrypted before local persistence
+- Operational configuration is stored in an encrypted browser vault
+- The vault is protected by a user password and must be unlocked after reload
 - Designed for multi-account, multi-region model operations
 
 ## Core Features
@@ -45,7 +45,7 @@ Local-first dashboard for managing Azure AI Foundry/OpenAI accounts, regions, mo
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### Install
@@ -55,6 +55,9 @@ git clone https://github.com/Zeta-ZhaoLi/ai-foundry-manager.git
 cd ai-foundry-manager
 npm install
 ```
+
+On first launch, create a vault password of at least 12 characters. Existing
+legacy configuration is migrated only after it can be decrypted and validated.
 
 ### Run
 
@@ -81,12 +84,15 @@ npm run preview
 
 ## Data and Security
 
-- Local-only storage keys:
-  - `ai-foundry-manager:accounts`
-  - `ai-foundry-manager:master-models`
-  - `ai-foundry-manager:theme`
-  - `ai-foundry-manager:lang`
-- Sensitive fields (for example API keys) are encrypted before storage.
+- Account, endpoint, model, API key, and Service Principal data is encrypted in
+  `ai-foundry-manager:vault:v2` with PBKDF2-SHA-256 and AES-256-GCM.
+- Vault passwords and derived keys remain in page memory and are never stored.
+- Reloading or locking the page requires the password again. A forgotten vault
+  password cannot be recovered by the application.
+- Configuration export creates a separately password-protected encrypted backup
+  by default. Plaintext export is an explicit advanced recovery operation.
+- Legacy raw account data is preserved under a recovery key until migration has
+  completed successfully. Corrupt data is never replaced automatically.
 - Privacy mode masks sensitive UI values for safer screen sharing.
 
 ## Optional/Internal Integration Notes
@@ -103,8 +109,10 @@ npm run preview
 ```bash
 npm run dev
 npm run lint
-npm run test
+npm run test:run
 npm run build
+npm run verify
+npm run test:coverage
 ```
 
 ## Project Structure (Main)

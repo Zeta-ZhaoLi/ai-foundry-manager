@@ -32,6 +32,7 @@ export interface DefaultRegionModelTemplatePanelProps {
   onAddRegion: () => void;
   onDeleteRegion: (regionId: string) => void;
   onUpdateRegionName: (regionId: string, name: string) => void;
+  onUpdateRegionEnabled: (regionId: string, enabled: boolean) => void;
   onUpdateRegionModelsText: (regionId: string, modelsText: string) => void;
   onReorderRegions: (oldIndex: number, newIndex: number) => void;
   onCopy: (text: string, label: string) => void;
@@ -49,6 +50,7 @@ export const DefaultRegionModelTemplatePanel: React.FC<
   onAddRegion,
   onDeleteRegion,
   onUpdateRegionName,
+  onUpdateRegionEnabled,
   onUpdateRegionModelsText,
   onReorderRegions,
   onCopy,
@@ -181,6 +183,19 @@ export const DefaultRegionModelTemplatePanel: React.FC<
                               }
                               placeholder="eastus2"
                             />
+                            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={region.enabled !== false}
+                                onChange={(event) =>
+                                  onUpdateRegionEnabled(
+                                    region.id,
+                                    event.target.checked
+                                  )
+                                }
+                              />
+                              <span>{t('regions.enableRegion')}</span>
+                            </label>
                             <button
                               type="button"
                               onClick={() => onDeleteRegion(region.id)}

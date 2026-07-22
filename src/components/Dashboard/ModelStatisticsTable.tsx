@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useCallback, useRef, useMemo } from 'react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -65,7 +65,10 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
     return map;
   }, [masterGroups]);
 
-  const getGroupIndex = (model: string) => groupIndexMap.get(model) ?? -1;
+  const getGroupIndex = useCallback(
+    (model: string) => groupIndexMap.get(model) ?? -1,
+    [groupIndexMap]
+  );
 
   // Summary statistics
   const totalModels = modelStates.length;
@@ -166,7 +169,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
 
       return a.model.localeCompare(b.model);
     });
-  }, [filteredModelStates, groupIndexMap, masterOrder]);
+  }, [filteredModelStates, getGroupIndex, masterOrder]);
 
   const virtualizer = useVirtualizer({
     count: sortedFilteredModelStates.length,
@@ -236,7 +239,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
     }
 
     return data;
-  }, [modelStates, groupIndexMap, t]);
+  }, [modelStates, getGroupIndex, t]);
 
   // Coverage distribution
   const coverageDistribution: DonutChartData[] = useMemo(() => {

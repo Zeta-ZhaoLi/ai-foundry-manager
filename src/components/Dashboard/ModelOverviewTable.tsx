@@ -69,8 +69,6 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   privacyMode = false,
   isDetailView = false,
   onOpenDetail,
-  onUpdateAccountPurchase,
-  onUpdateAccountUsedAmount,
 }) => {
   const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);

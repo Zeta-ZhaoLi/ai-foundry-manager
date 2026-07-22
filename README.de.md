@@ -45,7 +45,7 @@ Local-first Dashboard zur Verwaltung von Azure AI Foundry/OpenAI Accounts, Regio
 
 ### Voraussetzungen
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### Installation

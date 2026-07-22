@@ -45,7 +45,7 @@ Azure AI Foundry/OpenAI のアカウント・リージョン・モデル選択�
 
 ### 前提
 
-- Node.js 18+
+- Node.js 22.12+
 - npm
 
 ### インストール

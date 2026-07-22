@@ -14,6 +14,28 @@ import {
   stringifyAzureOpenAiMainTemplate,
 } from '../armTemplate';
 
+interface TestArmResource {
+  type: string;
+  kind?: string;
+  name?: string;
+  location?: string;
+  identity?: unknown;
+  properties: Record<string, unknown>;
+  dependsOn?: string[];
+}
+
+interface TestArmTemplate {
+  $schema?: string;
+  kind?: string;
+  parameters: Record<string, { type?: string; defaultValue?: unknown }>;
+  variables: { modelDeployments: unknown[] };
+  resources: TestArmResource[];
+}
+
+function asTestTemplate(value: unknown): TestArmTemplate {
+  return JSON.parse(JSON.stringify(value)) as TestArmTemplate;
+}
+
 describe('armTemplate', () => {
   it('validates the sample input', () => {
     const result = validateArmTemplateInput(SAMPLE_ARM_TEMPLATE_INPUT);
@@ -22,9 +44,9 @@ describe('armTemplate', () => {
   });
 
   it('builds an ARM template with expected top-level fields', () => {
-    const template = buildAzureOpenAiArmTemplate(
-      SAMPLE_ARM_TEMPLATE_INPUT
-    ) as any;
+    const template = asTestTemplate(
+      buildAzureOpenAiArmTemplate(SAMPLE_ARM_TEMPLATE_INPUT)
+    );
     expect(template.$schema).toContain('deploymentTemplate');
     expect(template.parameters.resourceName.type).toBe('String');
     expect(template.parameters.projectName.type).toBe('String');
@@ -38,17 +60,17 @@ describe('armTemplate', () => {
     expect(template.resources[0].properties.allowProjectManagement).toBe(true);
     expect(
       template.resources.some(
-        (resource: any) =>
+        (resource) =>
           resource.type === 'Microsoft.CognitiveServices/accounts/projects'
       )
     ).toBe(true);
     const projectResource = template.resources.find(
-      (resource: any) =>
+      (resource) =>
         resource.type === 'Microsoft.CognitiveServices/accounts/projects'
-    );
+    )!;
     const deploymentWrapper = template.resources.find(
-      (resource: any) => resource.type === 'Microsoft.Resources/deployments'
-    );
+      (resource) => resource.type === 'Microsoft.Resources/deployments'
+    )!;
     expect(projectResource.location).toBe("[parameters('location')]");
     expect(projectResource.identity).toEqual({
       type: 'SystemAssigned',
@@ -69,9 +91,9 @@ describe('armTemplate', () => {
   });
 
   it('builds mainTemplate-based ARM template with expected substitutions', () => {
-    const template = buildAzureOpenAiMainTemplate(
-      SAMPLE_ARM_TEMPLATE_INPUT
-    ) as any;
+    const template = asTestTemplate(
+      buildAzureOpenAiMainTemplate(SAMPLE_ARM_TEMPLATE_INPUT)
+    );
     expect(template.kind).toBeUndefined();
     expect(template.resources[0].kind).toBe('AIServices');
     expect(template.resources[0].properties.allowProjectManagement).toBe(true);
