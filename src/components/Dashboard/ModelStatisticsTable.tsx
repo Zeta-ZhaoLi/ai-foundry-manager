@@ -271,13 +271,13 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
     if (groupIdx < 0) return 'border-border bg-muted/50 text-muted-foreground';
     switch (groupIdx % 4) {
       case 1:
-        return 'border-violet-900 bg-violet-900/30 text-violet-300';
+        return 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-900/30 dark:text-violet-300';
       case 2:
-        return 'border-orange-900 bg-orange-900/30 text-orange-300';
+        return 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-900/30 dark:text-orange-300';
       case 3:
-        return 'border-green-900 bg-green-900/30 text-green-300';
+        return 'border-green-300 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-300';
       default:
-        return 'border-cyan-900 bg-cyan-900/30 text-cyan-300';
+        return 'border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-900/30 dark:text-cyan-300';
     }
   };
 
@@ -285,11 +285,11 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
   const getStatusBadgeStyle = (status: 'unused' | 'single' | 'multi') => {
     switch (status) {
       case 'unused':
-        return 'border-red-900 bg-red-900/30 text-red-300';
+        return 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300';
       case 'single':
-        return 'border-amber-900 bg-amber-900/30 text-amber-300';
+        return 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-300';
       default:
-        return 'border-green-900 bg-green-900/30 text-green-300';
+        return 'border-green-300 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-300';
     }
   };
 
@@ -313,7 +313,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
   return (
     <section
       className={clsx(
-        'p-3 sm:p-4 rounded-xl border border-border bg-background',
+        'rounded-md border border-border bg-background p-3 sm:p-4',
         !isDetailView && 'section-glow'
       )}
     >
@@ -341,7 +341,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
 
       {/* Charts Grid */}
       {modelStates.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
           {/* Deployment Status Distribution */}
           <div className="flex flex-col items-center">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">
@@ -377,7 +377,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
       )}
 
       {/* Status Filter */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         {(['all', 'unused', 'single', 'multi'] as StatusFilter[]).map(
           (filter) => (
             <button
@@ -387,7 +387,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
               className={clsx(
                 'px-3 py-1 rounded-full text-xs border transition-colors',
                 statusFilter === filter
-                  ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
+                  ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300'
                   : 'border-border bg-background text-muted-foreground hover:bg-muted'
               )}
             >
@@ -414,7 +414,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
           {t('coverage.noModelsOrNoMatch')}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-background">
+        <div className="overflow-x-auto overscroll-x-contain rounded-md border border-border bg-background">
           <div className="min-w-[700px]">
             {/* Header */}
             <div
@@ -488,7 +488,7 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                         {virtualRow.index + 1}
                       </div>
                       <div
-                        className="whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:text-cyan-400 transition-colors"
+                        className="cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap transition-colors hover:text-cyan-700 dark:hover:text-cyan-400"
                         title={`${model.model} (${t('common.clickToCopy')})`}
                         onClick={() => handleCopyModel(model.model)}
                       >
@@ -545,10 +545,10 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                     '40px minmax(0, 2fr) 100px 100px 100px 80px 80px',
                 }}
               >
-                <div className="text-cyan-400 text-center">
+                <div className="text-center text-cyan-700 dark:text-cyan-400">
                   {t('statistics.total')}
                 </div>
-                <div className="text-cyan-400">
+                <div className="text-cyan-700 dark:text-cyan-400">
                   {modelSummaryData.totalModels}{' '}
                   {t('modelStatistics.modelsLabel')}
                 </div>
@@ -556,15 +556,15 @@ export const ModelStatisticsTable: React.FC<ModelStatisticsTableProps> = ({
                   -
                 </div>
                 <div className="text-muted-foreground text-[10px] text-center">
-                  <span className="text-red-300">
+                  <span className="text-red-700 dark:text-red-300">
                     {modelSummaryData.statusCounts.unused}
                   </span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-amber-300">
+                  <span className="text-amber-700 dark:text-amber-300">
                     {modelSummaryData.statusCounts.single}
                   </span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-green-300">
+                  <span className="text-green-700 dark:text-green-300">
                     {modelSummaryData.statusCounts.multi}
                   </span>
                 </div>

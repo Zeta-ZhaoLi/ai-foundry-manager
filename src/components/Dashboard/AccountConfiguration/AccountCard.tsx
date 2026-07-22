@@ -222,9 +222,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     }
 
     try {
-    const input = {
-      accountId: account.accountId,
-      subscriptionId: account.subscriptionId,
+      const input = {
+        accountId: account.accountId,
+        subscriptionId: account.subscriptionId,
         servicePrincipal: account.servicePrincipal,
         accountEmail: account.name,
         resourceGroupName,
@@ -266,16 +266,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
     <>
       <div
         className={clsx(
-          'rounded-xl border border-border p-3',
-          'bg-gradient-to-br from-white to-slate-50 dark:from-slate-950/90 dark:to-slate-950/70',
-          'shadow-lg',
+          'rounded-md border border-border bg-background p-3 shadow-sm',
           account.enabled ? 'opacity-100' : 'opacity-60'
         )}
       >
         {/* Account header */}
         <div className="mb-2">
           {/* Summary and fixed account actions */}
-          <div className="flex items-center justify-between mb-2 gap-3">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
               {/* Account ID badge */}
               {account.accountId && (
@@ -284,7 +282,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   className={clsx(
                     'px-2 py-0.5 rounded text-xs font-mono font-bold whitespace-nowrap shrink-0',
                     account.tier === 'premium'
-                      ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
+                      ? 'border border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
                       : 'bg-muted text-muted-foreground border border-border'
                   )}
                 >
@@ -298,14 +296,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 {displayName}
               </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 className={clsx(
                   'px-2.5 py-1 rounded-lg whitespace-nowrap',
-                  'border border-red-900 bg-red-900/30 text-red-300',
-                  'text-xs cursor-pointer hover:bg-red-900/50'
+                  'border border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300',
+                  'text-xs cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/50'
                 )}
               >
                 {t('accounts.deleteAccount')}
@@ -344,7 +342,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           {isExpanded && (
             <>
               {/* Account detail fields */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
                 <AccountIdentitySection
                   account={account}
                   privacyMode={privacyMode}
@@ -382,11 +380,11 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         {/* Regions */}
         {isExpanded && (
           <div className="mb-1.5">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-sm font-medium">
+            <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
+              <div className="shrink-0 text-sm font-medium">
                 {t('regions.regionList')}
               </div>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 <label
                   className={clsx(
                     'inline-flex items-center gap-1.5 text-xs',
@@ -408,14 +406,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                 </label>
                 <div
                   className={clsx(
-                    'inline-flex items-center rounded-full border text-xs overflow-hidden',
+                    'flex max-w-full flex-wrap items-center gap-1 whitespace-nowrap rounded-lg border p-1 text-xs',
                     privacyMode || account.regions.length === 0
-                      ? 'border-gray-700 bg-gray-900/40 text-gray-500'
-                      : 'border-emerald-500 bg-emerald-900/20 text-emerald-200'
+                      ? 'border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500'
+                      : 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200'
                   )}
                 >
-                  <span className="px-2 py-0.5 border-r border-current/30">
-                    {t('regions.azureCliDeployAllRegionsCode')} (
+                  <span className="shrink-0 px-1 text-current/80">
+                    {t('regions.azureCliDeployAllRegionsCode')}
                   </span>
                   <button
                     type="button"
@@ -427,15 +425,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       handleAllRegionsAzureCliDeployCode('selected')
                     }
                     className={clsx(
-                      'px-1.5 py-0.5 transition-colors',
+                      'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                       privacyMode || account.regions.length === 0
                         ? 'cursor-not-allowed text-gray-500'
-                        : 'cursor-pointer hover:bg-emerald-900/40'
+                        : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                     )}
                   >
                     {t('regions.azureCliDeploySelected')}
                   </button>
-                  <span className="text-current/60">|</span>
                   <button
                     type="button"
                     disabled={privacyMode || account.regions.length === 0}
@@ -444,15 +441,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                     )}`}
                     onClick={() => handleAllRegionsAzureCliDeployCode('all')}
                     className={clsx(
-                      'px-1.5 py-0.5 transition-colors',
+                      'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                       privacyMode || account.regions.length === 0
                         ? 'cursor-not-allowed text-gray-500'
-                        : 'cursor-pointer hover:bg-emerald-900/40'
+                        : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                     )}
                   >
                     {t('regions.azureCliDeployAll')}
                   </button>
-                  <span className="text-current/60">|</span>
                   <button
                     type="button"
                     disabled={privacyMode || account.regions.length === 0}
@@ -466,15 +462,14 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       )
                     }
                     className={clsx(
-                      'px-1.5 py-0.5 transition-colors',
+                      'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                       privacyMode || account.regions.length === 0
                         ? 'cursor-not-allowed text-gray-500'
-                        : 'cursor-pointer hover:bg-emerald-900/40'
+                        : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                     )}
                   >
                     PS {t('regions.azureCliDeploySelected')}
                   </button>
-                  <span className="text-current/60">|</span>
                   <button
                     type="button"
                     disabled={privacyMode || account.regions.length === 0}
@@ -485,25 +480,22 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                       handleAllRegionsAzureCliDeployCode('all', 'powershell')
                     }
                     className={clsx(
-                      'px-1.5 py-0.5 transition-colors',
+                      'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                       privacyMode || account.regions.length === 0
                         ? 'cursor-not-allowed text-gray-500'
-                        : 'cursor-pointer hover:bg-emerald-900/40'
+                        : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                     )}
                   >
                     PS {t('regions.azureCliDeployAll')}
                   </button>
-                  <span className="px-2 py-0.5 border-l border-current/30">
-                    )
-                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={onAddRegion}
                   className={clsx(
                     'px-2.5 py-0.5 rounded-full',
-                    'border border-cyan-500 bg-slate-900 text-cyan-200',
-                    'text-xs cursor-pointer hover:bg-slate-800'
+                    'border border-cyan-500 bg-cyan-50 text-cyan-700',
+                    'text-xs cursor-pointer hover:bg-cyan-100 dark:bg-slate-900 dark:text-cyan-200 dark:hover:bg-slate-800'
                   )}
                 >
                   + {t('regions.addRegion')}

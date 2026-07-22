@@ -30,7 +30,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       secondary:
         'bg-muted hover:bg-muted/80 text-foreground border border-border focus:ring-primary',
       danger:
-        'bg-red-900 hover:bg-red-800 text-red-200 border border-red-800 focus:ring-red-700',
+        'border border-red-700 bg-red-600 text-white hover:bg-red-700 focus:ring-red-600 dark:border-red-800 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800 dark:focus:ring-red-700',
       ghost:
         'bg-transparent hover:bg-muted text-muted-foreground border border-border focus:ring-primary',
     };

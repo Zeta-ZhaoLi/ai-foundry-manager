@@ -233,7 +233,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 'flex items-center gap-1.5 rounded-lg border',
                 'transition-colors',
                 activePreset
-                  ? 'border-cyan-600 bg-cyan-900/30 text-cyan-300'
+                  ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300'
                   : 'border-border bg-background text-muted-foreground hover:text-foreground',
                 sizes.button
               )}
@@ -304,16 +304,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 ? 'border-border bg-muted text-foreground'
                 : 'border-border text-muted-foreground',
               primary: isActive
-                ? 'border-cyan-500 bg-cyan-900/50 text-cyan-300'
+                ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300'
                 : 'border-border text-muted-foreground hover:border-cyan-700',
               success: isActive
-                ? 'border-green-500 bg-green-900/50 text-green-300'
+                ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/50 dark:text-green-300'
                 : 'border-border text-muted-foreground hover:border-green-700',
               warning: isActive
-                ? 'border-yellow-500 bg-yellow-900/50 text-yellow-300'
+                ? 'border-yellow-500 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
                 : 'border-border text-muted-foreground hover:border-yellow-700',
               danger: isActive
-                ? 'border-red-500 bg-red-900/50 text-red-300'
+                ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/50 dark:text-red-300'
                 : 'border-border text-muted-foreground hover:border-red-700',
             };
 
@@ -355,7 +355,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 onPresetChange?.(null);
                 activeQuickFilters.forEach((id) => onQuickFilterChange?.(id));
               }}
-              className="text-cyan-400 hover:text-cyan-300 transition-colors"
+              className="text-cyan-700 transition-colors hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300"
             >
               {t('emptyState.clearFilters')}
             </button>

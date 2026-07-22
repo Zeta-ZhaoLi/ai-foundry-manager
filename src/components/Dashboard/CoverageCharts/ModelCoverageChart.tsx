@@ -28,7 +28,7 @@ export const ModelCoverageChart: React.FC<ModelCoverageChartProps> = ({
   return (
     <div
       className={clsx(
-        'w-full rounded-xl md:col-span-2 lg:col-span-1',
+        'w-full rounded-md md:col-span-2 lg:col-span-1',
         'border border-border p-3 bg-background'
       )}
     >

@@ -172,7 +172,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
             iconSizes[size],
             'absolute inset-0 transition-all duration-200',
             copied
-              ? 'opacity-100 scale-100 text-green-400'
+              ? 'scale-100 text-green-600 opacity-100 dark:text-green-400'
               : 'opacity-0 scale-75'
           )}
         />

@@ -39,7 +39,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {error && (
           <p
             id={`${inputId}-error`}
-            className="mt-1 text-xs text-red-400"
+            className="mt-1 text-xs text-red-700 dark:text-red-400"
             role="alert"
           >
             {error}
@@ -90,7 +90,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         {error && (
           <p
             id={`${textareaId}-error`}
-            className="mt-1 text-xs text-red-400"
+            className="mt-1 text-xs text-red-700 dark:text-red-400"
             role="alert"
           >
             {error}

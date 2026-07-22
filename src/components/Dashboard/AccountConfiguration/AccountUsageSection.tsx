@@ -20,9 +20,9 @@ export function AccountUsageSection({
   if (privacyMode) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mt-3">
+    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
       {/* Purchase amount */}
-      <div className="md:col-span-3">
+      <div className="lg:col-span-3">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.purchaseAmount')}
         </label>
@@ -37,7 +37,7 @@ export function AccountUsageSection({
             }
             className={clsx(
               'px-2 py-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
               'cursor-pointer'
             )}
@@ -57,7 +57,7 @@ export function AccountUsageSection({
             placeholder="0"
             className={clsx(
               'flex-1 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
           />
@@ -65,7 +65,7 @@ export function AccountUsageSection({
       </div>
 
       {/* Used quota */}
-      <div className="md:col-span-2">
+      <div className="lg:col-span-2">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.usedAmount')}
         </label>
@@ -78,7 +78,7 @@ export function AccountUsageSection({
             placeholder="0"
             className={clsx(
               'flex-1 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
           />
@@ -86,11 +86,11 @@ export function AccountUsageSection({
       </div>
 
       {/* Account cost */}
-      <div className="md:col-span-2">
+      <div className="lg:col-span-2">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.accountCost')}
         </label>
-        <div className="p-1.5 rounded-lg border border-gray-700 bg-gray-800/50 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border bg-muted/60 p-1.5 text-sm text-muted-foreground">
           {(() => {
             const quota =
               account.quota === 'custom'
@@ -105,11 +105,11 @@ export function AccountUsageSection({
       </div>
 
       {/* Actual cost */}
-      <div className="md:col-span-2">
+      <div className="lg:col-span-2">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.actualCost')}
         </label>
-        <div className="p-1.5 rounded-lg border border-gray-700 bg-gray-800/50 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border bg-muted/60 p-1.5 text-sm text-muted-foreground">
           {(() => {
             const used = account.usedAmount || 0;
             if (used === 0 || !account.purchaseAmount) return '-';
@@ -121,7 +121,7 @@ export function AccountUsageSection({
       </div>
 
       {/* Usage rate */}
-      <div className="md:col-span-3">
+      <div className="lg:col-span-3">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.usageRate')}
         </label>

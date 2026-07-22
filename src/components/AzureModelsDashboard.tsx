@@ -382,8 +382,8 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
       />
 
       {/* Overview Dashboard + Coverage Charts */}
-      <section className="p-3 sm:p-4 rounded-xl border border-border bg-background section-glow">
-        <h2 className="text-base sm:text-lg font-semibold mb-2">
+      <section className="py-1">
+        <h2 className="mb-2 text-base font-semibold sm:text-lg">
           {t('dashboard.title')}
         </h2>
         {/* 移动端：单列 | 平板：两列 | 桌面：三列 */}

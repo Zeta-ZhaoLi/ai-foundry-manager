@@ -17,7 +17,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={clsx(
-          'rounded-xl border p-4 shadow-lg',
+          'rounded-md border p-4 shadow-sm',
           variantStyles[variant],
           className
         )}

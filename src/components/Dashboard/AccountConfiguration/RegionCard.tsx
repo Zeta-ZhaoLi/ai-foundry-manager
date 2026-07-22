@@ -286,7 +286,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
     <>
       <div
         className={clsx(
-          'rounded-lg border border-border p-2.5 bg-background relative',
+          'relative rounded-md border border-border bg-background p-2.5',
           isDisabled && 'opacity-50'
         )}
       >
@@ -294,7 +294,7 @@ export const RegionCard: React.FC<RegionCardProps> = ({
         <button
           type="button"
           onClick={() => setShowDeleteConfirm(true)}
-          className="absolute top-2 right-2 px-2 py-1 rounded-lg border border-red-900 bg-transparent text-red-300 text-xs cursor-pointer hover:bg-red-900/30"
+          className="absolute right-2 top-2 rounded-lg border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-900/30"
         >
           {t('regions.deleteRegion')}
         </button>

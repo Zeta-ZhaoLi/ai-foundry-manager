@@ -45,7 +45,7 @@ export const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
           'absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center',
           'cursor-grab active:cursor-grabbing',
           'text-muted-foreground hover:text-foreground transition-colors',
-          'rounded-l-xl z-10'
+          'rounded-l-md z-10'
         )}
         title={i18n.t('accessibility.dragToReorder')}
       >

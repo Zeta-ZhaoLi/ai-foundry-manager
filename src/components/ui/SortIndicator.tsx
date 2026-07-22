@@ -39,7 +39,7 @@ export const SortIndicator: React.FC<SortIndicatorProps> = ({
         className={clsx(
           'w-full h-1/2 -mb-0.5 transition-colors',
           active && direction === 'asc'
-            ? 'text-cyan-400'
+            ? 'text-cyan-600 dark:text-cyan-400'
             : 'text-gray-600'
         )}
         viewBox="0 0 10 6"
@@ -52,7 +52,7 @@ export const SortIndicator: React.FC<SortIndicatorProps> = ({
         className={clsx(
           'w-full h-1/2 -mt-0.5 transition-colors',
           active && direction === 'desc'
-            ? 'text-cyan-400'
+            ? 'text-cyan-600 dark:text-cyan-400'
             : 'text-gray-600'
         )}
         viewBox="0 0 10 6"
@@ -118,12 +118,18 @@ export const SortableHeader: React.FC<SortableHeaderProps> = ({
       className={clsx(
         'inline-flex items-center gap-1 w-full',
         'hover:text-gray-200 transition-colors',
-        'focus:outline-none focus:text-cyan-400',
+        'focus:outline-none focus:text-cyan-600 dark:focus:text-cyan-400',
         alignStyles[align],
-        isActive && 'text-cyan-300',
+        isActive && 'text-cyan-700 dark:text-cyan-300',
         className
       )}
-      aria-sort={isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+      aria-sort={
+        isActive
+          ? sortDirection === 'asc'
+            ? 'ascending'
+            : 'descending'
+          : 'none'
+      }
     >
       <span>{children}</span>
       <SortIndicator direction={sortDirection} active={isActive} />

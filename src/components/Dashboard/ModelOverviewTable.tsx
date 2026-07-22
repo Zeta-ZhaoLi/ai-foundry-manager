@@ -397,7 +397,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
   return (
     <section
       className={clsx(
-        'p-3 sm:p-4 rounded-xl border border-border bg-background',
+        'rounded-md border border-border bg-background p-3 sm:p-4',
         !isDetailView && 'section-glow'
       )}
     >
@@ -424,7 +424,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
 
       {/* Charts Grid - 账号统计饼图 */}
       {accounts.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
           {/* 账号状态分布 (启用/禁用) */}
           <div className="flex flex-col items-center">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">
@@ -469,7 +469,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                   className={clsx(
                     'px-2 py-1 rounded-full text-xs border transition-colors',
                     statusFilter === filter
-                      ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
+                      ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300'
                       : 'border-border bg-background text-muted-foreground hover:bg-muted'
                   )}
                 >
@@ -497,7 +497,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                   className={clsx(
                     'px-2 py-1 rounded-full text-xs border transition-colors',
                     tierFilter === filter
-                      ? 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
+                      ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300'
                       : 'border-border bg-background text-muted-foreground hover:bg-muted'
                   )}
                 >
@@ -542,7 +542,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-background">
+        <div className="overflow-x-auto overscroll-x-contain rounded-md border border-border bg-background">
           <div className="min-w-[980px]">
             {/* Header */}
             <div
@@ -616,7 +616,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                         {originalIndex + 1}
                       </div>
                       <div
-                        className="whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-1 cursor-pointer hover:text-cyan-400 transition-colors"
+                        className="flex cursor-pointer items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap transition-colors hover:text-cyan-700 dark:hover:text-cyan-400"
                         title={`${getDisplayName(account, originalIndex)} (${t('statistics.doubleClickToLocate')})`}
                         onDoubleClick={() => handleDoubleClick(account.id)}
                       >
@@ -635,7 +635,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                           className={clsx(
                             'inline-block px-2 py-0.5 rounded-full text-xs border',
                             account.tier === 'premium'
-                              ? 'border-amber-900 bg-amber-900/30 text-amber-300'
+                              ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-300'
                               : 'border-border bg-muted/50 text-muted-foreground'
                           )}
                         >
@@ -666,8 +666,8 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                           className={clsx(
                             'inline-block px-2 py-0.5 rounded-full text-xs border',
                             account.enabled
-                              ? 'border-green-900 bg-green-900/30 text-green-300'
-                              : 'border-red-900 bg-red-900/30 text-red-300'
+                              ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-300'
+                              : 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300'
                           )}
                         >
                           {account.enabled
@@ -694,15 +694,15 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                     '40px minmax(0, 2fr) 80px 80px 80px 90px 80px 90px 90px 60px 60px 70px',
                 }}
               >
-                <div className="text-cyan-400 text-center">
+                <div className="text-center text-cyan-700 dark:text-cyan-400">
                   {t('statistics.total')}
                 </div>
-                <div className="text-cyan-400">
+                <div className="text-cyan-700 dark:text-cyan-400">
                   {summaryData.accountCount} {t('statistics.accountsLabel')}
                 </div>
                 <div className="text-muted-foreground text-center">-</div>
                 <div className="text-muted-foreground text-center">
-                  <span className="text-amber-300">
+                  <span className="text-amber-700 dark:text-amber-300">
                     {summaryData.premiumCount}
                   </span>
                   <span className="mx-0.5">/</span>
@@ -710,7 +710,7 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                     {summaryData.standardCount}
                   </span>
                 </div>
-                <div className="text-cyan-400 text-center">
+                <div className="text-center text-cyan-700 dark:text-cyan-400">
                   ${summaryData.totalQuota.toLocaleString()}
                 </div>
                 <div className="text-muted-foreground text-center">
@@ -787,18 +787,18 @@ export const ModelOverviewTable: React.FC<ModelOverviewTableProps> = ({
                     </>
                   )}
                 </div>
-                <div className="text-cyan-400 text-center">
+                <div className="text-center text-cyan-700 dark:text-cyan-400">
                   {summaryData.totalRegions}
                 </div>
                 <div className="text-muted-foreground text-center">
                   ~{summaryData.avgModelsPerAccount}
                 </div>
                 <div className="text-muted-foreground text-center">
-                  <span className="text-green-300">
+                  <span className="text-green-700 dark:text-green-300">
                     {summaryData.enabledCount}
                   </span>
                   <span className="mx-0.5">/</span>
-                  <span className="text-red-300">
+                  <span className="text-red-700 dark:text-red-300">
                     {summaryData.disabledCount}
                   </span>
                 </div>

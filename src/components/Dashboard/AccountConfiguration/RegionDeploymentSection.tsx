@@ -365,12 +365,12 @@ export function RegionDeploymentSection({
   }, [deploymentBulkCycleState]);
 
   return (
-    <div className="border-t border-gray-800 pt-2 mt-2">
-      <div className="flex items-center justify-between">
+    <div className="mt-2 border-t border-border pt-2">
+      <div className="flex flex-col items-start gap-2 lg:flex-row lg:items-center lg:justify-between">
         <button
           type="button"
           onClick={() => setDeployCollapsed((prev) => !prev)}
-          className="flex items-center gap-1.5 bg-transparent text-foreground text-xs cursor-pointer border-none p-0"
+          className="flex min-w-0 items-center gap-1.5 bg-transparent text-foreground text-xs cursor-pointer border-none p-0"
         >
           <span className="inline-block w-3.5 text-center text-muted-foreground">
             {deployCollapsed ? '▸' : '▾'}
@@ -382,7 +382,7 @@ export function RegionDeploymentSection({
             </span>
           )}
         </button>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           <button
             type="button"
             disabled={privacyMode || regionModels.length === 0}
@@ -390,8 +390,8 @@ export function RegionDeploymentSection({
             className={clsx(
               'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
               privacyMode || regionModels.length === 0
-                ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
+                ? 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500'
+                : 'border-cyan-500 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-200 dark:hover:bg-cyan-900/30'
             )}
           >
             {t('regions.armDeployCode')}
@@ -417,14 +417,14 @@ export function RegionDeploymentSection({
           </label>
           <div
             className={clsx(
-              'inline-flex items-center rounded-full border text-xs overflow-hidden',
+              'flex max-w-full flex-wrap items-center gap-1 whitespace-nowrap rounded-lg border p-1 text-xs',
               privacyMode
-                ? 'border-gray-700 bg-gray-900/40 text-gray-500'
-                : 'border-emerald-500 bg-emerald-900/20 text-emerald-200'
+                ? 'border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500'
+                : 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200'
             )}
           >
-            <span className="px-2 py-0.5 border-r border-current/30">
-              {t('regions.azureCliDeployCode')} (
+            <span className="shrink-0 px-1 text-current/80">
+              {t('regions.azureCliDeployCode')}
             </span>
             <button
               type="button"
@@ -434,15 +434,14 @@ export function RegionDeploymentSection({
               )}`}
               onClick={() => handleAzureCliDeployCode('selected')}
               className={clsx(
-                'px-1.5 py-0.5 transition-colors',
+                'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                 privacyMode || selectedAzureCliModels.length === 0
                   ? 'cursor-not-allowed text-gray-500'
-                  : 'cursor-pointer hover:bg-emerald-900/40'
+                  : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
               )}
             >
               {t('regions.azureCliDeploySelected')}
             </button>
-            <span className="text-current/60">|</span>
             <button
               type="button"
               disabled={privacyMode || allMasterAzureCliModels.length === 0}
@@ -451,15 +450,14 @@ export function RegionDeploymentSection({
               )}`}
               onClick={() => handleAzureCliDeployCode('all')}
               className={clsx(
-                'px-1.5 py-0.5 transition-colors',
+                'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                 privacyMode || allMasterAzureCliModels.length === 0
                   ? 'cursor-not-allowed text-gray-500'
-                  : 'cursor-pointer hover:bg-emerald-900/40'
+                  : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
               )}
             >
               {t('regions.azureCliDeployAll')}
             </button>
-            <span className="text-current/60">|</span>
             <button
               type="button"
               disabled={privacyMode || selectedAzureCliModels.length === 0}
@@ -468,15 +466,14 @@ export function RegionDeploymentSection({
               )}`}
               onClick={() => handleAzureCliDeployCode('selected', 'powershell')}
               className={clsx(
-                'px-1.5 py-0.5 transition-colors',
+                'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                 privacyMode || selectedAzureCliModels.length === 0
                   ? 'cursor-not-allowed text-gray-500'
-                  : 'cursor-pointer hover:bg-emerald-900/40'
+                  : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
               )}
             >
               PS {t('regions.azureCliDeploySelected')}
             </button>
-            <span className="text-current/60">|</span>
             <button
               type="button"
               disabled={privacyMode || allMasterAzureCliModels.length === 0}
@@ -485,15 +482,14 @@ export function RegionDeploymentSection({
               )}`}
               onClick={() => handleAzureCliDeployCode('all', 'powershell')}
               className={clsx(
-                'px-1.5 py-0.5 transition-colors',
+                'shrink-0 rounded-md px-1.5 py-0.5 transition-colors',
                 privacyMode || allMasterAzureCliModels.length === 0
                   ? 'cursor-not-allowed text-gray-500'
-                  : 'cursor-pointer hover:bg-emerald-900/40'
+                  : 'cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
               )}
             >
               PS {t('regions.azureCliDeployAll')}
             </button>
-            <span className="px-2 py-0.5 border-l border-current/30">)</span>
           </div>
           <button
             type="button"
@@ -502,8 +498,8 @@ export function RegionDeploymentSection({
             className={clsx(
               'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
               privacyMode
-                ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                : 'border-blue-500 bg-blue-900/20 text-blue-200 hover:bg-blue-900/30'
+                ? 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500'
+                : 'border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/30'
             )}
           >
             {t('regions.azureCliDeployCommand')}
@@ -515,8 +511,8 @@ export function RegionDeploymentSection({
             className={clsx(
               'px-2 py-0.5 rounded-full border text-xs cursor-pointer transition-colors',
               privacyMode
-                ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                : 'border-blue-500 bg-blue-900/20 text-blue-200 hover:bg-blue-900/30'
+                ? 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500'
+                : 'border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/30'
             )}
           >
             {t('regions.azureCliDeployPowerShellCommand')}
@@ -526,10 +522,10 @@ export function RegionDeploymentSection({
 
       {!deployCollapsed && (
         <div className="mt-2 space-y-2">
-          <div className="overflow-auto border border-gray-800 rounded-lg">
+          <div className="overflow-x-auto overscroll-x-contain rounded-md border border-border">
             <table className="w-full min-w-[980px] text-sm">
               <thead>
-                <tr className="text-left text-gray-400 border-b border-gray-800">
+                <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="py-2 px-3 w-[96px]">
                     <label className="inline-flex items-center gap-1.5">
                       <input
@@ -564,7 +560,7 @@ export function RegionDeploymentSection({
                 {selectedDeploymentRows.map((row) => (
                   <tr
                     key={row.sourceModel}
-                    className="border-b border-gray-900/60"
+                    className="border-b border-border/60"
                   >
                     <td className="py-2 px-3">
                       <input
@@ -583,7 +579,7 @@ export function RegionDeploymentSection({
                     </td>
                     <td className="py-2 px-3">
                       <input
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-border bg-background p-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                         value={row.deploymentName}
                         onChange={(e) => {
                           const deploymentName = e.target.value;
@@ -609,7 +605,7 @@ export function RegionDeploymentSection({
                     </td>
                     <td className="py-2 px-3">
                       <input
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-border bg-background p-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                         value={row.version}
                         onChange={(e) =>
                           onUpdateDeploymentModel?.(row.sourceModel, {
@@ -622,7 +618,7 @@ export function RegionDeploymentSection({
                     </td>
                     <td className="py-2 px-3">
                       <input
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-border bg-background p-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                         value={row.modelFormat}
                         onChange={(e) =>
                           onUpdateDeploymentModel?.(row.sourceModel, {
@@ -635,7 +631,7 @@ export function RegionDeploymentSection({
                     </td>
                     <td className="py-2 px-3">
                       <input
-                        className="w-full p-1.5 rounded-lg border border-gray-700 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-border bg-background p-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                         value={String(row.capacity)}
                         onChange={(e) => {
                           const num = Number(e.target.value);

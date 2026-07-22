@@ -15,9 +15,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import type {
-  DefaultRegionModelTemplateConfig,
-} from '../../../hooks/useLocalAzureAccounts';
+import type { DefaultRegionModelTemplateConfig } from '../../../hooks/useLocalAzureAccounts';
 import { parseModels } from '../../../utils/common';
 import { RegionModelSelector } from './RegionModelSelector';
 import { SortableTemplateRegionCard } from './SortableTemplateRegionCard';
@@ -92,33 +90,35 @@ export const DefaultRegionModelTemplatePanel: React.FC<
   };
 
   return (
-    <div className="mb-3 rounded-lg border border-border bg-slate-950/20 p-3">
-      <div className="flex items-center justify-between gap-3">
+    <div className="mb-3 rounded-md border border-border bg-muted/30 p-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
         <button
           type="button"
           onClick={() => setCollapsed((prev) => !prev)}
-          className="flex min-w-0 items-center gap-2 bg-transparent border-none p-0 text-left text-foreground cursor-pointer"
+          className="flex min-w-0 items-start gap-2 bg-transparent border-none p-0 text-left text-foreground cursor-pointer sm:items-center"
         >
           <span className="inline-block w-4 text-center text-muted-foreground">
             {collapsed ? '>' : 'v'}
           </span>
-          <span className="text-sm font-medium">
-            {t('accounts.defaultRegionModelTemplate')}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {template.enabled
-              ? t('accounts.templateEnabled')
-              : t('accounts.templateDisabled')}
-            {' | '}
-            {t('accounts.templateRegionCount', {
-              count: template.regions.length,
-            })}
-            {' | '}
-            {t('accounts.templateModelCount', { count: selectedModelCount })}
+          <span className="min-w-0">
+            <span className="block text-sm font-medium">
+              {t('accounts.defaultRegionModelTemplate')}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {template.enabled
+                ? t('accounts.templateEnabled')
+                : t('accounts.templateDisabled')}
+              {' | '}
+              {t('accounts.templateRegionCount', {
+                count: template.regions.length,
+              })}
+              {' | '}
+              {t('accounts.templateModelCount', { count: selectedModelCount })}
+            </span>
           </span>
         </button>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
             <input
               type="checkbox"
@@ -132,8 +132,8 @@ export const DefaultRegionModelTemplatePanel: React.FC<
             onClick={onAddRegion}
             className={clsx(
               'px-2.5 py-0.5 rounded-full',
-              'border border-cyan-500 bg-slate-900 text-cyan-200',
-              'text-xs cursor-pointer hover:bg-slate-800'
+              'border border-cyan-500 bg-cyan-50 text-cyan-700',
+              'text-xs cursor-pointer hover:bg-cyan-100 dark:bg-slate-900 dark:text-cyan-200 dark:hover:bg-slate-800'
             )}
           >
             + {t('regions.addRegion')}
@@ -160,20 +160,19 @@ export const DefaultRegionModelTemplatePanel: React.FC<
                 <div className="flex flex-col gap-2">
                   {template.regions.map((region, index) => {
                     const displayName =
-                      region.name ||
-                      `${t('regions.region')} ${index + 1}`;
+                      region.name || `${t('regions.region')} ${index + 1}`;
                     return (
                       <SortableTemplateRegionCard
                         key={region.id}
                         id={region.id}
                       >
-                        <div className="rounded-lg border border-gray-800 bg-background p-2">
-                          <div className="mb-2 flex items-center gap-2">
+                        <div className="rounded-md border border-border bg-background p-2">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
                             <span className="text-xs text-muted-foreground">
                               {index + 1}.
                             </span>
                             <input
-                              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                              className="min-w-[10rem] flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                               value={region.name}
                               onChange={(event) =>
                                 onUpdateRegionName(
@@ -199,7 +198,7 @@ export const DefaultRegionModelTemplatePanel: React.FC<
                             <button
                               type="button"
                               onClick={() => onDeleteRegion(region.id)}
-                              className="px-2 py-0.5 rounded-full border border-red-900 bg-red-900/30 text-red-300 text-xs cursor-pointer hover:bg-red-900/50"
+                              className="rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
                             >
                               {t('common.delete')}
                             </button>
@@ -233,5 +232,4 @@ export const DefaultRegionModelTemplatePanel: React.FC<
   );
 };
 
-DefaultRegionModelTemplatePanel.displayName =
-  'DefaultRegionModelTemplatePanel';
+DefaultRegionModelTemplatePanel.displayName = 'DefaultRegionModelTemplatePanel';

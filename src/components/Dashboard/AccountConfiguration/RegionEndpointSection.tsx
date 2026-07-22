@@ -39,7 +39,7 @@ export function RegionEndpointSection({
   const { t } = useTranslation();
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2 pl-7">
+    <div className="mb-2 grid grid-cols-1 gap-3 sm:pl-7 md:grid-cols-2">
       <div className="min-w-0">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('regions.foundryProjectEndpoint')}
@@ -48,7 +48,7 @@ export function RegionEndpointSection({
           <input
             className={clsx(
               'flex-1 min-w-0 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
             value={
@@ -69,7 +69,7 @@ export function RegionEndpointSection({
                   'Foundry Project Endpoint'
                 )
               }
-              className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+              className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={t('common.copy')}
             >
               <svg
@@ -99,7 +99,7 @@ export function RegionEndpointSection({
           <input
             className={clsx(
               'flex-1 min-w-0 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
             value={
@@ -117,7 +117,7 @@ export function RegionEndpointSection({
               onClick={() =>
                 onCopy(region.openaiEndpoint || '', 'OpenAI Endpoint')
               }
-              className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+              className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={t('common.copy')}
             >
               <svg
@@ -147,7 +147,7 @@ export function RegionEndpointSection({
           <input
             className={clsx(
               'flex-1 min-w-0 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
             value={
@@ -168,7 +168,7 @@ export function RegionEndpointSection({
                   'Azure AI Services Endpoint'
                 )
               }
-              className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+              className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={t('common.copy')}
             >
               <svg
@@ -198,7 +198,7 @@ export function RegionEndpointSection({
           <input
             className={clsx(
               'flex-1 min-w-0 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
             value={
@@ -216,7 +216,7 @@ export function RegionEndpointSection({
               onClick={() =>
                 onCopy(region.anthropicEndpoint || '', 'Anthropic Endpoint')
               }
-              className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+              className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={t('common.copy')}
             >
               <svg

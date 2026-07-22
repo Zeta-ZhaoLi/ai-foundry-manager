@@ -27,7 +27,7 @@ export const AccountSummary: React.FC<AccountSummaryProps> = ({
   if (accountSummaries.length === 0) return null;
 
   return (
-    <section className="p-4 rounded-xl border border-border bg-background">
+    <section className="rounded-md border border-border bg-background p-4">
       <h2 className="text-lg font-semibold mb-2">{t('summary.byAccount')}</h2>
       <div className="flex flex-col gap-3">
         {accountSummaries.map((acc) => {

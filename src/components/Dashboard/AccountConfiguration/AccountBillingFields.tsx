@@ -32,7 +32,7 @@ export function AccountBillingFields({
 
   return (
     <>
-      <div className="md:col-span-2">
+      <div className="lg:col-span-2">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.quota')}
         </label>
@@ -58,7 +58,7 @@ export function AccountBillingFields({
 
       {/* Custom quota */}
       {account.quota === 'custom' && (
-        <div className="md:col-span-1">
+        <div className="lg:col-span-1">
           <label className="text-xs text-muted-foreground block mb-1">$</label>
           <input
             type="number"
@@ -77,7 +77,7 @@ export function AccountBillingFields({
       {/* Note */}
       <div
         className={
-          account.quota === 'custom' ? 'md:col-span-1' : 'md:col-span-2'
+          account.quota === 'custom' ? 'lg:col-span-1' : 'lg:col-span-2'
         }
       >
         <label className="text-xs text-muted-foreground block mb-1">
@@ -86,7 +86,7 @@ export function AccountBillingFields({
         <input
           className={clsx(
             'w-full p-1.5 rounded-lg',
-            'border border-gray-700 bg-background text-foreground text-sm',
+            'border border-border bg-background text-foreground text-sm',
             'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
           )}
           value={privacyMode ? displayNote : account.note || ''}

@@ -99,7 +99,9 @@ export const RegionModelSelector: React.FC<RegionModelSelectorProps> = ({
       }
 
       const mergedSet = new Set([...parseModels(modelsText), ...models]);
-      onChange(orderModelsByMaster(Array.from(mergedSet), masterModels).join(','));
+      onChange(
+        orderModelsByMaster(Array.from(mergedSet), masterModels).join(',')
+      );
       toast.success(t('regions.pasteSuccess', { count: models.length }));
     } catch {
       toast.error(t('regions.pasteFailed'));
@@ -107,12 +109,12 @@ export const RegionModelSelector: React.FC<RegionModelSelectorProps> = ({
   };
 
   return (
-    <div className="border-t border-gray-800 pt-2">
-      <div className="flex items-center justify-between mb-1.5">
+    <div className="border-t border-border pt-2">
+      <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={() => setCollapsed((prev) => !prev)}
-          className="flex items-center gap-1.5 bg-transparent text-foreground text-xs cursor-pointer border-none p-0"
+          className="flex min-w-0 items-center gap-1.5 bg-transparent text-foreground text-xs cursor-pointer border-none p-0"
         >
           <span className="inline-block w-3.5 text-center text-muted-foreground">
             {collapsed ? '>' : 'v'}
@@ -125,25 +127,25 @@ export const RegionModelSelector: React.FC<RegionModelSelectorProps> = ({
           )}
         </button>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
           <button
             type="button"
             onClick={handlePasteModels}
-            className="px-2 py-0.5 rounded-full border border-blue-900 bg-blue-900/30 text-blue-300 text-xs cursor-pointer hover:bg-blue-900/50"
+            className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
           >
             {t('regions.pasteModels')}
           </button>
           <button
             type="button"
             onClick={selectAll}
-            className="px-2 py-0.5 rounded-full border border-green-900 bg-green-900/30 text-green-300 text-xs cursor-pointer hover:bg-green-900/50"
+            className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-xs text-green-700 hover:bg-green-100 dark:border-green-900 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
           >
             {t('regions.selectAll')}
           </button>
           <button
             type="button"
             onClick={clearModels}
-            className="px-2 py-0.5 rounded-full border border-red-900 bg-red-900/30 text-red-300 text-xs cursor-pointer hover:bg-red-900/50"
+            className="rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
           >
             {t('regions.clear')}
           </button>
@@ -172,10 +174,10 @@ export const RegionModelSelector: React.FC<RegionModelSelectorProps> = ({
                 return (
                   <div
                     key={`group-${idx}`}
-                    className="border border-gray-800 rounded-lg p-2"
+                    className="rounded-md border border-border p-2"
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-cyan-300">
+                    <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-cyan-700 dark:text-cyan-300">
                         {groupTitle}
                         <span className="text-muted-foreground ml-1">
                           ({selectedGroupModels.length}/{groupAllModels.length})
@@ -191,7 +193,7 @@ export const RegionModelSelector: React.FC<RegionModelSelectorProps> = ({
                                 `${copyLabel} - ${groupTitle}`
                               )
                             }
-                            className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
+                            className="rounded border border-border bg-transparent px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                             title={t('regions.copyGroupModels')}
                           >
                             Copy
@@ -200,7 +202,7 @@ export const RegionModelSelector: React.FC<RegionModelSelectorProps> = ({
                         <button
                           type="button"
                           onClick={() => selectGroup(groupAllModels)}
-                          className="px-1.5 py-0.5 rounded border border-gray-700 bg-transparent text-muted-foreground text-xs cursor-pointer hover:bg-slate-800 hover:text-foreground"
+                          className="rounded border border-border bg-transparent px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
                           {t('regions.selectGroup')}
                         </button>
@@ -242,12 +244,14 @@ export const RegionModelSelector: React.FC<RegionModelSelectorProps> = ({
       )}
 
       {orderedModels.length > 0 && (
-        <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground border-t border-gray-800 pt-2">
-          <span>{t('regions.selectedCount', { count: orderedModels.length })}</span>
+        <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-xs text-muted-foreground">
+          <span>
+            {t('regions.selectedCount', { count: orderedModels.length })}
+          </span>
           <button
             type="button"
             onClick={() => onCopy(buildCopyString(orderedModels), copyLabel)}
-            className="px-2 py-0.5 rounded-full border border-gray-600 bg-background text-foreground cursor-pointer hover:bg-slate-800"
+            className="rounded-full border border-border bg-background px-2 py-0.5 text-foreground hover:bg-muted"
           >
             {t('regions.copyRegionModels')}
           </button>

@@ -313,12 +313,12 @@ const App: React.FC = () => {
       <div className="w-full max-w-7xl mx-auto flex-1">
         {/* Header - 响应式布局 */}
         <header className="mb-4 md:mb-6" role="banner">
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2 flex-wrap">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold bg-gradient-to-r from-cyan-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
               {t('app.title')}
             </h1>
             <nav
-              className="flex items-center gap-2 self-start sm:self-auto flex-wrap"
+              className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end"
               aria-label={t('accessibility.headerNav')}
             >
               {/* 语言选择 */}
@@ -402,7 +402,7 @@ const App: React.FC = () => {
                 <span>{t('privacy.toggle')}</span>
               </button>
 
-              <span className="text-xs px-3 py-1 rounded-full border border-border bg-muted/60 text-muted-foreground hidden sm:inline">
+              <span className="hidden text-xs px-3 py-1 rounded-full border border-border bg-muted/60 text-muted-foreground xl:inline">
                 {t('app.title')} · ZetaTechs
               </span>
             </nav>

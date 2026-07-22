@@ -132,20 +132,22 @@ describe('deployment configuration contract', () => {
     const { getByRole, getByText, queryByText, rerender } =
       render(renderSection());
 
-    expect(getByText('B170 - B173')).toBeTruthy();
-    expect(getByText('4 个未启用模型的账号')).toBeTruthy();
+    const collapsedRangeRow = getByRole('button', {
+      name: /B170 - B173.*展开/,
+    });
+    expect(collapsedRangeRow.textContent?.replace(/\s/g, '')).toBe(
+      'B170-B173展开'
+    );
     expect(queryByText('user170@example.com')).toBeNull();
 
-    fireEvent.click(getByRole('button', { name: /B170 - B173/ }));
+    fireEvent.click(collapsedRangeRow);
     expect(getByText('user170@example.com')).toBeTruthy();
     expect(getByText('user173@example.com')).toBeTruthy();
 
     rerender(renderSection());
     expect(getByText('user170@example.com')).toBeTruthy();
 
-    fireEvent.click(
-      getByRole('button', { name: /B170 - B173.*收起/ })
-    );
+    fireEvent.click(getByRole('button', { name: /B170 - B173.*收起/ }));
     expect(queryByText('user170@example.com')).toBeNull();
   });
 

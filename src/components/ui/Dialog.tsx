@@ -43,11 +43,10 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
       <div
         ref={ref}
         className={clsx(
-          'fixed left-1/2 top-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4',
-          'border border-border bg-background p-6 shadow-lg rounded-xl',
+          'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%_-_2rem)] max-h-[calc(100vh_-_2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto',
+          'rounded-md border border-border bg-background p-4 shadow-lg sm:p-6',
           'animate-in fade-in-0 zoom-in-95',
           sizeClasses[size],
-          size === 'full' && 'overflow-auto',
           className
         )}
         role="dialog"
@@ -131,7 +130,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={clsx(
-      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
+      'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
       className
     )}
     {...props}

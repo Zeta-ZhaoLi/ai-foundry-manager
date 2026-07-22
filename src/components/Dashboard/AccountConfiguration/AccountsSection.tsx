@@ -476,26 +476,13 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         onClick={() => toggleAccountGroup(group.id)}
         aria-expanded={expanded}
         className={clsx(
-          'w-full min-h-14 px-4 py-3 rounded-lg border border-border',
+          'w-full min-h-14 px-4 py-3 rounded-md border border-border',
           'bg-muted/30 hover:bg-muted/60 transition-colors',
           'flex items-center justify-between gap-4 text-left'
         )}
       >
-        <span className="flex min-w-0 items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="shrink-0 rounded border border-border bg-background px-2 py-1 font-mono text-xs font-bold text-muted-foreground"
-          >
-            {group.prefix}
-          </span>
-          <span className="truncate font-mono text-sm font-semibold text-foreground">
-            {start} - {end}
-          </span>
-          <span className="hidden text-xs text-muted-foreground sm:inline">
-            {t('accounts.disabledAccountGroupCount', {
-              count: group.accounts.length,
-            })}
-          </span>
+        <span className="min-w-0 truncate font-mono text-sm font-semibold text-foreground">
+          {start} - {end}
         </span>
         <span className="shrink-0 text-xs font-medium text-foreground">
           {expanded ? t('accounts.collapse') : t('accounts.expand')}
@@ -517,10 +504,10 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
 
   return (
     <>
-      <section className="p-4 rounded-xl border border-border bg-background section-glow">
+      <section className="rounded-md border border-border bg-background p-3 section-glow sm:p-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div>
+        <div className="mb-3 flex flex-col items-start gap-3 lg:flex-row lg:justify-between">
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold mb-1">
               {t('accounts.title')}
             </h2>
@@ -528,7 +515,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
               {t('accounts.description')}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
             <button
               type="button"
               onClick={onAddAccount}
@@ -616,8 +603,8 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
         />
 
         {/* Search filter */}
-        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{t('accounts.modelSearch')}</span>
+        <div className="mb-3 flex flex-col gap-1.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:gap-2">
+          <span className="shrink-0">{t('accounts.modelSearch')}</span>
           <input
             className={clsx(
               'flex-1 min-w-0 p-1 rounded-full',

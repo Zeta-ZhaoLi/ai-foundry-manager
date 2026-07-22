@@ -64,7 +64,7 @@ export function AccountIdentitySection({
   return (
     <>
       {/* Tier and account ID */}
-      <div className="md:col-span-2">
+      <div className="lg:col-span-2">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.tier')}
         </label>
@@ -89,7 +89,7 @@ export function AccountIdentitySection({
               className={clsx(
                 'px-2 py-1 rounded text-xs font-mono font-bold whitespace-nowrap',
                 account.tier === 'premium'
-                  ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-700'
+                  ? 'border border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
                   : 'bg-muted text-muted-foreground border border-border'
               )}
             >
@@ -102,7 +102,7 @@ export function AccountIdentitySection({
       </div>
 
       {/* Account name */}
-      <div className="md:col-span-3">
+      <div className="lg:col-span-3">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.accountName')}
         </label>
@@ -120,7 +120,7 @@ export function AccountIdentitySection({
       </div>
 
       {/* Azure Subscription ID */}
-      <div className="md:col-span-2">
+      <div className="lg:col-span-2">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.subscriptionId')}
         </label>
@@ -138,7 +138,7 @@ export function AccountIdentitySection({
       </div>
 
       {/* Azure Resource Group */}
-      <div className="md:col-span-3">
+      <div className="lg:col-span-3">
         <label className="text-xs text-muted-foreground block mb-1">
           {t('accounts.resourceGroupName')}
         </label>
@@ -161,8 +161,8 @@ export function AccountIdentitySection({
             className={clsx(
               'px-2 py-1.5 rounded-lg border text-xs whitespace-nowrap',
               privacyMode || !onUpdateResourceGroupName
-                ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-                : 'border-cyan-500 bg-cyan-900/20 text-cyan-200 hover:bg-cyan-900/30'
+                ? 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500'
+                : 'border-cyan-500 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-200 dark:hover:bg-cyan-900/30'
             )}
           >
             {t('accounts.generateResourceGroupName')}

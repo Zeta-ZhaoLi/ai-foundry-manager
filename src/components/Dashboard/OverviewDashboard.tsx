@@ -40,7 +40,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   return (
     <div
       className={clsx(
-        'w-full rounded-xl',
+        'w-full rounded-md',
         'border border-border p-3 bg-background'
       )}
     >

@@ -62,97 +62,24 @@ body {
   animation: highlight-flash 0.5s ease-in-out 3;
 }
 
-/* 账号卡片悬停流光边框效果 */
-@keyframes glow-flow {
-  0% {
-    box-shadow:
-      0 0 0 1px #22d3ee,
-      0 0 8px rgba(34, 211, 238, 0.4);
-  }
-  20% {
-    box-shadow:
-      0 0 0 1px #4ade80,
-      0 0 8px rgba(74, 222, 128, 0.4);
-  }
-  40% {
-    box-shadow:
-      0 0 0 1px #a78bfa,
-      0 0 8px rgba(167, 139, 250, 0.4);
-  }
-  60% {
-    box-shadow:
-      0 0 0 1px #fb923c,
-      0 0 8px rgba(251, 146, 60, 0.4);
-  }
-  80% {
-    box-shadow:
-      0 0 0 1px #f87171,
-      0 0 8px rgba(248, 113, 113, 0.4);
-  }
-  100% {
-    box-shadow:
-      0 0 0 1px #22d3ee,
-      0 0 8px rgba(34, 211, 238, 0.4);
-  }
-}
-
+/* 账号卡片悬停边框效果 */
 .account-card-glow {
-  border-radius: 0.75rem;
+  border-radius: 0.375rem;
   transition: box-shadow 0.3s ease;
 }
 
 .account-card-glow:hover {
-  animation: glow-flow 3s linear infinite;
+  box-shadow: 0 0 0 1px rgb(var(--primary) / 0.3);
 }
 
-/* 大板块顺时针旋转流光边框效果 */
-@property --rotate {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes rotate-glow {
-  from {
-    --rotate: 0deg;
-  }
-  to {
-    --rotate: 360deg;
-  }
-}
-
+/* 大板块悬停边框效果 */
 .section-glow {
   position: relative;
-  border-radius: 0.75rem;
+  border-radius: 0.375rem;
   overflow: hidden;
+  transition: border-color 0.2s ease;
 }
 
-.section-glow::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 1px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from var(--rotate),
-    #22d3ee 0deg,
-    #4ade80 72deg,
-    #a78bfa 144deg,
-    #fb923c 216deg,
-    #f87171 288deg,
-    #22d3ee 360deg
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.section-glow:hover::before {
-  opacity: 1;
-  animation: rotate-glow 3s linear infinite;
+.section-glow:hover {
+  border-color: rgb(var(--primary) / 0.35);
 }

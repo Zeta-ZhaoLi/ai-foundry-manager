@@ -81,7 +81,7 @@ const highlightMatch = (text: string, query: string): React.ReactNode => {
   return (
     <>
       {text.slice(0, index)}
-      <span className="text-cyan-400 font-medium">
+      <span className="font-medium text-cyan-700 dark:text-cyan-400">
         {text.slice(index, index + query.length)}
       </span>
       {text.slice(index + query.length)}
@@ -221,8 +221,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {/* 命令面板 */}
       <div
         className={clsx(
-          'relative w-full max-w-lg mx-4',
-          'bg-gray-900 border border-gray-700 rounded-xl shadow-2xl',
+          'relative w-[calc(100%_-_2rem)] max-w-lg',
+          'rounded-md border border-border bg-background shadow-2xl',
           'overflow-hidden',
           'animate-in fade-in-0 zoom-in-95 duration-150'
         )}
@@ -232,8 +232,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         aria-label={t('commandPalette.title')}
       >
         {/* 搜索输入框 */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
-          <SearchIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+          <SearchIcon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
           <input
             ref={inputRef}
             type="text"
@@ -243,7 +243,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             placeholder={t('commandPalette.placeholder')}
             className={clsx(
               'flex-1 bg-transparent border-none outline-none',
-              'text-gray-200 placeholder-gray-500',
+              'text-foreground placeholder:text-muted-foreground',
               'text-sm'
             )}
             aria-label={t('commandPalette.searchLabel')}
@@ -252,7 +252,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             autoCapitalize="off"
             spellCheck={false}
           />
-          <kbd className="hidden sm:inline-flex px-2 py-0.5 text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded">
+          <kbd className="hidden rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground sm:inline-flex">
             Esc
           </kbd>
         </div>
@@ -264,7 +264,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           role="listbox"
         >
           {flatCommands.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-500">
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               {t('commandPalette.noResults')}
             </div>
           ) : (
@@ -275,7 +275,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
                 return (
                   <div key={category}>
-                    <div className="px-4 py-1.5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div className="px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       {categoryLabels[category]}
                     </div>
                     {cmds.map((cmd) => {
@@ -293,15 +293,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             'w-full flex items-center gap-3 px-4 py-2.5 text-left',
                             'transition-colors',
                             isSelected
-                              ? 'bg-cyan-900/30 text-cyan-300'
-                              : 'text-gray-300 hover:bg-gray-800'
+                              ? 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300'
+                              : 'text-foreground hover:bg-muted'
                           )}
                           role="option"
                           aria-selected={isSelected}
                         >
                           {/* 图标 */}
                           {cmd.icon && (
-                            <span className="flex-shrink-0 w-5 h-5 text-gray-400">
+                            <span className="h-5 w-5 flex-shrink-0 text-muted-foreground">
                               {cmd.icon}
                             </span>
                           )}
@@ -313,7 +313,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
                           {/* 快捷键 */}
                           {cmd.shortcut && (
-                            <kbd className="flex-shrink-0 px-2 py-0.5 text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded">
+                            <kbd className="flex-shrink-0 rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                               {cmd.shortcut}
                             </kbd>
                           )}
@@ -328,19 +328,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* 底部提示 */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-800 text-xs text-gray-500">
+        <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">
                 ↑
               </kbd>
-              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">
                 ↓
               </kbd>
               {t('commandPalette.navigate')}
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">
                 ↵
               </kbd>
               {t('commandPalette.execute')}

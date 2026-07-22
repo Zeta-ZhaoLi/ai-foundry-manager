@@ -51,7 +51,7 @@ export function AccountServicePrincipalSection({
   const onUpdateServicePrincipal = onUpdate;
 
   return (
-    <div className="md:col-span-3">
+    <div className="lg:col-span-3">
       <label className="text-xs text-muted-foreground block mb-1">
         {t('accounts.servicePrincipal')}
       </label>
@@ -81,7 +81,7 @@ export function AccountServicePrincipalSection({
               t('accounts.copyServicePrincipalCode')
             )
           }
-          className="px-2 py-1.5 rounded-lg border border-cyan-500 bg-cyan-900/20 text-cyan-200 text-xs whitespace-nowrap hover:bg-cyan-900/30"
+          className="whitespace-nowrap rounded-lg border border-cyan-500 bg-cyan-50 px-2 py-1.5 text-xs text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-200 dark:hover:bg-cyan-900/30"
         >
           {t('accounts.copyServicePrincipalCode')}
         </button>
@@ -98,8 +98,8 @@ export function AccountServicePrincipalSection({
             privacyMode ||
               !onUpdateServicePrincipal ||
               !servicePrincipalJson.trim()
-              ? 'border-gray-700 bg-gray-900/40 text-gray-500 cursor-not-allowed'
-              : 'border-blue-500 bg-blue-900/20 text-blue-200 hover:bg-blue-900/30'
+              ? 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500'
+              : 'border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/30'
           )}
         >
           {t('accounts.importServicePrincipal')}
@@ -108,7 +108,7 @@ export function AccountServicePrincipalSection({
           <button
             type="button"
             onClick={() => onUpdateServicePrincipal?.(undefined)}
-            className="px-2 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             {t('common.clear')}
           </button>

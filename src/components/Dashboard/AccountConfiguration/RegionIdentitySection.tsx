@@ -82,9 +82,9 @@ export function RegionIdentitySection({
   const [showCustomInput, setShowCustomInput] = useState(isCustomRegion);
 
   return (
-    <div className="flex flex-col md:flex-row md:items-start gap-3 mb-2 pr-0 md:pr-20">
+    <div className="mb-2 flex flex-col gap-3 md:flex-row md:items-start md:pr-20">
       {/* 鍚敤寮€鍏?+ 缂栧彿 + 鍖哄煙鍚嶇О */}
-      <div className="flex items-start gap-3 flex-1 min-w-0">
+      <div className="flex min-w-0 flex-1 items-start gap-3 pr-20 md:pr-0">
         <div className="pt-6 shrink-0">
           <label
             className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
@@ -137,7 +137,7 @@ export function RegionIdentitySection({
                   setShowCustomInput(false);
                   onUpdateName('eastus2');
                 }}
-                className="px-2 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:bg-slate-800"
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted"
                 title={t('regions.usePreset')}
               >
                 鈫?{' '}
@@ -147,7 +147,7 @@ export function RegionIdentitySection({
             <select
               className={clsx(
                 'w-full p-1.5 rounded-lg',
-                'border border-gray-700 bg-background text-foreground text-sm',
+                'border border-border bg-background text-foreground text-sm',
                 'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
                 'cursor-pointer'
               )}
@@ -182,7 +182,7 @@ export function RegionIdentitySection({
             type={privacyMode ? 'password' : showApiKey ? 'text' : 'password'}
             className={clsx(
               'flex-1 min-w-0 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
             value={privacyMode ? '***' : region.apiKey || ''}
@@ -195,7 +195,7 @@ export function RegionIdentitySection({
             <button
               type="button"
               onClick={() => setShowApiKey(!showApiKey)}
-              className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+              className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={showApiKey ? t('common.hide') : t('common.show')}
             >
               {showApiKey ? (
@@ -238,7 +238,7 @@ export function RegionIdentitySection({
               onClick={() =>
                 onCopy(region.apiKey || '', `${region.name} API Key`)
               }
-              className="p-1.5 rounded-lg border border-gray-700 bg-background text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+              className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={t('common.copy')}
             >
               <svg
@@ -269,7 +269,7 @@ export function RegionIdentitySection({
             type="text"
             className={clsx(
               'flex-1 min-w-0 p-1.5 rounded-lg',
-              'border border-gray-700 bg-background text-foreground text-sm',
+              'border border-border bg-background text-foreground text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
             )}
             value={privacyMode ? '***' : deploymentResourceName}
@@ -283,7 +283,7 @@ export function RegionIdentitySection({
             <button
               type="button"
               onClick={onAutoGenerate}
-              className="px-2.5 py-1.5 rounded-lg border border-gray-700 bg-background text-xs text-muted-foreground hover:text-foreground hover:bg-slate-800 transition-colors shrink-0"
+              className="shrink-0 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={t('regions.autoGenerate')}
             >
               {t('regions.autoGenerate')}
