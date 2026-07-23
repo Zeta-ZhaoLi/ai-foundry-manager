@@ -93,10 +93,10 @@ describe('Azure CLI deployment output compatibility', () => {
       powershellMultiRegion,
     }).toMatchInlineSnapshot(`
       {
-        "bash": "2f5a0fc10c6414bce0134a2b9a40c44eb49f4a8d53e905d87f810b93cbb75d68",
-        "bashMultiRegion": "d4cc118be5c2e2d4df09059b212ababab806b1fcc3d1e2e26133c41926496386",
-        "powershell": "e789d084d5f6780dc93ed2ab0466266cacaf69b39aac2d49fc1f264d92dc3ed4",
-        "powershellMultiRegion": "7de9f62d0de3ae76f3960511a94bc26119768c9dbb83edf4233127b118d86bd2",
+        "bash": "bb26810566a28d10966984731172ae11ec10a4faf4299fcf51603da92c4c8b21",
+        "bashMultiRegion": "133a955eac118fc562ba053e0eb4192a3286cb6464b433b5f16110983bece6d6",
+        "powershell": "1a53afe348878acc27d377bde422c6fd917c6ac2d1b23a660c9cf7114eafc7be",
+        "powershellMultiRegion": "c7fd36cfca26bd2bed36f3f72f1236da6f14c469a6dcec8dbaae451a9aa42939",
       }
     `);
   });

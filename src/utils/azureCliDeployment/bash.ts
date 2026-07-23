@@ -88,34 +88,83 @@ print_status() {
   printf "  [%-7s] %s\\n" "$1" "$2"
 }
 
-start_model_progress() {
-  local message="$1"
-  if [ -t 1 ]; then
-    printf "\\r%-160s" "\${message} | RUNNING"
-  else
-    echo "\${message} | RUNNING"
-  fi
+MODEL_DEPLOYMENT_WIDTH=12
+MODEL_NAME_WIDTH=5
+MODEL_PROGRESS_LINE_WIDTH=240
+
+initialize_model_table_layout() {
+  local item
+  local deployment_name
+  local model_format
+  local model_name
+  local model_version
+  local configured_max_capacity
+  for item in "\${MODELS[@]}"; do
+    IFS='|' read -r deployment_name model_format model_name model_version configured_max_capacity <<< "\${item}"
+    if [ "\${#deployment_name}" -gt "\${MODEL_DEPLOYMENT_WIDTH}" ]; then
+      MODEL_DEPLOYMENT_WIDTH="\${#deployment_name}"
+    fi
+    if [ "\${#model_name}" -gt "\${MODEL_NAME_WIDTH}" ]; then
+      MODEL_NAME_WIDTH="\${#model_name}"
+    fi
+  done
 }
 
-finish_model_progress() {
-  local message="$1"
+print_model_table_header() {
+  printf "%-5s | %-*s | %-*s | %-9s | %-16s | %8s | %s\\n" \
+    "Index" "\${MODEL_DEPLOYMENT_WIDTH}" "Deployment" "\${MODEL_NAME_WIDTH}" "Model" "Status" "SKU" "Capacity" "Details"
+  printf "%-5s-+-%-*s-+-%-*s-+-%-9s-+-%-16s-+-%-8s-+-%s\\n" \
+    "-----" "\${MODEL_DEPLOYMENT_WIDTH}" "$(printf '%*s' "\${MODEL_DEPLOYMENT_WIDTH}" '' | tr ' ' '-')" \
+    "\${MODEL_NAME_WIDTH}" "$(printf '%*s' "\${MODEL_NAME_WIDTH}" '' | tr ' ' '-')" \
+    "---------" "----------------" "--------" "------------------------------"
+}
+
+format_model_progress_row() {
+  local index="$1"
+  local total="$2"
+  local deployment_name="$3"
+  local model_name="$4"
+  local status="$5"
+  local sku="$6"
+  local capacity="$7"
+  local details="$8"
+  local index_label
+  printf -v index_label "%02d/%02d" "\${index}" "\${total}"
+  printf "%-5s | %-*s | %-*s | %-9s | %-16s | %8s | %s" \
+    "\${index_label}" "\${MODEL_DEPLOYMENT_WIDTH}" "\${deployment_name}" \
+    "\${MODEL_NAME_WIDTH}" "\${model_name}" "\${status}" "\${sku}" "\${capacity}" "\${details}"
+}
+
+start_model_progress() {
+  local index="$1"
+  local total="$2"
+  local deployment_name="$3"
+  local model_name="$4"
+  local message
+  message="$(format_model_progress_row "\${index}" "\${total}" "\${deployment_name}" "\${model_name}" "RUNNING" "-" "-" "starting")"
   if [ -t 1 ]; then
-    printf "\\r%-160s\\n" "\${message}"
+    printf "\\r%-\${MODEL_PROGRESS_LINE_WIDTH}s" "\${message}"
   else
     echo "\${message}"
   fi
 }
 
-join_model_names() {
-  local output=""
-  local name
-  for name in "$@"; do
-    if [ -n "\${output}" ]; then
-      output="\${output}, "
-    fi
-    output="\${output}\${name}"
-  done
-  echo "\${output}"
+finish_model_progress() {
+  local index="$1"
+  local total="$2"
+  local deployment_name="$3"
+  local model_name="$4"
+  local status="$5"
+  local sku="$6"
+  local capacity="$7"
+  local details="$8"
+  local message
+  message="$(format_model_progress_row "\${index}" "\${total}" "\${deployment_name}" "\${model_name}" "\${status}" "\${sku}" "\${capacity}" "\${details}")"
+  if [ -t 1 ]; then
+    printf "\\r%-\${MODEL_PROGRESS_LINE_WIDTH}s\\n" "\${message}"
+  else
+    echo "\${message}"
+  fi
 }
 
 print_deployment_summary() {
@@ -125,12 +174,6 @@ print_deployment_summary() {
   fi
   echo
   echo "\${label}: succeeded=\${#SUCCEEDED_DEPLOYMENTS[@]}, skipped=\${#SKIPPED_DEPLOYMENTS[@]}, failed=\${#FAILED_DEPLOYMENTS[@]}"
-  if [ "\${#SKIPPED_DEPLOYMENTS[@]}" -gt 0 ]; then
-    echo "Skipped models: $(join_model_names "\${SKIPPED_DEPLOYMENTS[@]}")"
-  fi
-  if [ "\${#FAILED_DEPLOYMENTS[@]}" -gt 0 ]; then
-    echo "Failed models: $(join_model_names "\${FAILED_DEPLOYMENTS[@]}")"
-  fi
   if [ "\${AZURE_FOUNDRY_DEFER_REPORT_NOTICE:-}" != "true" ]; then
     echo "Result file: \${REPORT_PATH}"
   fi
@@ -829,13 +872,13 @@ deploy_all_models() {
   print_section "Models - \${ACCOUNT_LOCATION}"
   local model_total="\${#MODELS[@]}"
   local model_index=0
+  initialize_model_table_layout
   echo "Models selected: \${model_total}"
+  print_model_table_header
   for item in "\${MODELS[@]}"; do
     model_index=$((model_index + 1))
     IFS='|' read -r deployment_name model_format model_name model_version configured_max_capacity <<< "\${item}"
-    local progress_prefix
-    printf -v progress_prefix "[%02d/%02d] %s" "\${model_index}" "\${model_total}" "\${deployment_name}"
-    start_model_progress "\${progress_prefix}"
+    start_model_progress "\${model_index}" "\${model_total}" "\${deployment_name}" "\${model_name}"
 
     deploy_model_with_max_capacity "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}" "\${configured_max_capacity:-0}"
     rc=$?
@@ -843,15 +886,15 @@ deploy_all_models() {
     case "\${rc}" in
       0)
         SUCCEEDED_DEPLOYMENTS+=("\${deployment_name}")
-        finish_model_progress "\${progress_prefix} | SUCCESS | SKU=\${LAST_DEPLOYMENT_SKU} | capacity=\${LAST_DEPLOYMENT_CAPACITY}"
+        finish_model_progress "\${model_index}" "\${model_total}" "\${deployment_name}" "\${model_name}" "SUCCESS" "\${LAST_DEPLOYMENT_SKU}" "\${LAST_DEPLOYMENT_CAPACITY}" "deployed"
         ;;
       2)
         SKIPPED_DEPLOYMENTS+=("\${deployment_name}")
-        finish_model_progress "\${progress_prefix} | SKIPPED | \${LAST_DEPLOYMENT_REASON:-not deployable}"
+        finish_model_progress "\${model_index}" "\${model_total}" "\${deployment_name}" "\${model_name}" "SKIPPED" "-" "-" "\${LAST_DEPLOYMENT_REASON:-not deployable}"
         ;;
       *)
         FAILED_DEPLOYMENTS+=("\${deployment_name}")
-        finish_model_progress "\${progress_prefix} | FAILED | \${LAST_DEPLOYMENT_REASON:-unknown error}"
+        finish_model_progress "\${model_index}" "\${model_total}" "\${deployment_name}" "\${model_name}" "FAILED" "\${LAST_DEPLOYMENT_SKU:--}" "\${LAST_DEPLOYMENT_CAPACITY:--}" "\${LAST_DEPLOYMENT_REASON:-unknown error}"
         ;;
     esac
 
@@ -865,10 +908,16 @@ fi
 if [ "\${DEPLOYMENT_RUN_MODE}" != "prepare-only" ]; then
   deploy_all_models
   append_deployment_report
+  if [ "\${AZURE_FOUNDRY_DEFER_REPORT_NOTICE:-}" != "true" ]; then
+    print_deployment_tables
+  fi
   print_deployment_summary
   if [ "\${AZURE_FOUNDRY_DEFER_REPORT_NOTICE:-}" = "true" ]; then
     add_region_totals
   fi
+fi
+if [ "\${AZURE_FOUNDRY_DEFER_REPORT_NOTICE:-}" != "true" ]; then
+  cleanup_deployment_table_data
 fi
 ${includeIdentityComment ? `\n${identityComment}` : ''}
 `.trimEnd();
@@ -930,6 +979,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
     'unset AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID',
     'export AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID="true"',
     'export AZURE_FOUNDRY_DEFER_REPORT_NOTICE="true"',
+    'export AZURE_FOUNDRY_TABLE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ai-foundry-manager-tables.XXXXXX")"',
     'export AZURE_FOUNDRY_TOTAL_SUCCEEDED="0"',
     'export AZURE_FOUNDRY_TOTAL_SKIPPED="0"',
     'export AZURE_FOUNDRY_TOTAL_FAILED="0"',
@@ -1001,8 +1051,10 @@ export function buildAzureCliMultiRegionDeploymentScript(
     'echo "============================================================"',
     'echo "Summary"',
     'echo "============================================================"',
+    'print_deployment_tables',
     'echo "Deployment summary: succeeded=${AZURE_FOUNDRY_TOTAL_SUCCEEDED:-0}, skipped=${AZURE_FOUNDRY_TOTAL_SKIPPED:-0}, failed=${AZURE_FOUNDRY_TOTAL_FAILED:-0}"',
     'echo "Result file: ${AZURE_FOUNDRY_REPORT_PATH}"',
+    'cleanup_deployment_table_data',
     'unset AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE',
     'unset AZURE_FOUNDRY_DEFER_REPORT_NOTICE',
     'unset AZURE_FOUNDRY_TOTAL_SUCCEEDED',
@@ -1012,6 +1064,7 @@ export function buildAzureCliMultiRegionDeploymentScript(
     'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
     'unset AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID',
     'unset AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID',
+    'unset AZURE_FOUNDRY_TABLE_DIR',
     'unset AZURE_CONFIG_DIR',
     identityComment,
   ].join('\n\n');

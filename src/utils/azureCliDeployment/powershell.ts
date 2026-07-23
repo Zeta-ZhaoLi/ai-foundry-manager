@@ -96,21 +96,81 @@ function Write-Status {
   Write-Host ('  [{0,-7}] {1}' -f $Status, $Message)
 }
 
+$script:ModelDeploymentWidth = 12
+$script:ModelNameWidth = 5
+$script:ModelProgressLineWidth = 240
+
+function Initialize-ModelTableLayout {
+  foreach ($item in @($Models)) {
+    $parts = $item -split '\\|', 5
+    if ($parts.Count -lt 4) { continue }
+    if ($parts[0].Length -gt $script:ModelDeploymentWidth) { $script:ModelDeploymentWidth = $parts[0].Length }
+    if ($parts[2].Length -gt $script:ModelNameWidth) { $script:ModelNameWidth = $parts[2].Length }
+  }
+}
+
+function Format-ModelProgressRow {
+  param(
+    [int]$Index,
+    [int]$Total,
+    [string]$DeploymentName,
+    [string]$ModelName,
+    [string]$Status,
+    [string]$Sku,
+    [string]$Capacity,
+    [string]$Details
+  )
+  $cells = @(
+    ('{0:D2}/{1:D2}' -f $Index, $Total).PadRight(5),
+    $DeploymentName.PadRight($script:ModelDeploymentWidth),
+    $ModelName.PadRight($script:ModelNameWidth),
+    $Status.PadRight(9),
+    $Sku.PadRight(16),
+    $Capacity.PadLeft(8),
+    $Details
+  )
+  return ($cells -join ' | ')
+}
+
+function Write-ModelTableHeader {
+  $headers = @(
+    'Index'.PadRight(5),
+    'Deployment'.PadRight($script:ModelDeploymentWidth),
+    'Model'.PadRight($script:ModelNameWidth),
+    'Status'.PadRight(9),
+    'SKU'.PadRight(16),
+    'Capacity'.PadLeft(8),
+    'Details'
+  )
+  Write-Host ($headers -join ' | ')
+  Write-Host ((@(
+    ('-' * 5),
+    ('-' * $script:ModelDeploymentWidth),
+    ('-' * $script:ModelNameWidth),
+    ('-' * 9),
+    ('-' * 16),
+    ('-' * 8),
+    ('-' * 30)
+  ) -join '-+-'))
+}
+
 function Start-ModelProgress {
-  param([string]$Message)
+  param([int]$Index, [int]$Total, [string]$DeploymentName, [string]$ModelName)
+  $message = Format-ModelProgressRow -Index $Index -Total $Total -DeploymentName $DeploymentName -ModelName $ModelName -Status 'RUNNING' -Sku '-' -Capacity '-' -Details 'starting'
   if ($script:InteractiveProgress) {
-    Write-Host -NoNewline ("\`r{0,-160}" -f ($Message + ' | RUNNING'))
+    Write-Host -NoNewline ("\`r{0,-$script:ModelProgressLineWidth}" -f $message)
   } else {
-    Write-Host ($Message + ' | RUNNING')
+    Write-Host $message
   }
 }
 
 function Complete-ModelProgress {
-  param([string]$Message)
+  param([int]$Index, [int]$Total, [string]$DeploymentName, [string]$ModelName, [string]$Status, [string]$Sku, [string]$Capacity, [string]$Details)
+  $message = Format-ModelProgressRow -Index $Index -Total $Total -DeploymentName $DeploymentName -ModelName $ModelName -Status $Status -Sku $Sku -Capacity $Capacity -Details $Details
   if ($script:InteractiveProgress) {
-    Write-Host ("\`r{0,-160}" -f $Message)
+    Write-Host ("\`r{0,-$script:ModelProgressLineWidth}" -f $message)
   } else {
-    Write-Host $Message
+    Write-Host $message
   }
 }
 
@@ -121,12 +181,6 @@ function Write-DeploymentSummary {
   }
   Write-Host ''
   Write-Host ('{0}: succeeded={1}, skipped={2}, failed={3}' -f $label, $SucceededDeployments.Count, $SkippedDeployments.Count, $FailedDeployments.Count)
-  if ($SkippedDeployments.Count -gt 0) {
-    Write-Host ('Skipped models: ' + [string]::Join(', ', $SkippedDeployments))
-  }
-  if ($FailedDeployments.Count -gt 0) {
-    Write-Host ('Failed models: ' + [string]::Join(', ', $FailedDeployments))
-  }
   if ($env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -ne 'true') {
     Write-Host "Result file: $script:ReportPath"
   }
@@ -636,7 +690,9 @@ function Deploy-AllModels {
   Write-Section -Title "Models - $AccountLocation"
   $modelTotal = $Models.Count
   $modelIndex = 0
+  Initialize-ModelTableLayout
   Write-Host "Models selected: $modelTotal"
+  Write-ModelTableHeader
   foreach ($item in $Models) {
     $modelIndex++
     $parts = $item -split '\\|', 5
@@ -645,21 +701,22 @@ function Deploy-AllModels {
     if ($parts.Count -ge 5) {
       [void][int]::TryParse($parts[4], [ref]$configuredMaxCapacity)
     }
-    $progressPrefix = '[{0:D2}/{1:D2}] {2}' -f $modelIndex, $modelTotal, $parts[0]
-    Start-ModelProgress -Message $progressPrefix
+    Start-ModelProgress -Index $modelIndex -Total $modelTotal -DeploymentName $parts[0] -ModelName $parts[2]
     $rc = Deploy-ModelWithMaxCapacity -DeploymentName $parts[0] -ModelFormat $parts[1] -ModelName $parts[2] -ModelVersion $parts[3] -ConfiguredMaxCapacity $configuredMaxCapacity
     if ($rc -eq 0) {
       $SucceededDeployments += $parts[0]
-      Complete-ModelProgress -Message ("$progressPrefix | SUCCESS | SKU=$script:LastDeploymentSku | capacity=$script:LastDeploymentCapacity")
+      Complete-ModelProgress -Index $modelIndex -Total $modelTotal -DeploymentName $parts[0] -ModelName $parts[2] -Status 'SUCCESS' -Sku $script:LastDeploymentSku -Capacity $script:LastDeploymentCapacity -Details 'deployed'
     } elseif ($rc -eq 2) {
       $SkippedDeployments += $parts[0]
       $reason = if ($script:LastDeploymentReason) { $script:LastDeploymentReason } else { 'not deployable' }
-      Complete-ModelProgress -Message ("$progressPrefix | SKIPPED | $reason")
+      Complete-ModelProgress -Index $modelIndex -Total $modelTotal -DeploymentName $parts[0] -ModelName $parts[2] -Status 'SKIPPED' -Sku '-' -Capacity '-' -Details $reason
     } else {
       Write-Warning "Deployment '$($parts[0])' failed; continuing with the next deployment."
       $FailedDeployments += $parts[0]
       $reason = if ($script:LastDeploymentReason) { $script:LastDeploymentReason } else { 'unknown error' }
-      Complete-ModelProgress -Message ("$progressPrefix | FAILED | $reason")
+      $failureSku = if ($script:LastDeploymentSku) { $script:LastDeploymentSku } else { '-' }
+      $failureCapacity = if ($script:LastDeploymentCapacity) { $script:LastDeploymentCapacity } else { '-' }
+      Complete-ModelProgress -Index $modelIndex -Total $modelTotal -DeploymentName $parts[0] -ModelName $parts[2] -Status 'FAILED' -Sku $failureSku -Capacity $failureCapacity -Details $reason
     }
   }
 }
@@ -683,10 +740,16 @@ if ($DeploymentRunMode -ne 'deploy-only') {
 if ($DeploymentRunMode -ne 'prepare-only') {
   Deploy-AllModels
   Append-DeploymentReport
+  if ($env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -ne 'true') {
+    Write-DeploymentTables
+  }
   Write-DeploymentSummary
   if ($env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -eq 'true') {
     Add-RegionTotals
   }
+}
+if ($env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -ne 'true') {
+  Remove-DeploymentTableData
 }
 ${includeIdentityComment ? `\n${identityComment}` : ''}
 `.trimEnd();
@@ -751,6 +814,8 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     "$env:AZURE_FOUNDRY_TOTAL_SUCCEEDED = '0'",
     "$env:AZURE_FOUNDRY_TOTAL_SKIPPED = '0'",
     "$env:AZURE_FOUNDRY_TOTAL_FAILED = '0'",
+    "$env:AZURE_FOUNDRY_TABLE_DIR = Join-Path ([System.IO.Path]::GetTempPath()) ('ai-foundry-manager-tables-' + [System.Guid]::NewGuid().ToString('N'))",
+    'New-Item -ItemType Directory -Force -Path $env:AZURE_FOUNDRY_TABLE_DIR | Out-Null',
     "Write-Host ''",
     "Write-Host '============================================================'",
     "Write-Host 'Azure AI Foundry multi-region deployment'",
@@ -819,8 +884,10 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     "Write-Host '============================================================'",
     "Write-Host 'Summary'",
     "Write-Host '============================================================'",
+    'Write-DeploymentTables',
     'Write-Host "Deployment summary: succeeded=$env:AZURE_FOUNDRY_TOTAL_SUCCEEDED, skipped=$env:AZURE_FOUNDRY_TOTAL_SKIPPED, failed=$env:AZURE_FOUNDRY_TOTAL_FAILED"',
     'Write-Host "Result file: $env:AZURE_FOUNDRY_REPORT_PATH"',
+    'Remove-DeploymentTableData',
     'Remove-Item Env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_TOTAL_SUCCEEDED -ErrorAction SilentlyContinue',
@@ -830,6 +897,7 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_TABLE_DIR -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_CONFIG_DIR -ErrorAction SilentlyContinue',
     identityComment,
   ].join('\n\n');

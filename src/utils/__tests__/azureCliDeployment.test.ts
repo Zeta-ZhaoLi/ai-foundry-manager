@@ -181,6 +181,15 @@ describe('azureCliDeployment', () => {
     expect(script).toContain(
       'echo "Result file: ${AZURE_FOUNDRY_REPORT_PATH}"'
     );
+    expect(script).toContain(
+      'export AZURE_FOUNDRY_TABLE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ai-foundry-manager-tables.XXXXXX")"'
+    );
+    expect(
+      script.split('\n').filter((line) => line === 'print_deployment_tables')
+    ).toHaveLength(1);
+    expect(script.indexOf('Deployment model summary')).toBeLessThan(
+      script.indexOf('Region information')
+    );
     expect(script.indexOf('# Prepare eastus2')).toBeLessThan(
       script.indexOf('# Prepare swedencentral')
     );
@@ -299,22 +308,18 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('prepare_account_resources');
     expect(script).toContain('deploy_all_models');
     expect(script).not.toContain('Subscription ID:');
-    expect(script).toContain(
-      'Foundry endpoint: https://${ACCOUNT_NAME}.services.ai.azure.com/api/projects/${PROJECT_NAME}'
-    );
-    expect(script).toContain(
-      'OpenAI endpoint: https://${ACCOUNT_NAME}.openai.azure.com'
-    );
-    expect(script).toContain(
-      'AI Services endpoint: https://${ACCOUNT_NAME}.services.ai.azure.com'
-    );
-    expect(script).toContain('Account key:');
+    expect(script).toContain('Foundry Endpoint');
+    expect(script).toContain('OpenAI Endpoint');
+    expect(script).toContain('AI Services Endpoint');
+    expect(script).toContain('API Key');
     expect(script).toContain('Available models:');
-    expect(script).toContain('Model information:');
-    expect(script).toContain('  - " + .');
+    expect(script).toContain('[$region, .] | @tsv');
     expect(script).toContain(
-      'Deployment | Model | Format | Version | SKU | Capacity | State'
+      'Region|DeploymentName|ModelName|ModelVersion|SKU|Capacity|State|RaiPolicy'
     );
+    expect(script).toContain('print_deployment_tables');
+    expect(script).toContain('models.tsv');
+    expect(script).toContain('regions.tsv');
     expect(script).not.toContain('print_account_key_summary');
     expect(script).not.toContain('print_copyable_model_import_list');
   });
@@ -408,9 +413,11 @@ describe('azureCliDeployment', () => {
     expect(script).toContain("Write-Section -Title 'Provider'");
     expect(script).toContain('Start-ModelProgress');
     expect(script).toContain('Complete-ModelProgress');
-    expect(script).toContain('| SUCCESS | SKU=');
-    expect(script).toContain('| SKIPPED |');
-    expect(script).toContain('| FAILED |');
+    expect(script).toContain('Write-ModelTableHeader');
+    expect(script).toContain("-Status 'SUCCESS'");
+    expect(script).toContain("-Status 'SKIPPED'");
+    expect(script).toContain("-Status 'FAILED'");
+    expect(script).toContain('Write-DeploymentTables');
     expect(script).toContain('Write-DeploymentSummary');
     expect(script).not.toContain('Print-AccountKeySummary');
     expect(script).not.toContain('Print-CopyableModelImportList');
@@ -491,9 +498,11 @@ describe('azureCliDeployment', () => {
     expect(script).toContain('print_section "Provider"');
     expect(script).toContain('start_model_progress');
     expect(script).toContain('finish_model_progress');
-    expect(script).toContain('| SUCCESS | SKU=');
-    expect(script).toContain('| SKIPPED |');
-    expect(script).toContain('| FAILED |');
+    expect(script).toContain('print_model_table_header');
+    expect(script).toContain('"SUCCESS"');
+    expect(script).toContain('"SKIPPED"');
+    expect(script).toContain('"FAILED"');
+    expect(script).toContain('print_deployment_tables');
     expect(script).toContain('Deployment summary');
     expect(script).toContain('Result file: ${REPORT_PATH}');
   });
@@ -526,7 +535,7 @@ describe('azureCliDeployment', () => {
     expect(script).toContain(
       'reduce .[] as $name ([]; if index($name) then . else . + [$name] end)'
     );
-    expect(script).toContain('.[] | "  - " + .');
+    expect(script).toContain('.[] | [$region, .] | @tsv');
   });
 
   it('uses the resilient model capacity JSON shape from the template', () => {
@@ -650,6 +659,15 @@ describe('azureCliDeployment', () => {
     );
     expect(script).toContain(
       'Write-Host "Result file: $env:AZURE_FOUNDRY_REPORT_PATH"'
+    );
+    expect(script).toContain(
+      '$env:AZURE_FOUNDRY_TABLE_DIR = Join-Path ([System.IO.Path]::GetTempPath())'
+    );
+    expect(
+      script.split('\n').filter((line) => line === 'Write-DeploymentTables')
+    ).toHaveLength(1);
+    expect(script.indexOf('Deployment model summary')).toBeLessThan(
+      script.indexOf('Region information')
     );
     expect(script.indexOf('# Prepare eastus2')).toBeLessThan(
       script.indexOf('# Prepare swedencentral')
