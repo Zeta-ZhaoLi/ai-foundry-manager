@@ -49,6 +49,7 @@ describe('deployment configuration contract', () => {
       accountId,
       tier: accountId.startsWith('A') ? 'premium' : 'standard',
       name: accountId,
+      available: false,
       enabled,
       note: '',
       regions: [],
@@ -84,6 +85,7 @@ describe('deployment configuration contract', () => {
       id: `acct-${index + 170}`,
       accountId: `B${index + 170}`,
       name: `user${index + 170}@example.com`,
+      available: false,
       enabled: false,
       note: '',
       tier: 'standard',
@@ -222,6 +224,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       regions: [],
     };
@@ -263,6 +266,7 @@ describe('deployment configuration contract', () => {
       accountId: 'B001',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: false,
       includeInStats: true,
       tier: 'standard',
@@ -276,6 +280,8 @@ describe('deployment configuration contract', () => {
       ],
     };
     const onUpdateEnabled = vi.fn();
+    const onUpdateAvailable = vi.fn();
+    const onUpdateIncludeInStats = vi.fn();
 
     const { getByText, getByLabelText, queryByText } = render(
       <I18nextProvider i18n={i18n}>
@@ -288,7 +294,8 @@ describe('deployment configuration contract', () => {
           onUpdateName={vi.fn()}
           onUpdateNote={vi.fn()}
           onUpdateEnabled={onUpdateEnabled}
-          onUpdateIncludeInStats={vi.fn()}
+          onUpdateAvailable={onUpdateAvailable}
+          onUpdateIncludeInStats={onUpdateIncludeInStats}
           onDelete={vi.fn()}
           onAddRegion={vi.fn()}
           onDeleteRegion={vi.fn()}
@@ -304,10 +311,28 @@ describe('deployment configuration contract', () => {
     );
 
     expect(getByText(i18n.t('accounts.deleteAccount'))).toBeTruthy();
+    const available = getByLabelText(
+      i18n.t('accounts.available')
+    ) as HTMLInputElement;
+    const includeInStats = getByLabelText(
+      i18n.t('accounts.includeInStats')
+    ) as HTMLInputElement;
+    expect(available.checked).toBe(false);
+    expect(
+      available.compareDocumentPosition(includeInStats) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(getByText(i18n.t('accounts.includeInStats'))).toBeTruthy();
     const enableModels = getByLabelText(
       i18n.t('accounts.enableModels')
     ) as HTMLInputElement;
+    expect(
+      includeInStats.compareDocumentPosition(enableModels) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    fireEvent.click(available);
+    expect(onUpdateAvailable).toHaveBeenCalledWith(true);
+    expect(onUpdateIncludeInStats).not.toHaveBeenCalled();
     expect(enableModels.checked).toBe(false);
     expect(getByText(i18n.t('accounts.expand'))).toBeTruthy();
     expect(queryByText(i18n.t('regions.regionList'))).toBeNull();
@@ -323,6 +348,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'user@example.com',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
       resourceGroupName: 'rg-first',
@@ -401,6 +427,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
       resourceGroupName: 'rg-first',
@@ -484,6 +511,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
       regions: [
@@ -536,6 +564,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
       resourceGroupName: 'rg-pinned',
@@ -601,6 +630,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
       regions: [
@@ -658,6 +688,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'user@example.com',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '37753a40-cbd3-4042-913b-3dd5d5a56f87',
       resourceGroupName: 'rg-first',
@@ -722,6 +753,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '',
       resourceGroupName: 'rg-first',
@@ -824,6 +856,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       subscriptionId: '',
       resourceGroupName: 'rg-first',
@@ -885,6 +918,7 @@ describe('deployment configuration contract', () => {
       id: 'acct-1',
       name: 'Account 1',
       note: '',
+      available: false,
       enabled: true,
       servicePrincipal: {
         appId: 'app-id',

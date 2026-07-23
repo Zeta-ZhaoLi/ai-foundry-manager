@@ -39,9 +39,24 @@ describe('configuration migration and import', () => {
     localStorage.setItem(LEGACY_ACCOUNTS_STORAGE_KEY, raw);
 
     const accounts = loadAccounts(localStorage);
+    expect(accounts[0].available).toBe(false);
     expect(accounts[0].servicePrincipal?.password).toBe('sp-secret');
     expect(accounts[0].regions[0].apiKey).toBe('api-secret');
     expect(localStorage.getItem(ACCOUNTS_STORAGE_KEY)).not.toBeNull();
+    expect(
+      JSON.parse(localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '[]')[0]
+        .available
+    ).toBe(false);
+  });
+
+  it('round-trips the account availability flag', () => {
+    const accounts = createInitialConfigData().accounts.map((account) => ({
+      ...account,
+      available: true,
+    }));
+    localStorage.setItem(ACCOUNTS_STORAGE_KEY, serializeAccounts(accounts));
+
+    expect(loadAccounts(localStorage)[0].available).toBe(true);
   });
 
   it('preserves invalid raw data instead of replacing it with defaults', () => {
@@ -98,5 +113,16 @@ describe('configuration migration and import', () => {
     });
 
     expect(parsed.defaultRegionModelTemplate.regions[0].enabled).toBe(true);
+  });
+
+  it('defaults missing account availability flags for older configurations', () => {
+    const current = createInitialConfigData();
+    const { available: _available, ...legacyAccount } = current.accounts[0];
+    const parsed = parseConfigData({
+      ...current,
+      accounts: [legacyAccount],
+    });
+
+    expect(parsed.accounts[0].available).toBe(false);
   });
 });

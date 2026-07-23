@@ -71,6 +71,7 @@
     "deleteAccount": "アカウント削除",
     "enableAccount": "有効化 / 統計に含める",
     "includeInStats": "統計に含める",
+    "available": "利用可能",
     "enableModels": "モデルを有効化",
     "account": "アカウント",
     "modelSearch": "モデル検索:",

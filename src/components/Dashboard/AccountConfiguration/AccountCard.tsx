@@ -57,6 +57,7 @@ export interface AccountCardProps {
   ) => void;
   onUpdateNote: (note: string) => void;
   onUpdateEnabled: (enabled: boolean) => void;
+  onUpdateAvailable?: (available: boolean) => void;
   onUpdateIncludeInStats?: (includeInStats: boolean) => void;
   onUpdateTier?: (tier: AccountTier) => void;
   onUpdateQuota?: (quota: AccountQuota, customQuota?: number) => void;
@@ -111,6 +112,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onUpdateServicePrincipal,
   onUpdateNote,
   onUpdateEnabled,
+  onUpdateAvailable,
   onUpdateIncludeInStats,
   onUpdateTier,
   onUpdateQuota,
@@ -308,6 +310,16 @@ export const AccountCard: React.FC<AccountCardProps> = ({
               >
                 {t('accounts.deleteAccount')}
               </button>
+              {/* Account availability */}
+              <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={account.available === true}
+                  onChange={(e) => onUpdateAvailable?.(e.target.checked)}
+                  className="cursor-pointer"
+                />
+                <span>{t('accounts.available')}</span>
+              </label>
               {/* Account-level statistics */}
               <label className="text-xs text-muted-foreground flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                 <input

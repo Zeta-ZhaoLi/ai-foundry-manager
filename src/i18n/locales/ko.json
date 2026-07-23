@@ -71,6 +71,7 @@
     "deleteAccount": "계정 삭제",
     "enableAccount": "활성화 / 통계 포함",
     "includeInStats": "통계 포함",
+    "available": "사용 가능",
     "enableModels": "모델 활성화",
     "account": "계정",
     "modelSearch": "모델 검색:",

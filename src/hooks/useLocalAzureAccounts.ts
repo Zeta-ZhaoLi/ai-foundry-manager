@@ -209,6 +209,7 @@ export function useLocalAzureAccounts() {
         name: `${i18n.t('accounts.account')} ${prev.length + 1}`,
         subscriptionId: '',
         note: '',
+        available: false,
         enabled: false,
         includeInStats: true,
         tier: newTier,
@@ -292,6 +293,15 @@ export function useLocalAzureAccounts() {
         prev.map((acct) =>
           acct.id === id ? { ...acct, includeInStats } : acct
         )
+      );
+    },
+    [saveAccounts]
+  );
+
+  const updateAccountAvailable = useCallback(
+    (id: string, available: boolean) => {
+      saveAccounts((prev) =>
+        prev.map((acct) => (acct.id === id ? { ...acct, available } : acct))
       );
     },
     [saveAccounts]
@@ -887,6 +897,7 @@ export function useLocalAzureAccounts() {
     updateAccountServicePrincipal,
     updateAccountNote,
     updateAccountEnabled,
+    updateAccountAvailable,
     updateAccountIncludeInStats,
     updateAccountTier,
     updateAccountQuota,

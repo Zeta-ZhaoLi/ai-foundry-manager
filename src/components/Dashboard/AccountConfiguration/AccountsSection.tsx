@@ -142,6 +142,7 @@ export interface AccountsSectionProps {
   ) => void;
   onUpdateAccountNote: (accountId: string, note: string) => void;
   onUpdateAccountEnabled: (accountId: string, enabled: boolean) => void;
+  onUpdateAccountAvailable?: (accountId: string, available: boolean) => void;
   onUpdateAccountIncludeInStats?: (
     accountId: string,
     includeInStats: boolean
@@ -254,6 +255,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   onUpdateAccountServicePrincipal,
   onUpdateAccountNote,
   onUpdateAccountEnabled,
+  onUpdateAccountAvailable,
   onUpdateAccountIncludeInStats,
   onUpdateAccountTier,
   onUpdateAccountQuota,
@@ -713,6 +715,12 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
                         }
                         onUpdateEnabled={(enabled) =>
                           onUpdateAccountEnabled(account.id, enabled)
+                        }
+                        onUpdateAvailable={
+                          onUpdateAccountAvailable
+                            ? (available) =>
+                                onUpdateAccountAvailable(account.id, available)
+                            : undefined
                         }
                         onUpdateIncludeInStats={
                           onUpdateAccountIncludeInStats

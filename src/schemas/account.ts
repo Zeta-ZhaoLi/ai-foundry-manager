@@ -23,9 +23,7 @@ export const regionDeploymentModelConfigSchema = z.object({
 
 export const regionDeploymentConfigSchema = z.object({
   resourceName: z.string().optional(),
-  models: z
-    .record(z.string(), regionDeploymentModelConfigSchema)
-    .optional(),
+  models: z.record(z.string(), regionDeploymentModelConfigSchema).optional(),
 });
 
 export const servicePrincipalCredentialSchema = z.object({
@@ -70,6 +68,7 @@ export const localAccountSchema = z.object({
   resourceGroupName: z.string().optional(),
   servicePrincipal: servicePrincipalCredentialSchema.optional(),
   note: z.string().optional(),
+  available: z.boolean().default(false),
   enabled: z.boolean().default(true),
   includeInStats: z.boolean().optional(),
   regions: z.array(localRegionSchema).default([]),

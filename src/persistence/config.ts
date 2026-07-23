@@ -54,6 +54,7 @@ export function createInitialAccounts(): LocalAccount[] {
       accountId: 'B001',
       name: `${i18n.t('accounts.account')} 1`,
       note: '',
+      available: false,
       enabled: true,
       tier: 'standard',
       regions: [
@@ -122,6 +123,7 @@ function normalizeAccount(value: unknown, prior: LocalAccount[]): LocalAccount {
     accountId:
       optionalString(value.accountId) || generateAccountId(prior, tier),
     name: optionalString(value.name) || optionalString(value.id) || '',
+    available: value.available === true,
     enabled: value.enabled !== false,
     tier,
     servicePrincipal,

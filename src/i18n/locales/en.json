@@ -71,6 +71,7 @@
     "deleteAccount": "Delete Account",
     "enableAccount": "Enable / Include in Stats",
     "includeInStats": "Include in Stats",
+    "available": "Available",
     "enableModels": "Enable Models",
     "account": "Account",
     "modelSearch": "Model Search:",

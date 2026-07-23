@@ -72,6 +72,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
     updateAccountServicePrincipal,
     updateAccountNote,
     updateAccountEnabled,
+    updateAccountAvailable,
     updateAccountIncludeInStats,
     updateAccountTier,
     updateAccountQuota,
@@ -479,6 +480,7 @@ export const AzureModelsDashboard: React.FC<AzureModelsDashboardProps> = ({
         onUpdateAccountServicePrincipal={updateAccountServicePrincipal}
         onUpdateAccountNote={updateAccountNote}
         onUpdateAccountEnabled={updateAccountEnabled}
+        onUpdateAccountAvailable={updateAccountAvailable}
         onUpdateAccountIncludeInStats={updateAccountIncludeInStats}
         onUpdateAccountTier={updateAccountTier}
         onUpdateAccountQuota={updateAccountQuota}

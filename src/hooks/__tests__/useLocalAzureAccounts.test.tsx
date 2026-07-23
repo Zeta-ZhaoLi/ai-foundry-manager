@@ -128,6 +128,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
 
     const account = result.current.accounts.at(-1);
     expect(account).toBeTruthy();
+    expect(account?.available).toBe(false);
     expect(account?.enabled).toBe(false);
     expect(account?.quota).toBe('1000');
     expect(account?.resourceGroupName).toBeUndefined();
@@ -137,6 +138,37 @@ describe('useLocalAzureAccounts resourceName migration', () => {
       'polandcentral',
     ]);
     expect(account?.regions.every((region) => region.enabled)).toBe(true);
+  });
+
+  it('updates availability only for the selected account and persists it', async () => {
+    const { result } = renderAccountsHook();
+
+    act(() => {
+      result.current.addAccount();
+    });
+    const [first] = result.current.accounts;
+
+    act(() => {
+      result.current.updateAccountAvailable(first.id, true);
+    });
+
+    expect(result.current.accounts[0]).toMatchObject({
+      available: true,
+      enabled: true,
+    });
+    expect(result.current.accounts[1]).toMatchObject({
+      available: false,
+      enabled: false,
+      includeInStats: true,
+    });
+
+    await waitFor(() => {
+      const stored = JSON.parse(
+        localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '[]'
+      ) as ConfigDataV2['accounts'];
+      expect(stored[0].available).toBe(true);
+      expect(stored[1].available).toBe(false);
+    });
   });
 
   it('creates new accounts from the latest enabled template order and model lists', async () => {
@@ -323,6 +355,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     const accountId = result.current.accounts[0].id;
     const regionId = result.current.accounts[0].regions[0].id;
     act(() => {
+      result.current.updateAccountAvailable(accountId, true);
       result.current.updateRegionDeployment(accountId, regionId, {
         resourceName: 'acct-east',
       });
@@ -345,6 +378,7 @@ AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END
     });
 
     expect(result.current.accounts[0].subscriptionId).toBe('sub-1');
+    expect(result.current.accounts[0].available).toBe(true);
     expect(result.current.accounts[0].regions[0].apiKey).toBe('key-east');
   });
 

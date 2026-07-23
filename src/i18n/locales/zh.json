@@ -71,6 +71,7 @@
     "deleteAccount": "删除账号",
     "enableAccount": "参与统计 / 启用账号",
     "includeInStats": "参与统计",
+    "available": "可用",
     "enableModels": "启用模型",
     "account": "账号",
     "modelSearch": "模型搜索：",
