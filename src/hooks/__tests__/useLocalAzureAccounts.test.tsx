@@ -308,7 +308,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     );
   });
 
-  it('encrypts sensitive fields in localStorage and decrypts them on reload', async () => {
+  it('persists sensitive fields as plaintext and keeps them stable on reload', async () => {
     const first = renderAccountsHook();
     const accountId = first.result.current.accounts[0].id;
     const regionId = first.result.current.accounts[0].regions[0].id;
@@ -329,12 +329,13 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     await waitFor(() => {
       const stored = localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '';
       const parsed = JSON.parse(stored) as ConfigDataV2['accounts'];
-      expect(parsed[0].servicePrincipal?.password).toBeTruthy();
-      expect(parsed[0].regions[0].apiKey).toBeTruthy();
-      expect(stored).not.toContain('sp-secret');
-      expect(stored).not.toContain('api-secret');
+      expect(parsed[0].servicePrincipal?.password).toBe('sp-secret');
+      expect(parsed[0].regions[0].apiKey).toBe('api-secret');
+      expect(stored).toContain('sp-secret');
+      expect(stored).toContain('api-secret');
     });
 
+    const storedBeforeReload = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
     first.unmount();
     const second = renderHook(() => useLocalAzureAccounts());
     expect(second.result.current.accounts[0].servicePrincipal?.password).toBe(
@@ -343,6 +344,7 @@ describe('useLocalAzureAccounts resourceName migration', () => {
     expect(second.result.current.accounts[0].regions[0].apiKey).toBe(
       'api-secret'
     );
+    expect(localStorage.getItem(ACCOUNTS_STORAGE_KEY)).toBe(storedBeforeReload);
   });
 
   it('imports deployment result subscription ID and API keys into matched regions', async () => {
@@ -380,6 +382,12 @@ AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_END
     expect(result.current.accounts[0].subscriptionId).toBe('sub-1');
     expect(result.current.accounts[0].available).toBe(true);
     expect(result.current.accounts[0].regions[0].apiKey).toBe('key-east');
+    await waitFor(() => {
+      const stored = JSON.parse(
+        localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '[]'
+      ) as ConfigDataV2['accounts'];
+      expect(stored[0].regions[0].apiKey).toBe('key-east');
+    });
   });
 
   it('adds missing regions under a matched deployment result account', async () => {

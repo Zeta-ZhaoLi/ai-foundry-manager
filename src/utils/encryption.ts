@@ -1,6 +1,8 @@
 import CryptoJS from 'crypto-js';
 
-function getDerivedKey(): string {
+const LEGACY_OPENSSL_PREFIX = 'U2FsdGVkX1';
+
+function getLegacyDerivedKey(): string {
   const browserFingerprint = [
     navigator.userAgent,
     navigator.language,
@@ -10,27 +12,28 @@ function getDerivedKey(): string {
   return CryptoJS.SHA256(browserFingerprint).toString();
 }
 
-export function encryptData(plainText: string): string {
+export function isLegacyEncrypted(text: string): boolean {
+  return text.startsWith(LEGACY_OPENSSL_PREFIX);
+}
+
+/**
+ * Decode the CryptoJS format used by older localStorage versions. New data
+ * must remain plaintext and must not call this helper unless it has the
+ * legacy OpenSSL prefix.
+ */
+export function decryptLegacyData(value: string): string {
+  if (!value || !isLegacyEncrypted(value)) return value;
+  try {
+    const decrypted = CryptoJS.AES.decrypt(value, getLegacyDerivedKey());
+    const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+    return plaintext || value;
+  } catch {
+    return value;
+  }
+}
+
+/** Only used to create legacy migration fixtures; never use for persistence. */
+export function encryptLegacyData(plainText: string): string {
   if (!plainText) return '';
-  try {
-    return CryptoJS.AES.encrypt(plainText, getDerivedKey()).toString();
-  } catch (error) {
-    console.error('Encryption failed:', error);
-    return plainText;
-  }
-}
-
-export function decryptData(cipherText: string): string {
-  if (!cipherText) return '';
-  try {
-    const decrypted = CryptoJS.AES.decrypt(cipherText, getDerivedKey());
-    return decrypted.toString(CryptoJS.enc.Utf8) || cipherText;
-  } catch (error) {
-    console.error('Decryption failed:', error);
-    return cipherText;
-  }
-}
-
-export function isEncrypted(text: string): boolean {
-  return text.length > 20 && /^[A-Za-z0-9+/=]+$/.test(text);
+  return CryptoJS.AES.encrypt(plainText, getLegacyDerivedKey()).toString();
 }

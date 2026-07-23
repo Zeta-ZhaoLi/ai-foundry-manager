@@ -14,7 +14,7 @@ import {
   type LocalAccount,
   type LocalRegion,
 } from '../schemas/account';
-import { decryptData, encryptData } from '../utils/encryption';
+import { decryptLegacyData } from '../utils/encryption';
 import { generateAccountId } from '../utils/accountIdGenerator';
 import { generateId } from '../utils/common';
 
@@ -91,7 +91,7 @@ function normalizeRegion(
     id: optionalString(value.id) || generateId('region'),
     name: optionalString(value.name) || '',
     modelsText: optionalString(value.modelsText) || '',
-    apiKey: apiKey ? decryptData(apiKey) : apiKey,
+    apiKey: apiKey ? decryptLegacyData(apiKey) : apiKey,
     deployment: {
       ...deployment,
       resourceName:
@@ -112,7 +112,7 @@ function normalizeAccount(value: unknown, prior: LocalAccount[]): LocalAccount {
     ? {
         ...value.servicePrincipal,
         password: optionalString(value.servicePrincipal.password)
-          ? decryptData(String(value.servicePrincipal.password))
+          ? decryptLegacyData(String(value.servicePrincipal.password))
           : undefined,
       }
     : undefined;
@@ -168,30 +168,16 @@ export function loadAccounts(storage: Storage): LocalAccount[] {
 
   if (raw === null) return createInitialAccounts();
   const accounts = normalizeAccounts(readJson(raw, 'Stored accounts'));
+  const normalizedRaw = serializeAccounts(accounts);
 
-  if (currentRaw === null) {
-    storage.setItem(ACCOUNTS_STORAGE_KEY, serializeAccounts(accounts));
+  if (currentRaw === null || normalizedRaw !== raw) {
+    storage.setItem(ACCOUNTS_STORAGE_KEY, normalizedRaw);
   }
   return accounts;
 }
 
 export function serializeAccounts(accounts: LocalAccount[]): string {
-  const encrypted = accounts.map((account) => ({
-    ...account,
-    servicePrincipal: account.servicePrincipal
-      ? {
-          ...account.servicePrincipal,
-          password: account.servicePrincipal.password
-            ? encryptData(account.servicePrincipal.password)
-            : account.servicePrincipal.password,
-        }
-      : account.servicePrincipal,
-    regions: account.regions.map((region) => ({
-      ...region,
-      apiKey: region.apiKey ? encryptData(region.apiKey) : region.apiKey,
-    })),
-  }));
-  return JSON.stringify(encrypted);
+  return JSON.stringify(accounts);
 }
 
 export function loadDefaultRegionModelTemplate(
@@ -221,10 +207,20 @@ export function parseConfigImport(
   current: ConfigDataV2
 ): ConfigDataV2 {
   const envelopeResult = configEnvelopeV2Schema.safeParse(value);
-  if (envelopeResult.success) return envelopeResult.data.data;
+  if (envelopeResult.success) {
+    return {
+      ...envelopeResult.data.data,
+      accounts: normalizeAccounts(envelopeResult.data.data.accounts),
+    };
+  }
 
   const directResult = configDataV2Schema.safeParse(value);
-  if (directResult.success) return directResult.data;
+  if (directResult.success) {
+    return {
+      ...directResult.data,
+      accounts: normalizeAccounts(directResult.data.accounts),
+    };
+  }
 
   if (Array.isArray(value)) {
     return { ...current, accounts: normalizeAccounts(value) };

@@ -10,7 +10,8 @@ import {
   LEGACY_ACCOUNTS_BACKUP_KEY,
   LEGACY_ACCOUNTS_STORAGE_KEY,
 } from '../config';
-import { encryptData } from '../../utils/encryption';
+import type { ConfigDataV2 } from '../../schemas/account';
+import { encryptLegacyData } from '../../utils/encryption';
 
 describe('configuration migration and import', () => {
   beforeEach(() => localStorage.clear());
@@ -24,14 +25,14 @@ describe('configuration migration and import', () => {
         servicePrincipal: {
           appId: 'app-id',
           tenant: 'tenant-id',
-          password: encryptData('sp-secret'),
+          password: encryptLegacyData('sp-secret'),
         },
         regions: [
           {
             id: 'reg-1',
             name: 'eastus2',
             modelsText: '',
-            apiKey: encryptData('api-secret'),
+            apiKey: encryptLegacyData('api-secret'),
           },
         ],
       },
@@ -47,6 +48,61 @@ describe('configuration migration and import', () => {
       JSON.parse(localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '[]')[0]
         .available
     ).toBe(false);
+    const migrated = JSON.parse(
+      localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '[]'
+    ) as ConfigDataV2['accounts'];
+    expect(migrated[0].servicePrincipal?.password).toBe('sp-secret');
+    expect(migrated[0].regions[0].apiKey).toBe('api-secret');
+  });
+
+  it('keeps an undecodable legacy secret stable for manual replacement', () => {
+    const accounts = createInitialConfigData().accounts.map((account) => ({
+      ...account,
+      regions: account.regions.map((region) => ({
+        ...region,
+        apiKey: 'U2FsdGVkX1-invalid-encrypted-data',
+      })),
+    }));
+    const raw = JSON.stringify(accounts);
+    localStorage.setItem(ACCOUNTS_STORAGE_KEY, raw);
+
+    const loaded = loadAccounts(localStorage);
+    const firstStored = JSON.parse(
+      localStorage.getItem(ACCOUNTS_STORAGE_KEY) || '[]'
+    ) as ConfigDataV2['accounts'];
+    const reloaded = loadAccounts(localStorage);
+
+    expect(loaded[0].regions[0].apiKey).toBe(
+      'U2FsdGVkX1-invalid-encrypted-data'
+    );
+    expect(firstStored[0].regions[0].apiKey).toBe(
+      'U2FsdGVkX1-invalid-encrypted-data'
+    );
+    expect(reloaded[0].regions[0].apiKey).toBe(
+      'U2FsdGVkX1-invalid-encrypted-data'
+    );
+    expect(localStorage.getItem(ACCOUNTS_STORAGE_KEY)).toBe(
+      JSON.stringify(reloaded)
+    );
+  });
+
+  it('normalizes legacy encrypted values in imported configurations', () => {
+    const current = createInitialConfigData();
+    const imported = parseConfigImport(
+      createConfigEnvelope({
+        ...current,
+        accounts: current.accounts.map((account) => ({
+          ...account,
+          regions: account.regions.map((region) => ({
+            ...region,
+            apiKey: encryptLegacyData('imported-api-key'),
+          })),
+        })),
+      }),
+      current
+    );
+
+    expect(imported.accounts[0].regions[0].apiKey).toBe('imported-api-key');
   });
 
   it('round-trips the account availability flag', () => {
