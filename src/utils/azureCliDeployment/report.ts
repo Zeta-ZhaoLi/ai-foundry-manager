@@ -38,39 +38,6 @@ export const BASH_REPORT_FUNCTIONS = `get_deployment_report_json() {
     ' 2>/dev/null || echo '[]'
 }
 
-print_copyable_model_import_list() {
-  local model_list
-  model_list="$(get_deployment_report_json | jq -r '
-    [ .[] | select((.state | ascii_downcase) == "succeeded") | .modelName, .deploymentName ]
-    | map(select(. != ""))
-    | reduce .[] as $name ([]; if index($name) then . else . + [$name] end)
-    | join(", ")
-  ')"
-  echo "Region: \${ACCOUNT_LOCATION}"
-  echo "Available models: \${model_list:--}"
-}
-
-print_account_key_summary() {
-  local key1
-  local deployments_json
-  key1="$(az cognitiveservices account keys list \\
-    --name "\${ACCOUNT_NAME}" \\
-    --resource-group "\${RESOURCE_GROUP}" \\
-    --query "key1" \\
-    -o tsv 2>/dev/null || true)"
-  deployments_json="$(get_deployment_report_json)"
-  echo "Foundry endpoint: https://\${ACCOUNT_NAME}.services.ai.azure.com/api/projects/\${PROJECT_NAME}"
-  echo "OpenAI endpoint: https://\${ACCOUNT_NAME}.openai.azure.com"
-  echo "AI Services endpoint: https://\${ACCOUNT_NAME}.services.ai.azure.com"
-  echo "Account key: \${key1:--}"
-  echo "Model information:"
-  echo "\${deployments_json}" | jq -r '
-    if length == 0 then "-"
-    else .[] | "  \\(.deploymentName) | \\(.modelName) | \\(.modelFormat) | \\(.modelVersion) | SKU=\\(.sku) | capacity=\\(.capacity) | state=\\(.state)"
-    end
-  '
-}
-
 append_deployment_report() {
   local key1
   local deployments_json
@@ -104,16 +71,18 @@ append_deployment_report() {
     }')"
 
   {
-    echo
+    echo "============================================================"
     echo "Region: \${ACCOUNT_LOCATION}"
     echo "Foundry endpoint: https://\${ACCOUNT_NAME}.services.ai.azure.com/api/projects/\${PROJECT_NAME}"
     echo "OpenAI endpoint: https://\${ACCOUNT_NAME}.openai.azure.com"
     echo "AI Services endpoint: https://\${ACCOUNT_NAME}.services.ai.azure.com"
     echo "Account key: \${key1:--}"
     echo "Available models:"
-    echo "\${deployments_json}" | jq -r '[ .[] | select((.state | ascii_downcase) == "succeeded") | .modelName, .deploymentName ] | map(select(. != "")) | reduce .[] as $name ([]; if index($name) then . else . + [$name] end) | if length == 0 then "-" else join(", ") end'
+    echo "\${deployments_json}" | jq -r '[ .[] | select((.state | ascii_downcase) == "succeeded") | .modelName, .deploymentName ] | map(select(. != "")) | reduce .[] as $name ([]; if index($name) then . else . + [$name] end) | if length == 0 then ["-"] else . end | .[] | "  - " + .'
     echo "Model information:"
-    echo "\${deployments_json}" | jq -r 'if length == 0 then "-" else .[] | "  \\(.deploymentName) | \\(.modelName) | \\(.modelFormat) | \\(.modelVersion) | SKU=\\(.sku) | capacity=\\(.capacity) | state=\\(.state)" end'
+    echo "  Deployment | Model | Format | Version | SKU | Capacity | State"
+    echo "  -----------|-------|--------|---------|-----|----------|------"
+    echo "\${deployments_json}" | jq -r 'if length == 0 then "  -" else .[] | "  \\(.deploymentName) | \\(.modelName) | \\(.modelFormat) | \\(.modelVersion) | \\(.sku) | \\(.capacity) | \\(.state)" end'
     echo
     echo "AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN"
     echo "\${payload}"
@@ -141,36 +110,6 @@ export const POWERSHELL_REPORT_FUNCTIONS = `function Get-DeploymentReportData {
   return ,$deployments
 }
 
-function Print-CopyableModelImportList {
-  $deployments = Get-DeploymentReportData
-  $names = New-Object System.Collections.Generic.List[string]
-  foreach ($item in @($deployments)) {
-    if ($item.state -ne 'Succeeded') { continue }
-    foreach ($name in @($item.modelName, $item.deploymentName)) {
-      if ($name -and -not $names.Contains($name)) { [void]$names.Add($name) }
-    }
-  }
-  $availableModels = if ($names.Count -eq 0) { '-' } else { [string]::Join(', ', $names) }
-  Write-Host "Region: $AccountLocation"
-  Write-Host "Available models: $availableModels"
-}
-
-function Print-AccountKeySummary {
-  $key1 = (& az cognitiveservices account keys list --name $AccountName --resource-group $ResourceGroup --query key1 -o tsv 2>$null)
-  $deployments = Get-DeploymentReportData
-  $displayKey = if ([string]::IsNullOrWhiteSpace($key1)) { '-' } else { $key1 }
-  Write-Host "Foundry endpoint: https://$AccountName.services.ai.azure.com/api/projects/$ProjectName"
-  Write-Host "OpenAI endpoint: https://$AccountName.openai.azure.com"
-  Write-Host "AI Services endpoint: https://$AccountName.services.ai.azure.com"
-  Write-Host "Account key: $displayKey"
-  Write-Host 'Model information:'
-  if (-not $deployments -or $deployments.Count -eq 0) { Write-Host '-' } else {
-    foreach ($deployment in @($deployments)) {
-      Write-Host "  $($deployment.deploymentName) | $($deployment.modelName) | $($deployment.modelFormat) | $($deployment.modelVersion) | SKU=$($deployment.sku) | capacity=$($deployment.capacity) | state=$($deployment.state)"
-    }
-  }
-}
-
 function Append-DeploymentReport {
   $key1 = (& az cognitiveservices account keys list --name $AccountName --resource-group $ResourceGroup --query key1 -o tsv 2>$null)
   $deployments = Get-DeploymentReportData
@@ -196,18 +135,22 @@ function Append-DeploymentReport {
     }
   }
   $displayKey = if ([string]::IsNullOrWhiteSpace($key1)) { '-' } else { $key1 }
-  $availableModels = if ($names.Count -eq 0) { '-' } else { [string]::Join(', ', $names) }
   $lines = New-Object System.Collections.Generic.List[string]
-  $lines.Add('')
+  $lines.Add('============================================================')
   $lines.Add("Region: $AccountLocation")
   $lines.Add("Foundry endpoint: https://$AccountName.services.ai.azure.com/api/projects/$ProjectName")
   $lines.Add("OpenAI endpoint: https://$AccountName.openai.azure.com")
   $lines.Add("AI Services endpoint: https://$AccountName.services.ai.azure.com")
   $lines.Add("Account key: $displayKey")
-  $lines.Add("Available models: $availableModels")
+  $lines.Add('Available models:')
+  if ($names.Count -eq 0) { $lines.Add('  -') } else {
+    foreach ($name in $names) { $lines.Add("  - $name") }
+  }
   $lines.Add('Model information:')
-  if (-not $deployments -or $deployments.Count -eq 0) { $lines.Add('-') } else {
-    foreach ($deployment in @($deployments)) { $lines.Add("  $($deployment.deploymentName) | $($deployment.modelName) | $($deployment.modelFormat) | $($deployment.modelVersion) | SKU=$($deployment.sku) | capacity=$($deployment.capacity) | state=$($deployment.state)") }
+  $lines.Add('  Deployment | Model | Format | Version | SKU | Capacity | State')
+  $lines.Add('  -----------|-------|--------|---------|-----|----------|------')
+  if (-not $deployments -or $deployments.Count -eq 0) { $lines.Add('  -') } else {
+    foreach ($deployment in @($deployments)) { $lines.Add("  $($deployment.deploymentName) | $($deployment.modelName) | $($deployment.modelFormat) | $($deployment.modelVersion) | $($deployment.sku) | $($deployment.capacity) | $($deployment.state)") }
   }
   $lines.Add('')
   $lines.Add('AI_FOUNDRY_MANAGER_DEPLOYMENT_RESULT_JSON_BEGIN')

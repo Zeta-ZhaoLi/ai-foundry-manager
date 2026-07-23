@@ -78,6 +78,65 @@ $ReportTimestamp = if ($env:AZURE_FOUNDRY_REPORT_TIMESTAMP) { $env:AZURE_FOUNDRY
 $SucceededDeployments = @()
 $SkippedDeployments = @()
 $FailedDeployments = @()
+$script:LastDeploymentReason = ''
+$script:LastDeploymentSku = ''
+$script:LastDeploymentCapacity = ''
+$script:InteractiveProgress = -not [Console]::IsOutputRedirected
+
+function Write-Section {
+  param([string]$Title)
+  Write-Host ''
+  Write-Host '============================================================'
+  Write-Host $Title
+  Write-Host '============================================================'
+}
+
+function Write-Status {
+  param([string]$Status, [string]$Message)
+  Write-Host ('  [{0,-7}] {1}' -f $Status, $Message)
+}
+
+function Start-ModelProgress {
+  param([string]$Message)
+  if ($script:InteractiveProgress) {
+    Write-Host -NoNewline ("\`r{0,-160}" -f ($Message + ' | RUNNING'))
+  } else {
+    Write-Host ($Message + ' | RUNNING')
+  }
+}
+
+function Complete-ModelProgress {
+  param([string]$Message)
+  if ($script:InteractiveProgress) {
+    Write-Host ("\`r{0,-160}" -f $Message)
+  } else {
+    Write-Host $Message
+  }
+}
+
+function Write-DeploymentSummary {
+  $label = 'Deployment summary'
+  if ($env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -eq 'true') {
+    $label = "Region summary ($AccountLocation)"
+  }
+  Write-Host ''
+  Write-Host ('{0}: succeeded={1}, skipped={2}, failed={3}' -f $label, $SucceededDeployments.Count, $SkippedDeployments.Count, $FailedDeployments.Count)
+  if ($SkippedDeployments.Count -gt 0) {
+    Write-Host ('Skipped models: ' + [string]::Join(', ', $SkippedDeployments))
+  }
+  if ($FailedDeployments.Count -gt 0) {
+    Write-Host ('Failed models: ' + [string]::Join(', ', $FailedDeployments))
+  }
+  if ($env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -ne 'true') {
+    Write-Host "Result file: $script:ReportPath"
+  }
+}
+
+function Add-RegionTotals {
+  $env:AZURE_FOUNDRY_TOTAL_SUCCEEDED = ([int]$env:AZURE_FOUNDRY_TOTAL_SUCCEEDED + $SucceededDeployments.Count).ToString()
+  $env:AZURE_FOUNDRY_TOTAL_SKIPPED = ([int]$env:AZURE_FOUNDRY_TOTAL_SKIPPED + $SkippedDeployments.Count).ToString()
+  $env:AZURE_FOUNDRY_TOTAL_FAILED = ([int]$env:AZURE_FOUNDRY_TOTAL_FAILED + $FailedDeployments.Count).ToString()
+}
 
 function Refresh-AzureCliPath {
   $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
@@ -115,7 +174,10 @@ function Ensure-AzureCli {
   }
 }
 
+Write-Section -Title 'Prerequisites'
+Write-Status -Status 'RUNNING' -Message 'Checking Azure CLI'
 Ensure-AzureCli
+Write-Status -Status 'OK' -Message 'Azure CLI is available'
 
 function Invoke-AzCliJson {
   param(
@@ -197,15 +259,20 @@ function Invoke-AzureCliQuiet {
 }
 
 function Login-AndSelectSubscription {
+  Write-Section -Title 'Authentication'
   if ($SpAppId -or $SpPassword -or $SpTenant) {
     if (-not $SpAppId -or -not $SpPassword -or -not $SpTenant) {
       throw 'Service Principal requires appId, password, and tenant.'
     }
 
+    Write-Status -Status 'RUNNING' -Message 'Signing in with Service Principal'
     & az login --service-principal --username $SpAppId --password $SpPassword --tenant $SpTenant -o none
     if ($LASTEXITCODE -ne 0) {
       throw 'Service Principal login failed.'
     }
+    Write-Status -Status 'OK' -Message 'Service Principal login succeeded'
+  } else {
+    Write-Status -Status 'INFO' -Message 'Using the current Azure CLI login'
   }
 
   if ($ConfiguredSubscriptionId) {
@@ -249,6 +316,7 @@ function Login-AndSelectSubscription {
   if ($LASTEXITCODE -ne 0) {
     throw 'Failed to set subscription.'
   }
+  Write-Status -Status 'OK' -Message "Selected subscription: $script:SubscriptionId"
   if ($env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID -eq 'true') {
     $env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID = $script:SubscriptionId
   }
@@ -257,11 +325,15 @@ function Login-AndSelectSubscription {
 function Ensure-ProviderRegistered {
   $providerState = (& az provider show --namespace Microsoft.CognitiveServices --query registrationState -o tsv 2>$null)
   if (-not $providerState) { $providerState = 'NotRegistered' }
-  if ($providerState -eq 'Registered') { return }
+  if ($providerState -eq 'Registered') {
+    Write-Status -Status 'OK' -Message 'Microsoft.CognitiveServices is registered'
+    return
+  }
   if ($AutoRegisterProvider -ne 'true') {
     Write-Warning 'Provider is not registered and AUTO_REGISTER_PROVIDER is not true.'
     return
   }
+  Write-Status -Status 'RUNNING' -Message 'Registering Microsoft.CognitiveServices'
   & az provider register --namespace Microsoft.CognitiveServices -o none
   if ($LASTEXITCODE -ne 0) {
     Write-Warning 'Failed to start provider registration.'
@@ -269,7 +341,10 @@ function Ensure-ProviderRegistered {
   }
   for ($attempt = 1; $attempt -le 60; $attempt++) {
     $providerState = (& az provider show --namespace Microsoft.CognitiveServices --query registrationState -o tsv 2>$null)
-    if ($providerState -eq 'Registered') { return }
+    if ($providerState -eq 'Registered') {
+      Write-Status -Status 'OK' -Message 'Microsoft.CognitiveServices registration completed'
+      return
+    }
     Start-Sleep -Seconds 10
   }
   Write-Warning 'Provider registration did not reach Registered in time.'
@@ -278,16 +353,30 @@ function Ensure-ProviderRegistered {
 function Ensure-ResourceGroup {
   & az group show --name $ResourceGroup -o none 2>$null
   if ($LASTEXITCODE -eq 0) {
+    Write-Status -Status 'EXISTS' -Message "Resource group: $ResourceGroup"
     return
   }
+  Write-Status -Status 'RUNNING' -Message "Creating resource group: $ResourceGroup"
   & az group create --name $ResourceGroup --location $ResourceGroupLocation -o none
+  if ($LASTEXITCODE -ne 0) {
+    Write-Status -Status 'FAILED' -Message "Resource group: $ResourceGroup"
+    return
+  }
+  Write-Status -Status 'CREATED' -Message "Resource group: $ResourceGroup"
 }
 
 function Ensure-FoundryAccount {
   $account = Invoke-AzCliJson -Arguments @('cognitiveservices','account','show','--name',$AccountName,'--resource-group',$ResourceGroup,'-o','json') -QuietOnError
   if ($account) {
+    Write-Status -Status 'EXISTS' -Message "Foundry account: $AccountName"
   } else {
+    Write-Status -Status 'RUNNING' -Message "Creating Foundry account: $AccountName"
     & az cognitiveservices account create --name $AccountName --resource-group $ResourceGroup --kind AIServices --sku s0 --location $AccountLocation --allow-project-management -o none
+    if ($LASTEXITCODE -ne 0) {
+      Write-Status -Status 'FAILED' -Message "Foundry account: $AccountName"
+    } else {
+      Write-Status -Status 'CREATED' -Message "Foundry account: $AccountName"
+    }
     $account = Invoke-AzCliJson -Arguments @('cognitiveservices','account','show','--name',$AccountName,'--resource-group',$ResourceGroup,'-o','json') -QuietOnError
   }
 
@@ -301,11 +390,13 @@ function Ensure-FoundryAccount {
   }
 
   if ($existingCustomDomain) {
+    Write-Status -Status 'OK' -Message "Custom domain: $existingCustomDomain"
     return $true
   }
 
   $output = Invoke-AzureCli -Arguments @('cognitiveservices','account','update','--name',$AccountName,'--resource-group',$ResourceGroup,'--custom-domain',$AccountName,'-o','none')
   if ($LASTEXITCODE -eq 0) {
+    Write-Status -Status 'CREATED' -Message "Custom domain: $AccountName"
     return $true
   }
 
@@ -317,12 +408,16 @@ function Ensure-FoundryAccount {
 function Ensure-FoundryProject {
   & az cognitiveservices account project show --name $AccountName --resource-group $ResourceGroup --project-name $ProjectName -o none 2>$null
   if ($LASTEXITCODE -eq 0) {
+    Write-Status -Status 'EXISTS' -Message "Foundry project: $ProjectName"
     return
   }
+  Write-Status -Status 'RUNNING' -Message "Creating Foundry project: $ProjectName"
   $output = Invoke-AzureCli -Arguments @('cognitiveservices','account','project','create','--name',$AccountName,'--resource-group',$ResourceGroup,'--project-name',$ProjectName,'--location',$AccountLocation,'-o','none')
   if ($LASTEXITCODE -ne 0) {
     Write-Warning "Could not create Foundry project '$ProjectName'."
     if ($output) { $output | ForEach-Object { Write-Warning $_ } }
+  } else {
+    Write-Status -Status 'CREATED' -Message "Foundry project: $ProjectName"
   }
 }
 
@@ -410,20 +505,26 @@ function Wait-UntilSucceeded {
     $state = Get-DeploymentState -DeploymentName $DeploymentName
     if ($state -eq 'Succeeded') { return $true }
     if ($state -in @('Failed','Canceled','Cancelled')) {
+      $script:LastDeploymentReason = "deployment state: $state"
       Write-Warning "Deployment '$DeploymentName' ended with state: $state"
       return $false
     }
     Start-Sleep -Seconds $SleepSeconds
   }
+  $script:LastDeploymentReason = 'deployment timed out'
   Write-Warning "Timed out waiting for '$DeploymentName' to reach Succeeded."
   return $false
 }
 
 function Deploy-ModelWithMaxCapacity {
   param([string]$DeploymentName, [string]$ModelFormat, [string]$ModelName, [string]$ModelVersion, [int]$ConfiguredMaxCapacity = 0)
+  $script:LastDeploymentReason = ''
+  $script:LastDeploymentSku = ''
+  $script:LastDeploymentCapacity = ''
   $deploymentAlreadyExists = Deployment-Exists -DeploymentName $DeploymentName
   if ($deploymentAlreadyExists) {
     if ($OverwriteExisting -ne 'true') {
+      $script:LastDeploymentReason = 'already exists, overwrite disabled'
       return 2
     }
   }
@@ -455,7 +556,7 @@ function Deploy-ModelWithMaxCapacity {
   if ($null -eq $selectedSkuCapacity) {
     $selectedSkuCapacity = Select-GlobalStandardCapacity -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
     if ($null -eq $selectedSkuCapacity) {
-      Write-Warning "No $SkuName availableCapacity found in $AccountLocation."
+      $script:LastDeploymentReason = "no $SkuName capacity record"
       Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
       return 2
     }
@@ -476,7 +577,7 @@ function Deploy-ModelWithMaxCapacity {
     $targetCapacity = $ConfiguredMaxCapacity
   }
   if ($targetCapacity -le 0) {
-    Write-Warning "Max deployable capacity is $targetCapacity; skip '$DeploymentName'."
+    $script:LastDeploymentReason = 'no available capacity'
     Print-CapacityDebug -ModelFormat $ModelFormat -ModelName $ModelName -ModelVersion $ModelVersion
     return 2
   }
@@ -501,19 +602,29 @@ function Deploy-ModelWithMaxCapacity {
   try {
     $deploymentOutput = Invoke-AzureCli -Arguments @('rest','--method','put','--url',$deploymentUrl,'--headers','Content-Type=application/json','--body',('@' + $deploymentPayloadPath),'-o','none')
     if ($LASTEXITCODE -ne 0) {
+      $script:LastDeploymentReason = 'deployment request failed'
       if ($deploymentOutput) { $deploymentOutput | ForEach-Object { Write-Warning $_ } }
       return 1
     }
   } finally {
     Remove-Item -LiteralPath $deploymentPayloadPath -Force -ErrorAction SilentlyContinue
   }
-  if (-not (Wait-UntilSucceeded -DeploymentName $DeploymentName)) { return 1 }
+  if (-not (Wait-UntilSucceeded -DeploymentName $DeploymentName)) {
+    if (-not $script:LastDeploymentReason) { $script:LastDeploymentReason = 'deployment did not succeed' }
+    return 1
+  }
+  $script:LastDeploymentSku = $selectedSkuName
+  $script:LastDeploymentCapacity = $targetCapacity
   return 0
 }
 
 ${POWERSHELL_REPORT_FUNCTIONS}
 
 function Prepare-AccountResources {
+  Write-Section -Title "Resources - $AccountLocation"
+  Write-Host "Account: $AccountName"
+  Write-Host "Resource group: $ResourceGroup"
+  Write-Host "Region: $AccountLocation"
   Ensure-ResourceGroup
   $accountReadyForProject = Ensure-FoundryAccount
   if ($accountReadyForProject) {
@@ -522,21 +633,33 @@ function Prepare-AccountResources {
 }
 
 function Deploy-AllModels {
+  Write-Section -Title "Models - $AccountLocation"
+  $modelTotal = $Models.Count
+  $modelIndex = 0
+  Write-Host "Models selected: $modelTotal"
   foreach ($item in $Models) {
+    $modelIndex++
     $parts = $item -split '\\|', 5
     if ($parts.Count -lt 4) { continue }
     $configuredMaxCapacity = 0
     if ($parts.Count -ge 5) {
       [void][int]::TryParse($parts[4], [ref]$configuredMaxCapacity)
     }
+    $progressPrefix = '[{0:D2}/{1:D2}] {2}' -f $modelIndex, $modelTotal, $parts[0]
+    Start-ModelProgress -Message $progressPrefix
     $rc = Deploy-ModelWithMaxCapacity -DeploymentName $parts[0] -ModelFormat $parts[1] -ModelName $parts[2] -ModelVersion $parts[3] -ConfiguredMaxCapacity $configuredMaxCapacity
     if ($rc -eq 0) {
       $SucceededDeployments += $parts[0]
+      Complete-ModelProgress -Message ("$progressPrefix | SUCCESS | SKU=$script:LastDeploymentSku | capacity=$script:LastDeploymentCapacity")
     } elseif ($rc -eq 2) {
       $SkippedDeployments += $parts[0]
+      $reason = if ($script:LastDeploymentReason) { $script:LastDeploymentReason } else { 'not deployable' }
+      Complete-ModelProgress -Message ("$progressPrefix | SKIPPED | $reason")
     } else {
       Write-Warning "Deployment '$($parts[0])' failed; continuing with the next deployment."
       $FailedDeployments += $parts[0]
+      $reason = if ($script:LastDeploymentReason) { $script:LastDeploymentReason } else { 'unknown error' }
+      Complete-ModelProgress -Message ("$progressPrefix | FAILED | $reason")
     }
   }
 }
@@ -545,6 +668,7 @@ Login-AndSelectSubscription
 
 ${POWERSHELL_REPORT_INITIALIZATION}
 
+Write-Section -Title 'Provider'
 Ensure-ProviderRegistered
 
 $BaseUrl = "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.CognitiveServices/accounts/$AccountName/deployments"
@@ -558,9 +682,11 @@ if ($DeploymentRunMode -ne 'deploy-only') {
 
 if ($DeploymentRunMode -ne 'prepare-only') {
   Deploy-AllModels
-  Print-CopyableModelImportList
-  Print-AccountKeySummary
   Append-DeploymentReport
+  Write-DeploymentSummary
+  if ($env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -eq 'true') {
+    Add-RegionTotals
+  }
 }
 ${includeIdentityComment ? `\n${identityComment}` : ''}
 `.trimEnd();
@@ -621,23 +747,36 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',
     "$env:AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID = 'true'",
+    "$env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE = 'true'",
+    "$env:AZURE_FOUNDRY_TOTAL_SUCCEEDED = '0'",
+    "$env:AZURE_FOUNDRY_TOTAL_SKIPPED = '0'",
+    "$env:AZURE_FOUNDRY_TOTAL_FAILED = '0'",
+    "Write-Host ''",
+    "Write-Host '============================================================'",
+    "Write-Host 'Azure AI Foundry multi-region deployment'",
+    "Write-Host '============================================================'",
+    `Write-Host 'Account: ${powershellSingleQuote(input.accountId?.trim() || '-')} | Email: ${powershellSingleQuote(input.accountEmail || '')}'`,
+    `Write-Host 'Regions: ${targets.length}'`,
     '# ============================================================',
     '# Prepare all selected regions first',
     '# ============================================================',
     ...targets.map((target, index) => {
       const label = target.label?.trim() || `Region ${index + 1}`;
-      const script = buildAzureCliPowerShellDeploymentScriptInternal({
-        subscriptionId,
-        accountId: input.accountId,
-        servicePrincipal: input.servicePrincipal,
-        accountEmail: input.accountEmail,
-        resourceGroupName,
-        resourceName: target.resourceName,
-        location: target.location,
-        foundryProjectEndpoint: target.foundryProjectEndpoint,
-        models: target.models,
-        overwriteExisting: input.overwriteExisting,
-      }, false);
+      const script = buildAzureCliPowerShellDeploymentScriptInternal(
+        {
+          subscriptionId,
+          accountId: input.accountId,
+          servicePrincipal: input.servicePrincipal,
+          accountEmail: input.accountEmail,
+          resourceGroupName,
+          resourceName: target.resourceName,
+          location: target.location,
+          foundryProjectEndpoint: target.foundryProjectEndpoint,
+          models: target.models,
+          overwriteExisting: input.overwriteExisting,
+        },
+        false
+      );
 
       return [
         `# ============================================================`,
@@ -652,18 +791,21 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
     '# ============================================================',
     ...targets.map((target, index) => {
       const label = target.label?.trim() || `Region ${index + 1}`;
-      const script = buildAzureCliPowerShellDeploymentScriptInternal({
-        subscriptionId,
-        accountId: input.accountId,
-        servicePrincipal: input.servicePrincipal,
-        accountEmail: input.accountEmail,
-        resourceGroupName,
-        resourceName: target.resourceName,
-        location: target.location,
-        foundryProjectEndpoint: target.foundryProjectEndpoint,
-        models: target.models,
-        overwriteExisting: input.overwriteExisting,
-      }, false);
+      const script = buildAzureCliPowerShellDeploymentScriptInternal(
+        {
+          subscriptionId,
+          accountId: input.accountId,
+          servicePrincipal: input.servicePrincipal,
+          accountEmail: input.accountEmail,
+          resourceGroupName,
+          resourceName: target.resourceName,
+          location: target.location,
+          foundryProjectEndpoint: target.foundryProjectEndpoint,
+          models: target.models,
+          overwriteExisting: input.overwriteExisting,
+        },
+        false
+      );
 
       return [
         `# ============================================================`,
@@ -673,7 +815,17 @@ export function buildAzureCliPowerShellMultiRegionDeploymentScript(
         script,
       ].join('\n');
     }),
+    "Write-Host ''",
+    "Write-Host '============================================================'",
+    "Write-Host 'Summary'",
+    "Write-Host '============================================================'",
+    'Write-Host "Deployment summary: succeeded=$env:AZURE_FOUNDRY_TOTAL_SUCCEEDED, skipped=$env:AZURE_FOUNDRY_TOTAL_SKIPPED, failed=$env:AZURE_FOUNDRY_TOTAL_FAILED"',
+    'Write-Host "Result file: $env:AZURE_FOUNDRY_REPORT_PATH"',
     'Remove-Item Env:AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_DEFER_REPORT_NOTICE -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_TOTAL_SUCCEEDED -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_TOTAL_SKIPPED -ErrorAction SilentlyContinue',
+    'Remove-Item Env:AZURE_FOUNDRY_TOTAL_FAILED -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_PATH -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_REPORT_TIMESTAMP -ErrorAction SilentlyContinue',
     'Remove-Item Env:AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID -ErrorAction SilentlyContinue',

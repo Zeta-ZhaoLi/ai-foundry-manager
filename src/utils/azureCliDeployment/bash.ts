@@ -73,6 +73,77 @@ REPORT_TIMESTAMP="\${AZURE_FOUNDRY_REPORT_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
 SUCCEEDED_DEPLOYMENTS=()
 SKIPPED_DEPLOYMENTS=()
 FAILED_DEPLOYMENTS=()
+LAST_DEPLOYMENT_REASON=""
+LAST_DEPLOYMENT_SKU=""
+LAST_DEPLOYMENT_CAPACITY=""
+
+print_section() {
+  echo
+  echo "============================================================"
+  echo "$1"
+  echo "============================================================"
+}
+
+print_status() {
+  printf "  [%-7s] %s\\n" "$1" "$2"
+}
+
+start_model_progress() {
+  local message="$1"
+  if [ -t 1 ]; then
+    printf "\\r%-160s" "\${message} | RUNNING"
+  else
+    echo "\${message} | RUNNING"
+  fi
+}
+
+finish_model_progress() {
+  local message="$1"
+  if [ -t 1 ]; then
+    printf "\\r%-160s\\n" "\${message}"
+  else
+    echo "\${message}"
+  fi
+}
+
+join_model_names() {
+  local output=""
+  local name
+  for name in "$@"; do
+    if [ -n "\${output}" ]; then
+      output="\${output}, "
+    fi
+    output="\${output}\${name}"
+  done
+  echo "\${output}"
+}
+
+print_deployment_summary() {
+  local label="Deployment summary"
+  if [ "\${AZURE_FOUNDRY_DEFER_REPORT_NOTICE:-}" = "true" ]; then
+    label="Region summary (\${ACCOUNT_LOCATION})"
+  fi
+  echo
+  echo "\${label}: succeeded=\${#SUCCEEDED_DEPLOYMENTS[@]}, skipped=\${#SKIPPED_DEPLOYMENTS[@]}, failed=\${#FAILED_DEPLOYMENTS[@]}"
+  if [ "\${#SKIPPED_DEPLOYMENTS[@]}" -gt 0 ]; then
+    echo "Skipped models: $(join_model_names "\${SKIPPED_DEPLOYMENTS[@]}")"
+  fi
+  if [ "\${#FAILED_DEPLOYMENTS[@]}" -gt 0 ]; then
+    echo "Failed models: $(join_model_names "\${FAILED_DEPLOYMENTS[@]}")"
+  fi
+  if [ "\${AZURE_FOUNDRY_DEFER_REPORT_NOTICE:-}" != "true" ]; then
+    echo "Result file: \${REPORT_PATH}"
+  fi
+}
+
+add_region_totals() {
+  local succeeded="\${#SUCCEEDED_DEPLOYMENTS[@]}"
+  local skipped="\${#SKIPPED_DEPLOYMENTS[@]}"
+  local failed="\${#FAILED_DEPLOYMENTS[@]}"
+  export AZURE_FOUNDRY_TOTAL_SUCCEEDED="$((\${AZURE_FOUNDRY_TOTAL_SUCCEEDED:-0} + succeeded))"
+  export AZURE_FOUNDRY_TOTAL_SKIPPED="$((\${AZURE_FOUNDRY_TOTAL_SKIPPED:-0} + skipped))"
+  export AZURE_FOUNDRY_TOTAL_FAILED="$((\${AZURE_FOUNDRY_TOTAL_FAILED:-0} + failed))"
+}
 
 # ============================================================
 # Preflight
@@ -143,20 +214,30 @@ install_jq_if_missing() {
   fi
 }
 
+print_section "Prerequisites"
+print_status "RUNNING" "Checking Azure CLI"
 install_azure_cli_if_missing
+print_status "OK" "Azure CLI is available"
+print_status "RUNNING" "Checking jq"
 install_jq_if_missing
+print_status "OK" "jq is available"
 
 login_and_select_subscription() {
+  print_section "Authentication"
   if [ -n "\${SP_APP_ID}" ] || [ -n "\${SP_PASSWORD}" ] || [ -n "\${SP_TENANT}" ]; then
     if [ -z "\${SP_APP_ID}" ] || [ -z "\${SP_PASSWORD}" ] || [ -z "\${SP_TENANT}" ]; then
       echo "ERROR: Service Principal requires appId, password, and tenant."
       exit 1
     fi
 
+    print_status "RUNNING" "Signing in with Service Principal"
     if ! az login --service-principal --username "\${SP_APP_ID}" --password "\${SP_PASSWORD}" --tenant "\${SP_TENANT}" -o none; then
       echo "ERROR: Service Principal login failed."
       exit 1
     fi
+    print_status "OK" "Service Principal login succeeded"
+  else
+    print_status "INFO" "Using the current Azure CLI login"
   fi
 
   if [ -n "\${CONFIGURED_SUBSCRIPTION_ID}" ]; then
@@ -206,6 +287,7 @@ login_and_select_subscription() {
     echo "ERROR: Failed to set subscription."
     exit 1
   fi
+  print_status "OK" "Selected subscription: \${SUBSCRIPTION_ID}"
 
   if [ "\${AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID:-}" = "true" ]; then
     export AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID="\${SUBSCRIPTION_ID}"
@@ -228,6 +310,7 @@ ensure_provider_registered() {
     -o tsv 2>/dev/null || echo "NotRegistered")"
 
   if [ "\${provider_state}" = "Registered" ]; then
+    print_status "OK" "Microsoft.CognitiveServices is registered"
     return 0
   fi
 
@@ -236,6 +319,7 @@ ensure_provider_registered() {
     return 1
   fi
 
+  print_status "RUNNING" "Registering Microsoft.CognitiveServices"
   if ! az provider register --namespace Microsoft.CognitiveServices -o none; then
     echo "WARNING: Failed to start provider registration."
     echo "This usually means the current identity lacks subscription-level permission."
@@ -249,6 +333,7 @@ ensure_provider_registered() {
       -o tsv 2>/dev/null || echo "Unknown")"
 
     if [ "\${provider_state}" = "Registered" ]; then
+      print_status "OK" "Microsoft.CognitiveServices registration completed"
       return 0
     fi
 
@@ -259,6 +344,7 @@ ensure_provider_registered() {
   return 1
 }
 
+print_section "Provider"
 ensure_provider_registered || true
 
 # ============================================================
@@ -266,13 +352,20 @@ ensure_provider_registered || true
 # ============================================================
 ensure_resource_group() {
   if az group show --name "\${RESOURCE_GROUP}" -o none 2>/dev/null; then
+    print_status "EXISTS" "Resource group: \${RESOURCE_GROUP}"
     return 0
   fi
 
-  az group create \\
+  print_status "RUNNING" "Creating resource group: \${RESOURCE_GROUP}"
+  if az group create \\
     --name "\${RESOURCE_GROUP}" \\
     --location "\${RESOURCE_GROUP_LOCATION}" \\
-    -o none
+    -o none; then
+    print_status "CREATED" "Resource group: \${RESOURCE_GROUP}"
+    return 0
+  fi
+  print_status "FAILED" "Resource group: \${RESOURCE_GROUP}"
+  return 1
 }
 
 ensure_foundry_account() {
@@ -281,16 +374,21 @@ ensure_foundry_account() {
     --name "\${ACCOUNT_NAME}" \\
     --resource-group "\${RESOURCE_GROUP}" \\
     -o none 2>/dev/null; then
-    :
+    print_status "EXISTS" "Foundry account: \${ACCOUNT_NAME}"
   else
-    az cognitiveservices account create \\
+    print_status "RUNNING" "Creating Foundry account: \${ACCOUNT_NAME}"
+    if ! az cognitiveservices account create \\
       --name "\${ACCOUNT_NAME}" \\
       --resource-group "\${RESOURCE_GROUP}" \\
       --kind AIServices \\
       --sku s0 \\
       --location "\${ACCOUNT_LOCATION}" \\
       --allow-project-management \\
-      -o none
+      -o none; then
+      print_status "FAILED" "Foundry account: \${ACCOUNT_NAME}"
+    else
+      print_status "CREATED" "Foundry account: \${ACCOUNT_NAME}"
+    fi
   fi
 
   account_json="$(az cognitiveservices account show \\
@@ -302,6 +400,7 @@ ensure_foundry_account() {
   existing_custom_domain="$(echo "\${account_json}" | jq -r '.properties.customSubDomainName // .properties.customSubdomainName // .customSubDomainName // ""' 2>/dev/null || true)"
 
   if [ -n "\${existing_custom_domain}" ]; then
+    print_status "OK" "Custom domain: \${existing_custom_domain}"
     return 0
   fi
 
@@ -313,6 +412,7 @@ ensure_foundry_account() {
     --custom-domain "\${ACCOUNT_NAME}" \\
     -o none 2>"\${custom_domain_error}"; then
     rm -f "\${custom_domain_error}"
+    print_status "CREATED" "Custom domain: \${ACCOUNT_NAME}"
     return 0
   fi
 
@@ -328,10 +428,11 @@ ensure_foundry_project() {
     --resource-group "\${RESOURCE_GROUP}" \\
     --project-name "\${PROJECT_NAME}" \\
     -o none 2>/dev/null; then
-
+    print_status "EXISTS" "Foundry project: \${PROJECT_NAME}"
     return 0
   fi
 
+  print_status "RUNNING" "Creating Foundry project: \${PROJECT_NAME}"
   local project_error
   project_error="$(mktemp)"
   if az cognitiveservices account project create \\
@@ -341,6 +442,7 @@ ensure_foundry_project() {
     --location "\${ACCOUNT_LOCATION}" \\
     -o none 2>"\${project_error}"; then
     rm -f "\${project_error}"
+    print_status "CREATED" "Foundry project: \${PROJECT_NAME}"
     return 0
   fi
 
@@ -517,6 +619,10 @@ print_capacity_debug() {
 ${BASH_REPORT_FUNCTIONS}
 
 prepare_account_resources() {
+  print_section "Resources - \${ACCOUNT_LOCATION}"
+  echo "Account: \${ACCOUNT_NAME}"
+  echo "Resource group: \${RESOURCE_GROUP}"
+  echo "Region: \${ACCOUNT_LOCATION}"
   ensure_resource_group
   local account_rc=0
   ensure_foundry_account || account_rc=$?
@@ -539,6 +645,7 @@ wait_until_succeeded() {
         return 0
         ;;
       Failed|Canceled|Cancelled)
+        LAST_DEPLOYMENT_REASON="deployment state: \${state}"
         echo "ERROR: Deployment '\${deployment_name}' ended with state: \${state}"
         az rest \\
           --method get \\
@@ -552,6 +659,7 @@ wait_until_succeeded() {
     esac
   done
 
+  LAST_DEPLOYMENT_REASON="deployment timed out"
   echo "ERROR: Timed out waiting for '\${deployment_name}' to reach Succeeded."
   az rest \\
     --method get \\
@@ -567,11 +675,15 @@ deploy_model_with_max_capacity() {
   local model_name="$3"
   local model_version="$4"
   local configured_max_capacity="\${5:-0}"
+  LAST_DEPLOYMENT_REASON=""
+  LAST_DEPLOYMENT_SKU=""
+  LAST_DEPLOYMENT_CAPACITY=""
 
   local deployment_already_exists="false"
   if deployment_exists "\${deployment_name}"; then
     deployment_already_exists="true"
     if [ "\${OVERWRITE_EXISTING}" != "true" ]; then
+      LAST_DEPLOYMENT_REASON="already exists, overwrite disabled"
       return 2
     fi
 
@@ -591,6 +703,7 @@ deploy_model_with_max_capacity() {
         available_capacity="$(get_available_capacity "\${model_format}" "\${model_name}" "\${model_version}" "\${SKU_NAME}")"
         capacity_rc=$?
         if [ "\${capacity_rc}" -ne 0 ]; then
+          LAST_DEPLOYMENT_REASON="capacity query failed"
           echo "ERROR: Failed to query available capacity for \${SKU_NAME}."
           print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
           return 1
@@ -614,10 +727,11 @@ deploy_model_with_max_capacity() {
 
     if [ "\${capacity_rc}" -ne 0 ]; then
       if [ "\${capacity_rc}" -eq 2 ]; then
-        echo "WARNING: No \${SKU_NAME} availableCapacity found in \${ACCOUNT_LOCATION}."
+        LAST_DEPLOYMENT_REASON="no \${SKU_NAME} capacity record"
         print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
         return 2
       fi
+      LAST_DEPLOYMENT_REASON="capacity query failed"
       echo "ERROR: Failed to query available capacity for \${model_name} \${model_version}."
       print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
       return 1
@@ -628,6 +742,7 @@ deploy_model_with_max_capacity() {
   fi
 
   if ! [[ "\${available_capacity}" =~ ^[0-9]+$ ]]; then
+    LAST_DEPLOYMENT_REASON="invalid available capacity"
     echo "ERROR: Invalid available capacity value: \${available_capacity}"
     print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
     return 1
@@ -653,7 +768,7 @@ deploy_model_with_max_capacity() {
   fi
 
   if [ "\${target_capacity}" -le 0 ]; then
-    echo "WARNING: Max deployable capacity is \${target_capacity}; skip '\${deployment_name}'."
+    LAST_DEPLOYMENT_REASON="no available capacity"
     print_capacity_debug "\${model_format}" "\${model_name}" "\${model_version}"
     return 2
   fi
@@ -689,15 +804,21 @@ deploy_model_with_max_capacity() {
     --body "\${deployment_payload}" \\
     -o none; then
 
+    LAST_DEPLOYMENT_REASON="deployment request failed"
     echo "ERROR: Azure CLI deployment PUT failed for '\${deployment_name}'."
     return 1
   fi
 
   if ! wait_until_succeeded "\${deployment_name}"; then
+    if [ -z "\${LAST_DEPLOYMENT_REASON}" ]; then
+      LAST_DEPLOYMENT_REASON="deployment did not succeed"
+    fi
     echo "ERROR: Deployment '\${deployment_name}' did not reach Succeeded."
     return 1
   fi
 
+  LAST_DEPLOYMENT_SKU="\${selected_sku}"
+  LAST_DEPLOYMENT_CAPACITY="\${target_capacity}"
   return 0
 }
 
@@ -705,8 +826,16 @@ deploy_all_models() {
   # ============================================================
   # Main deployment loop
   # ============================================================
+  print_section "Models - \${ACCOUNT_LOCATION}"
+  local model_total="\${#MODELS[@]}"
+  local model_index=0
+  echo "Models selected: \${model_total}"
   for item in "\${MODELS[@]}"; do
+    model_index=$((model_index + 1))
     IFS='|' read -r deployment_name model_format model_name model_version configured_max_capacity <<< "\${item}"
+    local progress_prefix
+    printf -v progress_prefix "[%02d/%02d] %s" "\${model_index}" "\${model_total}" "\${deployment_name}"
+    start_model_progress "\${progress_prefix}"
 
     deploy_model_with_max_capacity "\${deployment_name}" "\${model_format}" "\${model_name}" "\${model_version}" "\${configured_max_capacity:-0}"
     rc=$?
@@ -714,12 +843,15 @@ deploy_all_models() {
     case "\${rc}" in
       0)
         SUCCEEDED_DEPLOYMENTS+=("\${deployment_name}")
+        finish_model_progress "\${progress_prefix} | SUCCESS | SKU=\${LAST_DEPLOYMENT_SKU} | capacity=\${LAST_DEPLOYMENT_CAPACITY}"
         ;;
       2)
         SKIPPED_DEPLOYMENTS+=("\${deployment_name}")
+        finish_model_progress "\${progress_prefix} | SKIPPED | \${LAST_DEPLOYMENT_REASON:-not deployable}"
         ;;
       *)
         FAILED_DEPLOYMENTS+=("\${deployment_name}")
+        finish_model_progress "\${progress_prefix} | FAILED | \${LAST_DEPLOYMENT_REASON:-unknown error}"
         ;;
     esac
 
@@ -732,9 +864,11 @@ fi
 
 if [ "\${DEPLOYMENT_RUN_MODE}" != "prepare-only" ]; then
   deploy_all_models
-  print_copyable_model_import_list
-  print_account_key_summary
   append_deployment_report
+  print_deployment_summary
+  if [ "\${AZURE_FOUNDRY_DEFER_REPORT_NOTICE:-}" = "true" ]; then
+    add_region_totals
+  fi
 fi
 ${includeIdentityComment ? `\n${identityComment}` : ''}
 `.trimEnd();
@@ -795,23 +929,36 @@ export function buildAzureCliMultiRegionDeploymentScript(
     'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
     'unset AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID',
     'export AZURE_FOUNDRY_REUSE_SELECTED_SUBSCRIPTION_ID="true"',
+    'export AZURE_FOUNDRY_DEFER_REPORT_NOTICE="true"',
+    'export AZURE_FOUNDRY_TOTAL_SUCCEEDED="0"',
+    'export AZURE_FOUNDRY_TOTAL_SKIPPED="0"',
+    'export AZURE_FOUNDRY_TOTAL_FAILED="0"',
+    'echo',
+    'echo "============================================================"',
+    'echo "Azure AI Foundry multi-region deployment"',
+    'echo "============================================================"',
+    `echo "Account: ${shellDoubleQuote(input.accountId?.trim() || '-')} | Email: ${shellDoubleQuote(input.accountEmail || '')}"`,
+    `echo "Regions: ${targets.length}"`,
     '# ============================================================',
     '# Prepare all selected regions first',
     '# ============================================================',
     ...targets.map((target, index) => {
       const label = target.label?.trim() || `Region ${index + 1}`;
-      const script = buildAzureCliDeploymentScriptInternal({
-        subscriptionId,
-        accountId: input.accountId,
-        servicePrincipal: input.servicePrincipal,
-        accountEmail: input.accountEmail,
-        resourceGroupName,
-        resourceName: target.resourceName,
-        location: target.location,
-        foundryProjectEndpoint: target.foundryProjectEndpoint,
-        models: target.models,
-        overwriteExisting: input.overwriteExisting,
-      }, false);
+      const script = buildAzureCliDeploymentScriptInternal(
+        {
+          subscriptionId,
+          accountId: input.accountId,
+          servicePrincipal: input.servicePrincipal,
+          accountEmail: input.accountEmail,
+          resourceGroupName,
+          resourceName: target.resourceName,
+          location: target.location,
+          foundryProjectEndpoint: target.foundryProjectEndpoint,
+          models: target.models,
+          overwriteExisting: input.overwriteExisting,
+        },
+        false
+      );
 
       return [
         `# ============================================================`,
@@ -826,18 +973,21 @@ export function buildAzureCliMultiRegionDeploymentScript(
     '# ============================================================',
     ...targets.map((target, index) => {
       const label = target.label?.trim() || `Region ${index + 1}`;
-      const script = buildAzureCliDeploymentScriptInternal({
-        subscriptionId,
-        accountId: input.accountId,
-        servicePrincipal: input.servicePrincipal,
-        accountEmail: input.accountEmail,
-        resourceGroupName,
-        resourceName: target.resourceName,
-        location: target.location,
-        foundryProjectEndpoint: target.foundryProjectEndpoint,
-        models: target.models,
-        overwriteExisting: input.overwriteExisting,
-      }, false);
+      const script = buildAzureCliDeploymentScriptInternal(
+        {
+          subscriptionId,
+          accountId: input.accountId,
+          servicePrincipal: input.servicePrincipal,
+          accountEmail: input.accountEmail,
+          resourceGroupName,
+          resourceName: target.resourceName,
+          location: target.location,
+          foundryProjectEndpoint: target.foundryProjectEndpoint,
+          models: target.models,
+          overwriteExisting: input.overwriteExisting,
+        },
+        false
+      );
 
       return [
         `# ============================================================`,
@@ -847,7 +997,17 @@ export function buildAzureCliMultiRegionDeploymentScript(
         script,
       ].join('\n');
     }),
+    'echo',
+    'echo "============================================================"',
+    'echo "Summary"',
+    'echo "============================================================"',
+    'echo "Deployment summary: succeeded=${AZURE_FOUNDRY_TOTAL_SUCCEEDED:-0}, skipped=${AZURE_FOUNDRY_TOTAL_SKIPPED:-0}, failed=${AZURE_FOUNDRY_TOTAL_FAILED:-0}"',
+    'echo "Result file: ${AZURE_FOUNDRY_REPORT_PATH}"',
     'unset AZURE_FOUNDRY_DEPLOYMENT_RUN_MODE',
+    'unset AZURE_FOUNDRY_DEFER_REPORT_NOTICE',
+    'unset AZURE_FOUNDRY_TOTAL_SUCCEEDED',
+    'unset AZURE_FOUNDRY_TOTAL_SKIPPED',
+    'unset AZURE_FOUNDRY_TOTAL_FAILED',
     'unset AZURE_FOUNDRY_REPORT_PATH',
     'unset AZURE_FOUNDRY_REPORT_TIMESTAMP',
     'unset AZURE_FOUNDRY_SELECTED_SUBSCRIPTION_ID',
