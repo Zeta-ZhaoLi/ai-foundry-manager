@@ -169,6 +169,13 @@
         "capacity": 15000
       },
       {
+        "deploymentName": "gpt-6-astra",
+        "modelFormat": "OpenAI",
+        "modelName": "gpt-6-astra",
+        "version": "2026-09-03",
+        "capacity": 15000
+      },
+      {
         "deploymentName": "gpt-5-pro-2025-10-06",
         "modelFormat": "OpenAI",
         "modelName": "gpt-5-pro",
